@@ -1,0 +1,188 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Admin Overview — GoldenProxies{% endblock %}
+{% block mobile_title %}Admin{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-5xl mx-auto space-y-6">
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center shadow-md shadow-[#D4AF37]/20">
+        <span class="text-white text-lg">👑</span>
+      </div>
+      <div>
+        <h1 class="text-2xl font-serif font-bold text-gray-900">Admin Dashboard</h1>
+        <p class="text-xs text-gray-500 mt-0.5">Super admin view — manage users, subscriptions and support</p>
+      </div>
+    </div>
+    <a href="/admin-panel/whop-settings/" class="glass-btn text-xs px-3 py-2 rounded-xl flex items-center gap-1.5">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      Whop Settings
+    </a>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+    <div class="glass-card rounded-2xl p-5 shadow-md">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Total Users</div>
+      <div class="text-2xl font-serif font-bold text-[#D4AF37]">{{ total_users }}</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5 shadow-md">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Active Subs</div>
+      <div class="text-2xl font-serif font-bold text-green-600">{{ active_subs }}</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5 shadow-md">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">MRR</div>
+      <div class="text-2xl font-serif font-bold text-[#D4AF37]">${{ mrr|floatformat:0 }}</div>
+      <div class="text-xs text-gray-400 mt-1">ARR ${{ arr|floatformat:0 }}</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5 shadow-md">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Total Revenue</div>
+      <div class="text-2xl font-serif font-bold text-green-600">${{ total_revenue|floatformat:0 }}</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5 shadow-md">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Open Tickets</div>
+      <div class="text-2xl font-serif font-bold {% if open_tickets > 0 %}text-orange-500{% else %}text-gray-900{% endif %}">{{ open_tickets }}</div>
+    </div>
+  </div>
+
+  <!-- Plan Distribution + Recent Users row -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+    <!-- Plan Distribution -->
+    <div class="glass-card rounded-2xl p-6">
+      <h2 class="font-serif font-bold text-gray-900 mb-4">Plan Distribution</h2>
+      <div class="space-y-3">
+        {% with total_users as total %}
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-gray-600">Free</span>
+            <span class="font-semibold text-gray-800">{{ plan_counts.free }}</span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            {% if total %}<div class="h-full bg-gray-300 rounded-full" style="width:{% widthratio plan_counts.free total 100 %}%"></div>{% endif %}
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-gray-600">Starter — ${{ pricing.starter_monthly }}/mo</span>
+            <span class="font-semibold text-gray-800">{{ plan_counts.starter }}</span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            {% if total %}<div class="h-full bg-blue-400 rounded-full" style="width:{% widthratio plan_counts.starter total 100 %}%"></div>{% endif %}
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-gray-600">Pro — ${{ pricing.pro_monthly }}/mo</span>
+            <span class="font-semibold text-[#D4AF37]">{{ plan_counts.pro }}</span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            {% if total %}<div class="h-full bg-[#D4AF37] rounded-full" style="width:{% widthratio plan_counts.pro total 100 %}%"></div>{% endif %}
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="text-gray-600">Business — ${{ pricing.agency_monthly }}/mo</span>
+            <span class="font-semibold text-purple-600">{{ plan_counts.agency }}</span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            {% if total %}<div class="h-full bg-purple-400 rounded-full" style="width:{% widthratio plan_counts.agency total 100 %}%"></div>{% endif %}
+          </div>
+        </div>
+        {% endwith %}
+      </div>
+    </div>
+
+    <!-- Recent Signups -->
+    <div class="glass-card rounded-2xl p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-serif font-bold text-gray-900">Recent Signups</h2>
+        <a href="/admin-panel/users/" class="text-xs text-[#D4AF37] hover:underline">View all →</a>
+      </div>
+      <div class="space-y-3">
+        {% for u in recent_users %}
+        <a href="/admin-panel/users/{{ u.pk }}/" class="flex items-center gap-3 hover:bg-[#D4AF37]/4 rounded-xl px-2 py-1.5 transition-colors -mx-2">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#D4AF37]/20 to-[#D4AF37]/5 flex items-center justify-center flex-shrink-0 text-[#D4AF37] font-bold text-sm">
+            {{ u.email|first|upper }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-gray-800 truncate">{{ u.get_full_name|default:u.email }}</p>
+            <p class="text-xs text-gray-400">{{ u.date_joined|date:"M d, Y" }}</p>
+          </div>
+          {% with u.profile.plan as plan %}
+          <span class="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0
+            {% if plan == 'agency' %}bg-purple-100 text-purple-700
+            {% elif plan == 'pro' %}bg-amber-100 text-amber-700
+            {% elif plan == 'starter' %}bg-blue-100 text-blue-700
+            {% else %}bg-gray-100 text-gray-500{% endif %}">
+            {{ plan|default:"free"|capfirst }}
+          </span>
+          {% endwith %}
+        </a>
+        {% empty %}
+        <p class="text-gray-400 text-sm text-center py-4">No users yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Invoices -->
+  <div class="glass-card rounded-2xl p-6 shadow-md">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-serif font-bold text-gray-900">Recent Invoices</h2>
+      <a href="/admin-panel/invoices/" class="text-xs text-[#D4AF37] hover:underline">View all →</a>
+    </div>
+    {% if recent_invoices %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[#D4AF37]/10">
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Customer</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Plan</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3 pr-4">Amount</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Date</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#D4AF37]/8">
+          {% for inv in recent_invoices %}
+          <tr class="hover:bg-[#D4AF37]/3 transition-colors">
+            <td class="py-3 pr-4">
+              <a href="/admin-panel/users/{{ inv.user.pk }}/" class="font-medium text-gray-800 hover:text-[#D4AF37]">{{ inv.user.email }}</a>
+            </td>
+            <td class="py-3 pr-4 text-gray-600">{{ inv.plan_label }}</td>
+            <td class="py-3 pr-4 font-bold text-gray-900">{{ inv.amount }}</td>
+            <td class="py-3 text-gray-500">{{ inv.date }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-gray-400 text-sm text-center py-6">No invoices yet. Configure Whop to start accepting payments.</p>
+    <div class="text-center">
+      <a href="/admin-panel/whop-settings/" class="gold-btn inline-block px-5 py-2.5 rounded-xl text-sm font-semibold mt-2">Configure Whop →</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Quick Links -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <a href="/admin-panel/users/" class="glass-card rounded-xl p-4 text-center hover:border-[#D4AF37]/30 transition-all group">
+      <svg class="w-6 h-6 mx-auto mb-2 text-gray-400 group-hover:text-[#D4AF37] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      <p class="text-xs font-semibold text-gray-700">Manage Users</p>
+    </a>
+    <a href="/admin-panel/invoices/" class="glass-card rounded-xl p-4 text-center hover:border-[#D4AF37]/30 transition-all group">
+      <svg class="w-6 h-6 mx-auto mb-2 text-gray-400 group-hover:text-[#D4AF37] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <p class="text-xs font-semibold text-gray-700">Invoices</p>
+    </a>
+    <a href="/admin-panel/messages/" class="glass-card rounded-xl p-4 text-center hover:border-[#D4AF37]/30 transition-all group">
+      <svg class="w-6 h-6 mx-auto mb-2 text-gray-400 group-hover:text-[#D4AF37] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      <p class="text-xs font-semibold text-gray-700">Support Queue</p>
+    </a>
+    <a href="/admin-panel/whop-settings/" class="glass-card rounded-xl p-4 text-center hover:border-[#D4AF37]/30 transition-all group">
+      <svg class="w-6 h-6 mx-auto mb-2 text-gray-400 group-hover:text-[#D4AF37] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      <p class="text-xs font-semibold text-gray-700">Whop Settings</p>
+    </a>
+  </div>
+
+</div>
+{% endblock %}

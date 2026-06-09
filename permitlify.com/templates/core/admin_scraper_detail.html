@@ -1,0 +1,1623 @@
+{% extends "core/admin_base.html" %}
+{% load static %}
+{% load humanize %}
+{% block title %}{{ scraper.name }} · Scraper{% endblock %}
+{% block page_title %}{{ scraper.name }}{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; <span style="font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:11.5px;">{{ host }}</span>{% endblock %}
+
+{% block extra_head %}
+<style>
+.dt-grid{display:grid;grid-template-columns:1fr;gap:18px;align-items:start;}
+.dt-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.dt-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.dt-head h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13px;color:var(--text);margin:0;flex:1;}
+.dt-head .pill{font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',monospace;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;}
+.dt-head .pill.ok{background:rgba(22,163,74,.12);color:#15803d;}
+.dt-head .pill.failed{background:rgba(220,38,38,.12);color:#b91c1c;}
+.dt-head .pill.partial{background:rgba(234,88,12,.12);color:#9a3412;}
+.dt-head .pill.idle{background:rgba(100,116,139,.12);color:#475569;}
+
+/* Source URL row under the Overview header — gives admins one-click
+   access to the page being scraped without hunting through the
+   actions row. Mirrors the Whop revenue page side-row pattern: small
+   uppercase label · monospace value · primary CTA on the right. */
+.dt-source{display:flex;align-items:center;gap:12px;padding:12px 18px;
+  border-bottom:1px solid var(--border);background:var(--bg);}
+.dt-source .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.06em;font-weight:700;flex-shrink:0;}
+.dt-source .url{flex:1;min-width:0;font-family:'JetBrains Mono',monospace;
+  font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dt-source .url a{color:#1d4ed8;text-decoration:none;}
+.dt-source .url a:hover{text-decoration:underline;}
+.dt-source .none{color:var(--muted);font-style:italic;}
+
+/* Fluid stats grid: auto-fit packs as many ~160px cells per row as
+   the card width allows, so it's 4-up on a desktop, 2-up on a
+   laptop, 1-up on a phone — without us guessing breakpoints. */
+.dt-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:14px 18px;}
+.dt-stat{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:11px 13px;}
+.dt-stat .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:4px;}
+.dt-stat .val{font-size:18px;font-weight:800;color:var(--text);font-family:'JetBrains Mono',monospace;}
+
+.dt-actions{padding:0 18px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+.dt-btn{padding:8px 14px;border:1px solid var(--border);background:#fff;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text);display:inline-flex;align-items:center;gap:6px;text-decoration:none;}
+.dt-btn:hover{background:var(--bg);}
+.dt-btn.primary{background:var(--grad);color:#fff;border-color:transparent;box-shadow:var(--sh-grad);}
+.dt-btn.primary:hover{opacity:.92;transform:translateY(-1px);}
+.dt-btn:disabled{opacity:.55;cursor:not-allowed;}
+.dt-btn:disabled:hover{transform:none;}
+
+/* date-range inputs that sit inline next to Run-now */
+.dt-daterng{display:flex;gap:8px;align-items:flex-end;}
+.dt-daterng .fld{display:flex;flex-direction:column;gap:3px;}
+.dt-daterng .fld label{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;}
+.dt-daterng .fld input{padding:7px 9px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;color:var(--text);background:#fff;height:32px;box-sizing:border-box;}
+
+/* tiny inline spinner used when a run is in flight */
+.dt-spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:dtSpin .8s linear infinite;display:none;}
+.dt-btn.primary.is-running .dt-spin{display:inline-block;}
+@keyframes dtSpin{to{transform:rotate(360deg);}}
+
+/* CLI-style live terminal panel that streams step_log entries */
+.dt-term-wrap{padding:0 18px 18px;display:none;}
+.dt-term-wrap.is-open{display:block;}
+.dt-term{background:#0b1220;color:#cbd5e1;border:1px solid #1e293b;border-radius:10px;overflow:hidden;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.55;}
+.dt-term-bar{background:#0f172a;color:#94a3b8;padding:8px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #1e293b;font-size:11px;flex-wrap:wrap;}
+.dt-term-bar .dot{width:9px;height:9px;border-radius:50%;background:#dc2626;}
+.dt-term-bar .dot.ok{background:#16a34a;}
+.dt-term-bar .dot.warn{background:#f59e0b;}
+.dt-term-bar .ttl{color:#e2e8f0;font-weight:700;}
+.dt-term-bar .nums{margin-left:auto;font-family:'JetBrains Mono',monospace;}
+.dt-term-bar .closex{background:none;border:0;color:#94a3b8;cursor:pointer;font-size:14px;padding:0 4px;}
+.dt-term-bar .closex:hover{color:#fff;}
+.dt-term-body{padding:10px 14px;max-height:340px;overflow:auto;background:#0b1220;}
+.dt-term-line{padding:1px 0;white-space:pre-wrap;word-break:break-word;}
+.dt-term-line .ts{color:#64748b;margin-right:8px;}
+.dt-term-line.info{color:#cbd5e1;}
+.dt-term-line.ok  {color:#86efac;}
+.dt-term-line.warn{color:#fde68a;}
+.dt-term-line.err {color:#fca5a5;}
+.dt-term-line.cur {color:#93c5fd;}
+.dt-term-cursor{display:inline-block;width:7px;height:13px;background:#94a3b8;animation:dtBlink 1s steps(2) infinite;vertical-align:middle;margin-left:2px;}
+/* Always-on script command panel — sits above the terminal so the
+ * admin can see (and copy) the equivalent CLI invocation. Stays
+ * visible even when no run is active. */
+.dt-cmd-wrap{padding:0 18px 8px;}
+.dt-cmd{background:#0b1220;border:1px solid #1e293b;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#cbd5e1;}
+.dt-cmd .lbl{color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10px;flex-shrink:0;}
+.dt-cmd .cmd{flex:1;color:#86efac;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dt-cmd button{background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;}
+.dt-cmd button:hover{background:#334155;}
+/* Progress bar — sits inside the terminal bar, fills left→right.
+   Stays GREEN throughout the run so the user gets unambiguous "still
+   working" feedback; only flips red on a true total failure. The
+   subtle gradient + pulse animation while the run is in flight makes
+   it obvious motion is happening even when the width is barely
+   moving (e.g. one large LLM call in flight). */
+.dt-pbar{flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden;margin:0 12px;}
+.dt-pbar-fill{height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:3px;transition:width .4s ease;width:0%;}
+.dt-pbar-fill.live{background:linear-gradient(90deg,#16a34a,#22c55e,#16a34a);background-size:200% 100%;animation:dtPbarPulse 1.6s linear infinite;}
+.dt-pbar-fill.err {background:linear-gradient(90deg,#dc2626,#ef4444);animation:none;}
+@keyframes dtPbarPulse{0%{background-position:0% 0;}100%{background-position:-200% 0;}}
+/* Stop / Force-stop buttons — only enabled while a run is in flight */
+.dt-stop{background:#7f1d1d;border:1px solid #b91c1c;color:#fff;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;}
+.dt-stop:hover{background:#991b1b;}
+.dt-stop:disabled{opacity:.45;cursor:not-allowed;}
+.dt-fstop{background:#000;border:1px solid #b91c1c;color:#fca5a5;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;margin-left:6px;}
+.dt-fstop:hover{background:#1a0000;color:#fff;}
+.dt-fstop:disabled{opacity:.4;cursor:not-allowed;}
+/* Worker pid/tid badge — small, monospace, sits next to the dot so
+   the admin can verify "is it actually running on this dyno?" at a
+   glance and `kill -TERM` it from ssh if the cooperative + force
+   stops both miss. */
+.dt-pid{font-family:'JetBrains Mono',monospace;font-size:10px;color:#94a3b8;background:#0f172a;border:1px solid #1e293b;padding:2px 6px;border-radius:4px;margin-left:8px;letter-spacing:.02em;}
+@keyframes dtBlink{0%,49%{opacity:1;}50%,100%{opacity:0;}}
+
+/* Fluid filter grid: same auto-fit trick — every cell gets at
+   least ~170px, the row packs as many as fit, and the Apply /
+   Reset buttons (which live as direct children of `.dt-filters`)
+   participate in the same grid so they wrap naturally instead of
+   spilling past the right edge. No breakpoints needed.
+
+   Why ditch the old fixed 5-col → 3-col → 2-col → 1-col cascade:
+   it broke at every viewport width that wasn't on our list (e.g.
+   1440px laptop: the 5-col layout pinched + the Apply button got
+   pushed off-screen). Auto-fit fixes it at every width forever. */
+.dt-filters{padding:14px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end;border-top:1px solid var(--border);background:var(--bg);}
+/* Source URL row: always allow long URLs to wrap so they never
+   force horizontal scroll on narrower cards. */
+.dt-source{flex-wrap:wrap;}
+.dt-source .url{flex:1 1 240px;min-width:0;white-space:normal;word-break:break-all;}
+/* ── Mobile (≤768px) for the detail page ────────────────────────────
+   - Stats card: 4-col → 2-col so the big numbers stay readable.
+   - Source URL row: allow the long URL to wrap instead of clipping.
+   - Action buttons + date-range stack vertically full-width.
+   - Filters collapse to one column.
+   - Permits table already lives in `.dt-tablewrap{overflow-x:auto}`,
+     so it scrolls horizontally for free; we just make sure the
+     foot/pager wraps and centres. */
+@media (max-width: 768px) {
+  .dt-stats{gap:10px;padding:12px 14px;}
+  .dt-stat .val{font-size:16px;}
+  .dt-source{gap:8px;padding:10px 14px;}
+  .dt-actions{padding:0 14px 14px;flex-direction:column;align-items:stretch;}
+  .dt-actions .dt-btn,
+  .dt-actions .dt-daterng{width:100%;justify-content:center;}
+  .dt-daterng{flex-wrap:wrap;}
+  .dt-daterng .fld{flex:1 1 calc(50% - 4px);}
+  .dt-filters{padding:12px 14px;}
+  .dt-cmd-wrap,
+  .dt-term-wrap{padding-left:14px;padding-right:14px;}
+  .dt-cmd .cmd{font-size:10.5px;}
+  .dt-pager{flex-direction:column;gap:8px;padding:10px 14px;text-align:center;}
+}
+.dt-filters label{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:4px;}
+.dt-filters input, .dt-filters select{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;background:#fff;color:var(--text);box-sizing:border-box;}
+.dt-filters .apply{padding:7px 14px;background:var(--grad);color:#fff;border:0;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;height:32px;align-self:end;}
+
+.dt-table{width:100%;border-collapse:collapse;}
+.dt-table th, .dt-table td{padding:10px 14px;text-align:left;font-size:12px;border-bottom:1px solid var(--border);}
+.dt-table th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;background:var(--bg);position:sticky;top:0;}
+.dt-table td{vertical-align:top;}
+.dt-table .num{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);}
+.dt-table .grade{display:inline-block;padding:2px 7px;border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;}
+.dt-table .grade.A{background:#dcfce7;color:#15803d;}
+.dt-table .grade.B{background:#dbeafe;color:#1d4ed8;}
+.dt-table .grade.C{background:#fef3c7;color:#a16207;}
+.dt-table .grade.D, .dt-table .grade.F{background:#fee2e2;color:#b91c1c;}
+
+.dt-pager{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:var(--bg);border-top:1px solid var(--border);font-size:12px;color:var(--muted);}
+
+/* ── DataTables theme overrides — match the rest of the admin chrome.
+   Mirrors the override block used by templates/core/permits.html so the
+   table feels native and not "stock DataTables stamped onto a dark
+   admin layout". CDN ships its own colours; we only override what we
+   need to swap in our --bg / --border / --grad / --text vars. ── */
+#permitsTable_wrapper{position:relative;}
+.dt-tablewrap{position:relative;overflow-x:auto;}
+.dataTables_processing{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:#fff;border:1px solid var(--border);border-radius:10px;
+  padding:8px 16px;font-size:11.5px;font-weight:600;color:var(--text);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  box-shadow:0 4px 14px rgba(15,23,42,.10);z-index:30;
+}
+/* Footer row that DataTables drops in via the `dom:` template below. */
+.dt-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 18px;background:var(--bg);border-top:1px solid var(--border);
+  flex-wrap:wrap;font-family:inherit;
+}
+.dataTables_info{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
+}
+.dataTables_paginate{display:flex;align-items:center;gap:6px;}
+.dataTables_paginate .paginate_button{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:30px;height:30px;padding:0 9px;
+  border:1px solid var(--border);border-radius:7px;
+  background:#fff;color:var(--text);
+  font-size:11.5px;font-weight:600;cursor:pointer;
+  font-family:inherit;text-decoration:none;
+  transition:background .12s, border-color .12s, color .12s;
+}
+.dataTables_paginate .paginate_button:hover{
+  background:var(--bg);border-color:var(--text);
+}
+.dataTables_paginate .paginate_button.current,
+.dataTables_paginate .paginate_button.current:hover{
+  background:var(--grad);border-color:transparent;color:#fff;
+  box-shadow:var(--sh-grad);
+}
+.dataTables_paginate .paginate_button.disabled,
+.dataTables_paginate .paginate_button.disabled:hover{
+  opacity:.4;cursor:not-allowed;color:var(--muted);
+  border-color:var(--border);background:#fff;
+}
+.dataTables_length{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);}
+.dataTables_length label{display:flex;align-items:center;gap:8px;margin:0;}
+.dataTables_length select{
+  height:30px;border:1px solid var(--border);border-radius:7px;
+  padding:0 22px 0 9px;font-size:11.5px;font-weight:600;color:var(--text);
+  background:#fff;cursor:pointer;font-family:inherit;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;
+}
+.dataTables_paginate .ellipsis{padding:0 4px;color:var(--muted);font-weight:600;}
+/* Sortable column headers — give the user a hint they're clickable. */
+.dt-table th.sorting,
+.dt-table th.sorting_asc,
+.dt-table th.sorting_desc{cursor:pointer;}
+.dt-table th.sorting_asc::after  {content:' ↑';color:var(--text);}
+.dt-table th.sorting_desc::after {content:' ↓';color:var(--text);}
+.dt-table th.sorting::after      {content:' ↕';color:var(--muted);opacity:.55;}
+.dt-pager a, .dt-pager span.cur{padding:5px 10px;border:1px solid var(--border);border-radius:6px;text-decoration:none;color:var(--text);font-weight:600;background:#fff;}
+.dt-pager a:hover{background:var(--bg);}
+.dt-pager span.cur{background:var(--grad);color:#fff;border-color:transparent;}
+.dt-pager span.disabled{padding:5px 10px;color:var(--muted);opacity:.5;}
+
+/* progress modal */
+.bf-mask{position:fixed;inset:0;background:rgba(15,23,42,.65);z-index:9998;display:none;align-items:center;justify-content:center;}
+.bf-mask.show{display:flex;}
+.bf-modal{background:#fff;border-radius:14px;padding:22px 26px;width:480px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.bf-modal h3{margin:0 0 6px;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;}
+.bf-modal .sub{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.bf-row{display:flex;gap:12px;margin-bottom:14px;}
+.bf-row label{flex:1;font-size:11.5px;}
+.bf-row input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;font-size:12.5px;box-sizing:border-box;font-family:inherit;}
+.bf-bar{height:14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin:14px 0 6px;}
+.bf-bar-fill{height:100%;background:var(--grad);width:0%;transition:width .35s;}
+.bf-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.bf-step{margin-top:10px;font-size:12px;color:var(--text);min-height:18px;}
+.bf-errors{margin-top:12px;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;}
+.bf-errors-h{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#b91c1c;margin-bottom:6px;}
+.bf-err-row{font-size:11px;color:#991b1b;font-family:'JetBrains Mono',monospace;line-height:1.5;padding:3px 0;border-top:1px solid rgba(220,38,38,.15);}
+.bf-err-row:first-of-type{border-top:0;padding-top:0;}
+.bf-err-msg{word-break:break-word;}
+.src-btn{padding:4px 10px;font-size:11px;font-weight:600;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);cursor:pointer;font-family:inherit;}
+.src-btn:hover{background:var(--blue);color:#fff;border-color:var(--blue);}
+.src-modal{background:#fff;border-radius:14px;padding:20px 24px;width:980px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.src-modal h3{margin:0 0 4px;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;}
+.src-modal .src-sub{font-size:12px;color:var(--muted);margin-bottom:14px;word-break:break-all;}
+.src-body{flex:1;overflow:auto;background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;}
+.src-body pre{margin:0;}
+.src-meta-row{display:flex;flex-wrap:wrap;gap:14px;font-size:11px;color:var(--muted);margin-bottom:10px;font-family:'JetBrains Mono',monospace;}
+.src-meta-row b{color:var(--text);font-weight:700;}
+.src-modal .bf-actions{margin-top:14px;flex-shrink:0;}
+.bf-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+.bf-actions button{padding:8px 16px;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text);}
+.bf-actions .start{background:var(--grad);color:#fff;border-color:transparent;}
+.bf-actions .start:disabled{opacity:.55;cursor:not-allowed;}
+
+#toastDt{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;font-size:12.5px;font-weight:500;padding:11px 18px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
+#toastDt.show{opacity:1;}
+#toastDt.ok{background:#16a34a;}
+#toastDt.err{background:#dc2626;}
+
+/* ── Edit-scraper modal (mirrors /admin-panel/scrapers/ modal) ───── */
+#dtEditOverlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:9998;padding:20px;}
+#dtEditOverlay.open{display:flex;}
+#dtEditModal{background:#fff;border-radius:14px;border:1px solid var(--border);width:100%;max-width:520px;box-shadow:0 24px 60px rgba(15,23,42,.25);padding:22px 24px 20px;font-family:inherit;}
+#dtEditModal h3{margin:0 0 4px;font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;color:var(--text);font-weight:700;}
+#dtEditModal .dte-sub{font-size:12px;color:var(--muted);margin:0 0 18px;}
+#dtEditModal label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px;}
+#dtEditModal input[type=text]{width:100%;height:38px;padding:0 12px;border:1px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;color:var(--text);background:#fff;box-sizing:border-box;}
+#dtEditModal input[type=text]:focus{outline:none;border-color:var(--blue);}
+#dtEditModal .dte-row{display:flex;gap:10px;}
+#dtEditModal .dte-row > div{flex:1;}
+#dtEditModal .dte-row > div.dte-state{flex:0 0 110px;}
+#dtEditError{display:none;margin-top:12px;padding:9px 12px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:12px;font-weight:500;}
+#dtEditError.show{display:block;}
+#dtEditModal .dte-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+#dtEditModal .dte-actions .dt-btn{padding:8px 16px;font-size:12px;}
+@media (max-width: 480px){
+  #dtEditModal{padding:18px 16px;}
+  #dtEditModal .dte-row{flex-direction:column;gap:0;}
+  #dtEditModal .dte-row > div.dte-state{flex:1 1 auto;}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="toastDt"></div>
+
+{# Edit-scraper modal — same fields & endpoint as the modal on        #}
+{# /admin-panel/scrapers/. Server-prefilled from the scraper context  #}
+{# (avoids an extra fetch and works even before any JS runs).          #}
+<div id="dtEditOverlay" role="dialog" aria-modal="true" aria-labelledby="dtEditTitle">
+  <div id="dtEditModal">
+    <h3 id="dtEditTitle">Edit scraper</h3>
+    <p class="dte-sub">Update the name, source URL, city, and state. Other settings live below.</p>
+    <form id="dtEditForm" autocomplete="off" data-sid="{{ scraper.id }}">
+      <label for="dtEditName">Name</label>
+      <input type="text" id="dtEditName" name="name" maxlength="200" required value="{{ scraper.name|default_if_none:'' }}">
+      <label for="dtEditUrl">URL</label>
+      <input type="text" id="dtEditUrl" name="url" maxlength="2000" required placeholder="https://…" value="{{ scraper.url|default_if_none:'' }}">
+      <div class="dte-row">
+        <div>
+          <label for="dtEditCity">City</label>
+          <input type="text" id="dtEditCity" name="city" maxlength="120" value="{{ scraper.city|default_if_none:'' }}">
+        </div>
+        <div class="dte-state">
+          <label for="dtEditState">State</label>
+          <input type="text" id="dtEditState" name="state" maxlength="2" placeholder="CA" style="text-transform:uppercase;" value="{{ scraper.state|default_if_none:'' }}">
+        </div>
+      </div>
+      {# Accela tenants like Boulder County (BOCO), San Diego, and    #}
+      {# Scottsdale render a non-empty Permit Type dropdown that      #}
+      {# returns ZERO rows on an "any" submit — the admin must pick a #}
+      {# specific type. Paste the literal value="" attribute of the   #}
+      {# desired <option> here (e.g. Building/Application Request/    #}
+      {# Building Permit/NA → "Building Permit Request" on BOCO).     #}
+      {# Leave blank to clear and let the search post with no type    #}
+      {# filter (the right answer for ~70% of Accela tenants).        #}
+      <label for="dtEditPermitType">Permit Type filter (Accela <code>ddlGSPermitType</code> value)</label>
+      <input type="text" id="dtEditPermitType" name="permit_type" maxlength="500"
+             placeholder="leave blank for any · e.g. Building/Application Request/Building Permit/NA"
+             value="{{ scraper.config.permit_type|default_if_none:'' }}">
+      {# Optional dropdown-loop. Some Accela tenants (e.g. Fort           #}
+      {# Lauderdale) cap or skip rows unless a <select> filter is set.    #}
+      {# Paste the FULL form-field name of the dropdown to enumerate —    #}
+      {# the scraper will run one search per non-empty option and merge   #}
+      {# results, deduping by permit URL. Common FTL value:               #}
+      {#   ctl00$PlaceHolderMain$generalSearchForm$ddlGSStreetSuffix      #}
+      {# Leave blank for the default single-pass behaviour.               #}
+      <label for="dtEditLoopField">Loop dropdown (Accela form field name — runs one search per option)</label>
+      <input type="text" id="dtEditLoopField" name="loop_field" maxlength="200"
+             placeholder="leave blank for none · e.g. ctl00$PlaceHolderMain$generalSearchForm$ddlGSStreetSuffix"
+             value="{{ scraper.config.loop_field|default_if_none:'' }}">
+      {# Some Accela tenants (e.g. Roseville CA — #160) return the   #}
+      {# richest result set when you type a partial value into the   #}
+      {# General Search "Permit Number" text box (e.g. "bd" matches  #}
+      {# every BD-prefixed record). Saving a value here makes the    #}
+      {# scraper type that text into the standard permit-number      #}
+      {# input on every search + pagination POST. Leave blank to     #}
+      {# fall back to the default date-range-only search.            #}
+      <label for="dtEditSearchInput">Search input (Accela <code>txtGSPermitNumber</code> value — typed into the General Search Permit Number box)</label>
+      <input type="text" id="dtEditSearchInput" name="search_input" maxlength="200"
+             placeholder="leave blank for default · e.g. bd (Roseville BD-prefixed permits)"
+             value="{{ scraper.config.search_input|default_if_none:'' }}">
+      <div id="dtEditError"></div>
+      <div class="dte-actions">
+        <button type="button" class="dt-btn" onclick="closeEditScraper()">Cancel</button>
+        <button type="submit" class="dt-btn primary" id="dtEditSave">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<a href="/admin-panel/scrapers/" style="font-size:12px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:14px;">← Back to scrapers</a>
+
+<div class="dt-grid">
+
+  <!-- Main column -->
+  <div>
+    <div class="dt-card">
+      <div class="dt-head">
+        <h3>Overview</h3>
+        {% if not scraper.enabled %}
+          <span class="pill idle">disabled</span>
+        {% elif scraper.last_run_status == 'success' %}
+          <span class="pill ok">last run · success</span>
+        {% elif scraper.last_run_status == 'failed' %}
+          <span class="pill failed">last run · failed</span>
+        {% elif scraper.last_run_status == 'partial' %}
+          <span class="pill partial">last run · partial</span>
+        {% else %}
+          <span class="pill idle">never run</span>
+        {% endif %}
+        {% if scraper.enabled %}
+          <button class="dt-btn" type="button" id="toggleEnabledBtn" onclick="toggleEnabled(false)"
+                  style="margin-left:auto"
+                  title="Disable — skip this scraper in Run All & cron, and block manual runs until re-enabled">Disable</button>
+        {% else %}
+          <button class="dt-btn primary" type="button" id="toggleEnabledBtn" onclick="toggleEnabled(true)"
+                  style="margin-left:auto"
+                  title="Enable — include this scraper in Run All, cron and manual runs">Enable</button>
+        {% endif %}
+      </div>
+      {% comment %}
+        Defence-in-depth: only render the link when the URL is on
+        http(s). The `update_scraper` endpoint accepts any string
+        today, so a malicious or typo'd value would otherwise execute
+        when an admin clicks. `rel="noopener noreferrer"` blocks
+        `window.opener` access AND prevents the admin panel's path
+        leaking to the scraped site via Referer.
+
+        NOTE: MUST be {% verbatim %}{% comment %}{% endverbatim %}, not {# #} — Django's {# #}
+        is single-line only and a multi-line block leaks to the page.
+      {% endcomment %}
+      <div class="dt-source">
+        <span class="lbl">Source URL</span>
+        <span class="url">
+          {% if scraper.url|slice:":7" == "http://" or scraper.url|slice:":8" == "https://" %}
+            <a href="{{ scraper.url }}" target="_blank" rel="noopener noreferrer" title="{{ scraper.url }}">{{ scraper.url }}</a>
+          {% elif scraper.url %}
+            <span class="none">⚠ Invalid URL ({{ scraper.url }}) — must start with http:// or https://</span>
+          {% else %}
+            <span class="none">No URL configured</span>
+          {% endif %}
+        </span>
+        {% if scraper.url|slice:":7" == "http://" or scraper.url|slice:":8" == "https://" %}
+          <a class="dt-btn primary" href="{{ scraper.url }}" target="_blank" rel="noopener noreferrer" title="Open in new tab">↗ View</a>
+        {% endif %}
+        <button class="dt-btn" type="button" onclick="openEditScraper()" title="Edit name, URL, city, state">✎ Edit</button>
+      </div>
+      <div class="dt-stats">
+        <div class="dt-stat"><div class="lbl">Permits</div><div class="val">{{ permit_count }}</div></div>
+        <div class="dt-stat"><div class="lbl">Agency</div><div class="val" style="font-size:14px;">{{ scraper.agency_code|default:"—" }}</div></div>
+        <div class="dt-stat"><div class="lbl">Module</div><div class="val" style="font-size:14px;">{{ scraper.module|default:"—" }}</div></div>
+        <div class="dt-stat"><div class="lbl">Last Run</div><div class="val" style="font-size:13px;">{% if scraper.last_run_at %}{{ scraper.last_run_at|date:"M d, g:i A" }}{% else %}—{% endif %}</div></div>
+      </div>
+      <div class="dt-actions">
+        {% comment %}
+          Per-scraper "# of pages" input was removed — it's now a single
+          global knob on the /admin-panel/scrapers/ toolbar (persisted in
+          system_settings.scrapers_default_pages) so the admin doesn't
+          have to drill into every scraper to change it. The current
+          global value is shown read-only here for reference.
+        {% endcomment %}
+        <div class="dt-daterng" title="Set the global value on the Scrapers page toolbar.">
+          <div class="fld">
+            <label># of pages (global)</label>
+            <div id="runMaxPagesGlobal"
+                 style="font:600 14px/1.6 var(--font-mono,monospace);
+                        min-width:90px;text-align:right;
+                        padding:6px 10px;border:1px solid var(--bd,#e5e7eb);
+                        border-radius:6px;background:#f9fafb;color:#374151;">
+              {{ default_pages }}
+            </div>
+          </div>
+        </div>
+        <button class="dt-btn primary" id="runNowBtn" type="button" onclick="runNow()"
+                {% if not scraper.enabled %}disabled title="This scraper is disabled — click Enable above to run it"{% endif %}>
+          <span id="runIcon">▶</span>
+          <span class="dt-spin" aria-hidden="true"></span>
+          <span id="runLabel">Run now</span>
+        </button>
+        <button class="dt-btn" type="button" onclick="openBackfill()">⏪ Backfill…</button>
+        {# ── Delete this scraper (mirrors the per-row delete on        #}
+        {# the /admin-panel/scrapers/ list page so admins can also nuke #}
+        {# a misconfigured scraper from its detail page without bouncing #}
+        {# back to the list). Permits are NOT deleted — same contract   #}
+        {# as the bulk + per-row delete in admin_scrapers.html. #}
+        <form method="post" action="{% url 'admin_scraper_delete' scraper.id %}"
+              style="margin-left:auto;display:inline;"
+              onsubmit="return confirm('Delete scraper &quot;{{ scraper.name|escapejs }}&quot;?\n\nThis removes the scraper config + run history. Already-ingested permits are kept. This cannot be undone.');">
+          {% csrf_token %}
+          <button class="dt-btn" type="submit"
+                  style="border-color:#fecaca;color:#b91c1c;"
+                  title="Delete this scraper (run history removed; permits kept)">
+            🗑 Delete scraper
+          </button>
+        </form>
+      </div>
+      <!-- Always-on script command panel — shows the exact CLI
+           invocation that mirrors what "Run now" does. Updates live
+           when the date inputs change so admins can copy/paste a
+           working command into ssh. -->
+      <div class="dt-cmd-wrap">
+        <div class="dt-cmd">
+          <span class="lbl">cmd</span>
+          <span class="cmd" id="cmdText" title="{{ script_command }}">{{ script_command }}</span>
+          <button type="button" onclick="copyCmd()" title="Copy to clipboard">⧉ Copy</button>
+        </div>
+      </div>
+      <!-- Inline CLI-style terminal panel: now ALWAYS open. When no
+           run is active it shows the last run's transcript (preloaded
+           server-side); when a run starts the JS rewrites it and
+           polls the worker's step_log every 1.5s. The progress bar
+           inside the title bar fills proportional to processed/total. -->
+      <div class="dt-term-wrap is-open" id="termWrap">
+        <div class="dt-term">
+          <div class="dt-term-bar">
+            <span class="dot" id="termDot"></span>
+            <span class="ttl" id="termTitle">scraper-run</span>
+            <span class="dt-pbar" title="permit progress"><span class="dt-pbar-fill" id="termPbar"></span></span>
+            <span class="nums" id="termNums">0 / 0 · ✓ 0 · ✗ 0</span>
+            <span class="dt-pid" id="termPid" style="display:none" title="OS pid · Python thread ident of the worker"></span>
+            <button class="dt-stop" id="stopBtn" type="button" onclick="stopRun()" disabled title="Stop the worker now (hard kill on this server, cooperative cancel otherwise)">⏹ Stop</button>
+            <button class="dt-fstop" id="killBtn" type="button" onclick="killProcess()" disabled style="background:#b91c1c;display:none" title="Nuclear option — SIGTERM the worker process. Server restarts automatically.">💀 Kill</button>
+          </div>
+          <div class="dt-term-body" id="termBody">
+            {% if latest_run and latest_run.step_log %}
+              {% for entry in latest_run.step_log %}
+                <div class="dt-term-line {{ entry.level|default:'info' }}"><span class="ts">{{ entry.ts|slice:"11:19" }}</span>{{ entry.msg }}</div>
+              {% endfor %}
+              <div class="dt-term-line info">$ last run · {{ latest_run.status|default:"?" }} · {{ latest_run.succeeded|default:0 }} ok · {{ latest_run.failed|default:0 }} failed{% if not latest_run_active %} — click <b>Run now</b> for a fresh run.{% endif %}</div>
+            {% else %}
+              <div class="dt-term-line info">$ ready · click <b>Run now</b> to start.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dt-card" style="margin-top:18px;">
+      <div class="dt-head" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h3 style="margin:0;">Permits (<span id="permitsCount">{{ total }}</span>)</h3>
+        <button type="button" id="togglePermitFilters"
+                onclick="(function(){var f=document.getElementById('permitsFilters');var open=f.style.display!=='none';f.style.display=open?'none':'grid';this.textContent=open?'▾ Filters':'▴ Filters';}).call(this)"
+                style="margin-left:auto;padding:6px 12px;background:transparent;border:1px solid var(--border,#e5e7eb);color:var(--mut,#64748b);border-radius:6px;cursor:pointer;font-weight:600;font-size:12.5px;">
+          ▴ Filters
+        </button>
+      </div>
+      <!-- Filter form (in-table toolbar): never reloads the page. The
+           submit handler just calls permitsTable.ajax.reload(), and
+           DataTables' ajax.data callback reads the current values back
+           out for us. -->
+      <form id="permitsFilters" class="dt-filters" onsubmit="return false;"
+            style="border-top:1px solid var(--border);padding:12px;">
+        <div>
+          <label>Date from</label>
+          <input type="date" name="date_from" value="{{ filter_date_from }}">
+        </div>
+        <div>
+          <label>Date to</label>
+          <input type="date" name="date_to" value="{{ filter_date_to }}">
+        </div>
+        <div>
+          <label>Has email</label>
+          <select name="has_email">
+            <option value="" {% if not filter_has_email %}selected{% endif %}>any</option>
+            <option value="yes" {% if filter_has_email == 'yes' %}selected{% endif %}>yes</option>
+            <option value="no"  {% if filter_has_email == 'no'  %}selected{% endif %}>no</option>
+          </select>
+        </div>
+        <div>
+          <label>Has phone</label>
+          <select name="has_phone">
+            <option value="" {% if not filter_has_phone %}selected{% endif %}>any</option>
+            <option value="yes" {% if filter_has_phone == 'yes' %}selected{% endif %}>yes</option>
+            <option value="no"  {% if filter_has_phone == 'no'  %}selected{% endif %}>no</option>
+          </select>
+        </div>
+        <div>
+          <label>Permit #</label>
+          <input type="text" name="permit_number" placeholder="e.g. RES2026-…">
+        </div>
+        <div>
+          <label>Email</label>
+          <input type="text" name="email" placeholder="contains…">
+        </div>
+        <div>
+          <label>Phone</label>
+          <input type="text" name="phone" placeholder="contains…">
+        </div>
+        <div>
+          <label>Contractor</label>
+          <input type="text" name="contractor" placeholder="name contains…">
+        </div>
+        <div>
+          <label>Owner</label>
+          <input type="text" name="owner" placeholder="name contains…">
+        </div>
+        <div>
+          <label>City</label>
+          <input type="text" name="city" placeholder="contains…">
+        </div>
+        <div>
+          <label>Type</label>
+          <input type="text" name="permit_type" placeholder="e.g. Roof, Electrical">
+        </div>
+        <div>
+          <label>Score ≥</label>
+          <input type="number" name="min_score" min="0" max="100" step="1"
+                 placeholder="0" style="width:80px;">
+        </div>
+        <div>
+          <label>Score ≤</label>
+          <input type="number" name="max_score" min="0" max="100" step="1"
+                 placeholder="100" style="width:80px;">
+        </div>
+        <div style="flex:1;min-width:180px;">
+          <label>Search (any column)</label>
+          <input type="text" name="q" value="{{ filter_q }}"
+                 placeholder="permit / address / contact / email / phone / type">
+        </div>
+        <button class="apply" type="submit">Apply</button>
+        <button class="apply" type="button" onclick="resetPermitFilters()"
+                style="background:transparent;color:var(--mut,#64748b);
+                       border:1px solid var(--border,#e5e7eb);"
+                title="Clear all permit filters">Reset</button>
+      </form>
+      <!-- DataTables-rendered server-side table. Rows are loaded
+           via AJAX from /admin-panel/scrapers/<sid>/permits.json
+           (see initPermitsDt() at the bottom of this file). The
+           filter form above this card just calls .ajax.reload();
+           it never refreshes the page. -->
+      <div class="dt-tablewrap">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);">
+          <button type="button" id="bulkDelBtn" onclick="bulkDeletePermits()"
+                  style="display:none;padding:6px 12px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:6px;cursor:pointer;font-weight:600;font-size:12.5px;align-items:center;gap:6px;">
+            🗑 Delete <span id="bulkDelCount">0</span> selected
+          </button>
+          <span id="bulkDelHint" style="color:var(--muted);font-size:12px;">Tick rows to delete them.</span>
+          <button type="button" id="delAllBtn" onclick="deleteAllScraperPermits()"
+                  style="margin-left:auto;padding:6px 12px;background:#fff;border:1px solid #fecaca;color:#b91c1c;border-radius:6px;cursor:pointer;font-weight:600;font-size:12.5px;"
+                  title="Permanently delete EVERY permit for this scraper (all pages) from the database">
+            🗑 Delete ALL {{ scraper.total_permits|default:0 }} for this scraper
+          </button>
+        </div>
+        <table id="permitsTable" class="dt-table" style="width:100%;">
+          <thead>
+            <tr>
+              <th style="width:32px;text-align:center;padding:0;">
+                <input type="checkbox" id="selAll" onclick="toggleSelAllPermits(this)" title="Select all on this page" style="cursor:pointer">
+              </th>
+              <th>Permit #</th><th>Type</th><th>Address</th><th>City</th>
+              <th>Contact</th><th>Email</th><th>Phone</th>
+              <th>Date</th><th>Project value</th><th>Score</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody><!-- populated by DataTables --></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% comment %}
+    Recent runs panel removed — full run history now lives at
+    /admin-panel/scraper-logs/<sid>/ with bulk-delete + every run.
+  {% endcomment %}
+</div>
+
+<!-- View-source modal — shows the structured JSON Firecrawl extracted.
+     Markdown view was removed (it was just raw scraped text — not useful
+     for debugging a misparsed row). -->
+<div class="bf-mask" id="srcMask">
+  <div class="src-modal">
+    <h3 id="srcTitle">Source page</h3>
+    <div class="src-sub" id="srcUrl">…</div>
+    <div class="src-meta-row" id="srcMeta">…</div>
+    <div class="src-body" id="srcBody">Loading…</div>
+    <div class="bf-actions">
+      <button type="button" id="srcOpenBtn" onclick="openSourceUrl()">↗ Open original on Accela</button>
+      <button type="button" onclick="closeRaw()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SID = {{ scraper.id }};
+// Global "# of pages" knob — single source of truth lives in
+// system_settings.scrapers_default_pages and is edited on the
+// /admin-panel/scrapers/ toolbar. Injected here so the run-now button
+// and the script-command preview both reflect the current global
+// value without duplicating the input on this page.
+window.GLOBAL_MAX_PAGES = {{ default_pages|default:50 }};
+let runPollHandle = null;
+let activeRunId   = null;
+{% if latest_run_active %}
+// Server says a run was still in flight when this page rendered.
+// Resume polling immediately so the admin sees it move + can hit Stop.
+activeRunId = {{ latest_run.id }};
+{% endif %}
+// Track every signal that should force a body rerender — log length
+// alone isn't enough because Branch 2/3 (single detail / backfill)
+// runs append little or nothing to step_log, so the ghost line and
+// completion tail would otherwise never refresh.
+let lastRenderedLogLen   = -1;
+let lastRenderedFinished = null;
+let lastRenderedStep     = null;
+
+function getCsrf() {
+  const m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? m[1] : '';
+}
+
+/* Per-run log/delete helpers were removed alongside the Recent runs
+ * side panel. Both behaviours now live on /admin-panel/scraper-logs/<sid>/
+ * which has bulk-delete + the same dark log modal. */
+function toast(msg, kind) {
+  const t = document.getElementById('toastDt');
+  t.textContent = msg;
+  t.className = 'show ' + (kind || '');
+  clearTimeout(window._dtTo);
+  window._dtTo = setTimeout(() => { t.className = ''; }, 3500);
+}
+
+// Enable / disable this scraper. A disabled scraper is skipped by Run
+// All and cron and refuses manual runs until re-enabled. Reloads the
+// page so the status pill + Run-now button reflect the new state.
+async function toggleEnabled(enable) {
+  const btn = document.getElementById('toggleEnabledBtn');
+  if (btn) { btn.disabled = true; btn.textContent = enable ? 'Enabling…' : 'Disabling…'; }
+  try {
+    const fd = new FormData();
+    fd.append('enabled', enable ? '1' : '0');
+    const r = await fetch('/admin-panel/scrapers/{{ scraper.id }}/toggle-enabled/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: fd,
+    });
+    const d = await r.json();
+    if (r.ok && d.ok) {
+      toast(d.enabled ? 'Scraper enabled — now active.' : 'Scraper disabled.', 'ok');
+      setTimeout(() => window.location.reload(), 600);
+    } else {
+      toast('Failed: ' + (d.error || ('HTTP ' + r.status)), 'err');
+      if (btn) { btn.disabled = false; btn.textContent = enable ? 'Enable' : 'Disable'; }
+    }
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = enable ? 'Enable' : 'Disable'; }
+  }
+}
+
+// ── Inline terminal panel helpers ──
+function setRunBusy(busy, label) {
+  const btn = document.getElementById('runNowBtn');
+  const lbl = document.getElementById('runLabel');
+  const ico = document.getElementById('runIcon');
+  const stopBtn = document.getElementById('stopBtn');
+  if (busy) {
+    btn.classList.add('is-running');
+    btn.disabled = true;
+    ico.style.display = 'none';
+    lbl.textContent = label || 'Running…';
+    if (stopBtn)  stopBtn.disabled  = false;
+  } else {
+    btn.classList.remove('is-running');
+    btn.disabled = false;
+    ico.style.display = '';
+    lbl.textContent = label || 'Run now';
+    if (stopBtn)  { stopBtn.disabled  = true; stopBtn.textContent  = '⏹ Stop'; }
+    const killBtn = document.getElementById('killBtn');
+    if (killBtn)  { killBtn.disabled  = true; killBtn.style.display = 'none'; }
+  }
+}
+
+// ── Script-command panel helpers ──
+// Rebuild the CMD text whenever the date inputs change so the admin
+// always sees the exact invocation that "Run now" would fire.
+// Global "# of pages" is set on the /admin-panel/scrapers/ toolbar and
+// persisted in system_settings.scrapers_default_pages. The server injects
+// the current value into window.GLOBAL_MAX_PAGES so the script-command
+// preview + run-now request can both reflect it without a per-scraper
+// input duplicating the knob.
+function getGlobalMaxPages() {
+  let mp = parseInt(window.GLOBAL_MAX_PAGES, 10);
+  if (!Number.isFinite(mp) || mp < 1) mp = 50;
+  if (mp > 1000) mp = 1000;
+  return mp;
+}
+function refreshCmd() {
+  const mp = getGlobalMaxPages();
+  const cmd = `python manage.py shell -c "from core.scraper_accela import run_scraper_now; run_scraper_now(${SID}, max_pages=${mp})"`;
+  const el = document.getElementById('cmdText');
+  if (el) { el.textContent = cmd; el.title = cmd; }
+}
+function copyCmd() {
+  const el = document.getElementById('cmdText');
+  if (!el) return;
+  const txt = el.textContent || '';
+  navigator.clipboard?.writeText(txt).then(
+    () => toast('Command copied', 'ok'),
+    () => toast('Copy failed', 'err'),
+  );
+}
+
+// ── Stop button (unified — cooperative + thread kill) ──
+// One button does it all. The server-side endpoint:
+//   • finalises orphaned runs (server restart → no worker to signal),
+//   • flips cancel_requested for the cooperative path, AND
+//   • injects SystemExit into the worker thread for an immediate stop.
+// If the run is already orphaned (e.g. user reopened the page after a
+// server restart) the response will say so and we reset the UI.
+async function stopRun() {
+  if (!activeRunId) { toast('No active run to stop.', 'err'); return; }
+  const btn = document.getElementById('stopBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏹ Stopping…'; }
+  try {
+    const r = await fetch(`/admin-panel/scrapers/runs/${activeRunId}/cancel/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast(d.msg || 'Run stopped.', 'ok');
+      // If the row was finalised right here (orphan or hard-kill path),
+      // reset the UI immediately so the admin gets the Run button back
+      // without waiting for the next status poll.
+      if (d.force_killed || /orphan|finalised|stopped/i.test(d.msg || '')) {
+        activeRunId = null; setRunBusy(false);
+      }
+    } else {
+      if (r.status === 409) {
+        toast(d.error || 'Run already finished.', 'warn');
+        activeRunId = null; setRunBusy(false);
+      } else {
+        toast(d.error || 'Could not stop run.', 'err');
+        if (btn) { btn.disabled = false; btn.textContent = '⏹ Stop'; }
+      }
+    }
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = '⏹ Stop'; }
+  }
+}
+// ── Kill Process button (nuclear SIGTERM) ──
+async function killProcess() {
+  if (!activeRunId) { toast('No active run.', 'err'); return; }
+  if (!window.confirm(
+        'Kill the worker PROCESS?\n\n'
+      + 'This sends SIGTERM to the server process. The server will '
+      + 'restart automatically within a few seconds, but any other '
+      + 'in-flight requests on this worker will be lost.\n\n'
+      + 'Use ONLY as a last resort when both Stop and Force-stop '
+      + 'have failed.')) return;
+  const btn = document.getElementById('killBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '💀 Killing…'; }
+  try {
+    const r = await fetch(`/admin-panel/scrapers/runs/${activeRunId}/kill/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast(d.msg || 'Process kill scheduled.', 'ok');
+      activeRunId = null; setRunBusy(false);
+    } else {
+      if (r.status === 409) {
+        toast(d.error || 'Run already finished.', 'warn');
+        activeRunId = null; setRunBusy(false);
+      } else {
+        toast(d.error || 'Could not kill process.', 'err');
+        if (btn) { btn.disabled = false; btn.textContent = '💀 Kill'; }
+      }
+    }
+  } catch (e) {
+    toast('Network error (expected if server is restarting): ' + e.message, 'warn');
+    activeRunId = null; setRunBusy(false);
+  }
+}
+function openTerm(titleText) {
+  const wrap = document.getElementById('termWrap');
+  wrap.classList.add('is-open');
+  document.getElementById('termTitle').textContent = titleText || 'scraper-run';
+  document.getElementById('termDot').className = 'dot warn';
+  document.getElementById('termNums').textContent = '0 / 0 · ✓ 0 · ✗ 0';
+  // Reset body to a fresh prompt line — subsequent ticks append.
+  const body = document.getElementById('termBody');
+  body.innerHTML = '<div class="dt-term-line info">$ kicking off run…<span class="dt-term-cursor"></span></div>';
+  lastRenderedLogLen = -1;
+}
+function closeTerm() {
+  document.getElementById('termWrap').classList.remove('is-open');
+}
+function termLineHtml(entry) {
+  const lvl = (entry.level || 'info').toLowerCase();
+  const safeLvl = ['info','ok','warn','err','cur'].includes(lvl) ? lvl : 'info';
+  const ts = entry.ts ? entry.ts.slice(11, 19) : '';
+  return `<div class="dt-term-line ${safeLvl}">` +
+         (ts ? `<span class="ts">${escapeHtml(ts)}</span>` : '') +
+         escapeHtml(entry.msg || '') +
+         '</div>';
+}
+function renderTerm(d) {
+  // Header counters — always reflect the latest poll.
+  const nums = `${d.processed} / ${d.total} · ✓ ${d.succeeded} · ✗ ${d.failed}`;
+  document.getElementById('termNums').textContent = nums;
+  // Progress bar — stays GREEN throughout the run (with a subtle
+  // pulse animation while in flight so the admin gets unambiguous
+  // "still working" feedback even when the width hasn't ticked
+  // because one slow LLM call is in flight). On finish: pull to
+  // 100% so the bar visually completes; flip to red ONLY on a true
+  // total failure (0 succeeded, ≥1 failed). Cap at 100 % so a
+  // transient over-count never overflows.
+  const pbar = document.getElementById('termPbar');
+  if (pbar) {
+    const rawPct = Math.max(0, Math.min(100, Number(d.pct) || 0));
+    const pct = d.finished ? 100 : rawPct;
+    pbar.style.width = pct + '%';
+    pbar.classList.remove('live', 'err');
+    if (d.finished) {
+      if (d.failed > 0 && d.succeeded === 0) pbar.classList.add('err');
+      // else: leave plain green gradient (no pulse) — completion state
+    } else {
+      pbar.classList.add('live');
+    }
+  }
+  // Worker pid / tid badge — only shown while the run is in flight.
+  // Helps the admin verify the process is alive on this dyno and
+  // gives them the pid for `kill -TERM` if both Stop buttons miss.
+  const pidEl = document.getElementById('termPid');
+  if (pidEl) {
+    if (!d.finished && d.worker_pid) {
+      const tidShort = d.worker_tid ? String(d.worker_tid).slice(-6) : '?';
+      pidEl.textContent = `pid ${d.worker_pid} · tid …${tidShort}`;
+      pidEl.style.display = '';
+    } else {
+      pidEl.style.display = 'none';
+    }
+  }
+  // Mirror the cancel state into the Stop button so the admin sees
+  // "Stopping…" the moment the request is acknowledged by the worker.
+  const stopBtn = document.getElementById('stopBtn');
+  if (stopBtn && !d.finished && d.cancel_requested) {
+    stopBtn.disabled = true;
+    stopBtn.textContent = '⏹ Stopping…';
+  }
+  // Spinner-dot colour: amber while running, green on success, red
+  // on outright failure, amber on partial.
+  const dot = document.getElementById('termDot');
+  if (!d.finished) {
+    dot.className = 'dot warn';
+  } else if (d.failed > 0 && d.succeeded === 0) {
+    dot.className = 'dot';   // red
+  } else if (d.failed > 0) {
+    dot.className = 'dot warn';
+  } else {
+    dot.className = 'dot ok';
+  }
+  // Body — re-render whenever ANY of the inputs that affect what's
+  // shown have changed. We track three signals because Branch 2/3
+  // (single detail / backfill) runs append little or nothing to
+  // step_log, so log-length deltas alone would leave the ghost line
+  // and completion tail stale.
+  const log = Array.isArray(d.step_log) ? d.step_log : [];
+  const curStep = d.current_step || '';
+  const finished = !!d.finished;
+  const dirty = (
+    log.length    !== lastRenderedLogLen   ||
+    finished      !== lastRenderedFinished ||
+    curStep       !== lastRenderedStep
+  );
+  if (dirty) {
+    const body = document.getElementById('termBody');
+    let html = log.map(termLineHtml).join('');
+    if (!finished) {
+      // Show a live cursor + the worker's current_step as a "ghost"
+      // line that hasn't been logged yet. Even if step_log is empty
+      // (Branch 2/3 doesn't append) the admin still sees motion.
+      const cur = curStep || 'working…';
+      html += `<div class="dt-term-line cur">› ${escapeHtml(cur)}<span class="dt-term-cursor"></span></div>`;
+    } else {
+      const tail = (d.failed > 0 && d.succeeded === 0)
+        ? `<div class="dt-term-line err">$ run failed.</div>`
+        : `<div class="dt-term-line ok">$ run complete · ${d.succeeded} saved · ${d.failed} failed.</div>`;
+      html += tail;
+    }
+    body.innerHTML = html;
+    body.scrollTop = body.scrollHeight;
+    lastRenderedLogLen   = log.length;
+    lastRenderedFinished = finished;
+    lastRenderedStep     = curStep;
+  }
+}
+
+// ── Run-now (unified scrape with date filter) ──
+async function runNow() {
+  // max_pages now comes from the global system setting
+  // (system_settings.scrapers_default_pages) — set on the
+  // /admin-panel/scrapers/ toolbar. Server reads it; we don't send it.
+  const mp = getGlobalMaxPages();
+  setRunBusy(true, 'Running…');
+  openTerm(`scraper-run · ${mp} page(s)`);
+  const fd = new FormData();
+  try {
+    const r = await fetch(`/admin-panel/scrapers/${SID}/run/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() }, body: fd,
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      document.getElementById('termBody').innerHTML =
+        `<div class="dt-term-line err">$ failed to start: ${escapeHtml(d.error || 'unknown')}</div>`;
+      document.getElementById('termDot').className = 'dot';
+      setRunBusy(false);
+      toast('Run failed: ' + (d.error || 'unknown'), 'err');
+      return;
+    }
+    activeRunId = d.run_id;
+    pollRun(d.run_id, 'Scrape');
+  } catch (e) {
+    document.getElementById('termBody').innerHTML =
+      `<div class="dt-term-line err">$ network error: ${escapeHtml(e.message)}</div>`;
+    document.getElementById('termDot').className = 'dot';
+    setRunBusy(false);
+    toast('Network error: ' + e.message, 'err');
+  }
+}
+
+// ── Backfill (uses a quick browser prompt for the count, then
+//    streams progress through the same inline terminal panel) ──
+async function openBackfill() {
+  const raw = window.prompt(
+    'Backfill — how many recent permits to fetch? (1–200)\n\n' +
+    'Walks the scraper\u2019s base URL backwards via capID3 to enumerate ' +
+    'permits even when the list page hides them.\n\n' +
+    'Note: backfill walks each capID directly, so the date filter ' +
+    'above does NOT apply here — every permit found is saved.',
+    '20');
+  if (raw === null) return;
+  const count = parseInt(raw, 10);
+  if (!Number.isFinite(count) || count < 1 || count > 200) {
+    toast('Enter a number between 1 and 200.', 'err');
+    return;
+  }
+  setRunBusy(true, `Backfill (${count})…`);
+  openTerm(`scraper-backfill · n=${count}`);
+  const fd = new FormData();
+  fd.append('count', String(count));
+  try {
+    const r = await fetch(`/admin-panel/scrapers/${SID}/backfill/`, {
+      method: 'POST', headers: { 'X-CSRFToken': getCsrf() }, body: fd,
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      document.getElementById('termBody').innerHTML =
+        `<div class="dt-term-line err">$ failed to start: ${escapeHtml(d.error || 'unknown')}</div>`;
+      document.getElementById('termDot').className = 'dot';
+      setRunBusy(false);
+      toast('Failed to start: ' + (d.error || 'unknown'), 'err');
+      return;
+    }
+    activeRunId = d.run_id;
+    pollRun(d.run_id, 'Backfill');
+  } catch (e) {
+    document.getElementById('termBody').innerHTML =
+      `<div class="dt-term-line err">$ network error: ${escapeHtml(e.message)}</div>`;
+    setRunBusy(false);
+    toast('Network error: ' + e.message, 'err');
+  }
+}
+
+async function pollRun(rid, label) {
+  const verb = label || 'Run';
+  async function tick() {
+    try {
+      const r = await fetch(`/admin-panel/scrapers/runs/${rid}/status/`);
+      const d = await r.json();
+      if (!d.ok) return;
+      renderTerm(d);
+      if (d.finished) {
+        clearInterval(runPollHandle); runPollHandle = null;
+        activeRunId = null;
+        setRunBusy(false);
+        const isErr  = d.failed > 0 && d.succeeded === 0;
+        const wasCx  = (d.status || '').toLowerCase() === 'cancelled';
+        const verbX  = wasCx ? `${verb} cancelled` : `${verb} complete`;
+        toast(`${verbX} — ${d.succeeded} ok, ${d.failed} failed`,
+              wasCx ? 'err' : (isErr ? 'err' : 'ok'));
+        // Auto-refresh the permits table (and recent-runs sidebar)
+        // so the admin sees the new rows. Wait 1.5s so the final
+        // CLI lines stay visible long enough to read.
+        setTimeout(() => location.reload(), 1500);
+      }
+    } catch (e) { /* swallow — keep polling */ }
+  }
+  await tick();
+  runPollHandle = setInterval(tick, 1500);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+// ── View-source modal ──
+// Renders the structured JSON Firecrawl extracted for the permit. The
+// old markdown tab was removed because the raw scraped text is just
+// noise for the admin debugging view.
+let _rawData = null;
+
+async function openRaw(pid) {
+  const mask = document.getElementById('srcMask');
+  mask.classList.add('show');
+  document.getElementById('srcTitle').textContent = 'Source page';
+  document.getElementById('srcUrl').textContent = 'Loading…';
+  document.getElementById('srcMeta').textContent = '';
+  document.getElementById('srcBody').textContent = 'Loading…';
+  _rawData = null;
+  try {
+    const r = await fetch(`/admin-panel/permits/${pid}/raw/`);
+    const d = await r.json();
+    if (!d.ok) {
+      document.getElementById('srcBody').textContent = 'Error: ' + (d.error || 'unknown');
+      return;
+    }
+    _rawData = d;
+    document.getElementById('srcTitle').textContent =
+      `${d.permit_number || '(no permit#)'} — ${d.address || '(no address)'}`;
+    document.getElementById('srcUrl').innerHTML =
+      `Source URL: <code>${escapeHtml(d.scraped_url || '—')}</code>`;
+    document.getElementById('srcMeta').innerHTML =
+      `<span><b>Mode:</b> ${escapeHtml(d.mode || '—')}</span>` +
+      `<span><b>Fetched:</b> ${escapeHtml(d.fetched_at || '—')}</span>` +
+      `<span><b>City:</b> ${escapeHtml(d.city || '—')}, ${escapeHtml(d.state || '—')}</span>`;
+    renderBody();
+  } catch (e) {
+    document.getElementById('srcBody').textContent = 'Network error: ' + e.message;
+  }
+}
+
+function renderBody() {
+  if (!_rawData) return;
+  const body = document.getElementById('srcBody');
+  const esc = (s) => String(s == null ? '' : s)
+    .replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // Tolerate both the historical key (firecrawl_json — kept for
+  // back-compat with rows scraped before the OSS pivot) and any
+  // future server-side rename to extracted_json.
+  const j = _rawData.extracted_json || _rawData.firecrawl_json;
+  const dbg = _rawData.llm_debug || {};
+
+  // The parent `.src-body` is themed dark (#0f172a bg, #e2e8f0 text)
+  // — so every section keeps that palette and just varies the
+  // border/background tint to set sections apart. Earlier revisions
+  // used a light `#f6f8fa` <pre> background which inherited the
+  // parent's light text colour and became unreadable (light-on-light).
+  const PRE = (
+    'margin:6px 0 0;'
+  + 'white-space:pre-wrap;word-break:break-word;'
+  + 'background:#020617;color:#f1f5f9;'              // near-black on light
+  + 'padding:12px 14px;'
+  + 'border:1px solid #334155;border-radius:6px;'
+  + 'max-height:380px;overflow:auto;'
+  + 'font-size:12px;line-height:1.55;'
+  );
+  const SUM = (
+    'cursor:pointer;font-weight:700;font-size:13px;'
+  + 'color:#f8fafc;padding:8px 10px;'
+  + 'background:#1e293b;border:1px solid #334155;'
+  + 'border-radius:6px;list-style:none;'
+  + 'display:flex;align-items:center;gap:8px;'
+  );
+  const DET = 'margin-bottom:14px;';
+  const META = (
+    'font-size:11.5px;color:#cbd5e1;margin:8px 2px 0;'
+  );
+
+  const sections = [];
+
+  // 1. LLM debug (input + output) — what answers "what input are you
+  //    giving the model" directly. Rendered first because that's the
+  //    debugging question this modal exists to answer.
+  if (dbg && (dbg.prompt || dbg.raw_response)) {
+    const metaParts = [
+      dbg.model         ? `model: <b style="color:#fde68a">${esc(dbg.model)}</b>`         : '',
+      dbg.input_tokens  ? `in: <b style="color:#7dd3fc">${dbg.input_tokens}t</b>`         : '',
+      dbg.output_tokens ? `out: <b style="color:#7dd3fc">${dbg.output_tokens}t</b>`       : '',
+      dbg.prompt_chars  ? `prompt: <b>${dbg.prompt_chars.toLocaleString()}</b> chars`     : '',
+      dbg.cleaned_chars ? `cleaned_html: <b>${dbg.cleaned_chars.toLocaleString()}</b> chars` : '',
+      dbg.parse_error   ? `<span style="color:#fca5a5">parse_error: ${esc(dbg.parse_error)}</span>` : '',
+    ].filter(Boolean).join('  &nbsp;•&nbsp;  ');
+    sections.push(
+      `<details open style="${DET}">` +
+      `<summary style="${SUM}">🤖 LLM input → model</summary>` +
+      `<div style="${META}">${metaParts}</div>` +
+      `<pre style="${PRE}">${esc(dbg.prompt || '(no prompt captured)')}</pre>` +
+      `</details>`
+    );
+    sections.push(
+      `<details style="${DET}">` +
+      `<summary style="${SUM}">🤖 LLM raw response (text)</summary>` +
+      `<pre style="${PRE}">${esc(dbg.raw_response || '(no response captured)')}</pre>` +
+      `</details>`
+    );
+  }
+
+  // 2. Parsed structured JSON (model output → DB).
+  if (j && Object.keys(j).length){
+    sections.push(
+      `<details open style="${DET}">` +
+      `<summary style="${SUM}">✅ Parsed JSON (what landed in the DB)</summary>` +
+      `<pre style="${PRE}">${esc(JSON.stringify(j, null, 2))}</pre>` +
+      `</details>`
+    );
+  } else if (!sections.length) {
+    sections.push('<div style="color:#94a3b8;padding:8px;">(empty — OSS model returned no structured JSON for this permit)</div>');
+  }
+
+  body.innerHTML = sections.join('');
+}
+
+function openSourceUrl() {
+  if (_rawData && _rawData.scraped_url) {
+    window.open(_rawData.scraped_url, '_blank', 'noopener');
+  }
+}
+
+function closeRaw() {
+  document.getElementById('srcMask').classList.remove('show');
+}
+</script>
+
+{% comment %}
+  DataTables: CDN assets + server-side init for the permits table.
+  Loaded after the inline script above so `permitsTable` is defined
+  on first paint. We use the same pinned versions as
+  templates/core/permits.html so users hit the same cached files
+  moving between pages.
+
+  NOTE: Use {% comment %} not {# #} for multi-line — Django's {# #}
+  is single-line only and a multi-line {# … #} leaks to the page as
+  visible text (PR #144 hit this same bug in admin_actions_*.html).
+{% endcomment %}
+<link rel="stylesheet" href="/lib/grid.min.css?v=3">
+<script src="/lib/core.min.js?v=3"></script>
+<script src="/lib/grid.min.js?v=3"></script>
+<script>
+(function(){
+  // HTML-escape values that come from the JSON endpoint before
+  // injecting them into the DataTables row markup. Permit-data fields
+  // (address, contractor name, etc.) are user-supplied via the
+  // scraper sources, so don't trust them.
+  function esc(s){
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  // Pull current values out of the filter form on every AJAX call so
+  // the user can change a filter and just hit Apply (or change a
+  // <select>) without forcing a full page reload.
+  function readFilters(d){
+    var f = document.getElementById('permitsFilters');
+    if (!f) return d;
+    // Helper — read an input by name and only include it in the
+    // ajax payload if it has a non-empty value, so the server-side
+    // filter logic doesn't have to special-case empty strings.
+    function v(name) {
+      var el = f.elements[name];
+      return el ? (el.value || '').trim() : '';
+    }
+    d.date_from     = v('date_from');
+    d.date_to       = v('date_to');
+    d.has_email     = v('has_email');
+    d.has_phone     = v('has_phone');
+    d.q             = v('q');
+    d.permit_number = v('permit_number');
+    d.email         = v('email');
+    d.phone         = v('phone');
+    d.contractor    = v('contractor');
+    d.owner         = v('owner');
+    d.city          = v('city');
+    d.permit_type   = v('permit_type');
+    d.min_score     = v('min_score');
+    d.max_score     = v('max_score');
+    return d;
+  }
+
+  // Wired to the "Reset" button in the filters form. Clears every
+  // input AND fires a fresh ajax.reload() so the table immediately
+  // reflects the cleared state without forcing a full page reload.
+  window.resetPermitFilters = function() {
+    var f = document.getElementById('permitsFilters');
+    if (!f) return;
+    Array.prototype.forEach.call(f.elements, function(el) {
+      if (!el.name) return;
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else if (el.type !== 'submit' && el.type !== 'button') el.value = '';
+    });
+    if (typeof permitsTable !== 'undefined' && permitsTable.ajax) {
+      permitsTable.ajax.reload();
+    }
+  };
+
+  // Local alias — the outer (non-IIFE) script already declares
+  // `const SID` at module scope; using a different name here both
+  // documents the dependency and removes any shadowing surprise for
+  // anyone reading just this block.
+  var scraperId = {{ scraper.id }};
+  var permitsTable = jQuery('#permitsTable').DataTable({
+    serverSide: true,
+    processing: true,
+    searching:  false,           // we have our own filter form
+    lengthMenu: [[25,50,100,200],[25,50,100,200]],
+    pageLength: 50,              // user requirement: 50 rows per page
+    order:      [[8,'desc']],    // Date column, newest first (col 8 of 12 — checkbox col 0 shifted everything +1)
+    dom:        'rt<"dt-foot"lip>',
+    deferRender: true,           // skip DOM nodes for off-page rows
+    ajax: {
+      url:     '/admin-panel/scrapers/' + scraperId + '/permits.json',
+      data:    function(d){ return readFilters(d); },
+      dataSrc: function(json){
+        var c = document.getElementById('permitsCount');
+        if (c) c.textContent = json.recordsFiltered;
+        return json.data;
+      },
+    },
+    columns: [
+      // Row-select checkbox — non-orderable, scoped to one page at a time
+      {data:'id', orderable:false, render:function(d){
+        return '<input type="checkbox" class="rowSel" data-pid="' + esc(d) + '" '
+             + 'onclick="event.stopPropagation();onPermitRowSel()" style="cursor:pointer">';
+      }},
+      // Permit #
+      {data:'permit', render:function(d){
+        return '<span class="num">' + (esc(d) || '—') + '</span>';
+      }},
+      // Type
+      {data:'type', render:function(d){ return esc(d) || '—'; }},
+      // Address
+      {data:'address', render:function(d){ return esc(d) || '—'; }},
+      // City + state
+      {data:null, orderable:true, render:function(p){
+        if (!p.city) return '—';
+        return esc(p.city) + (p.state ? ', ' + esc(p.state) : '');
+      }, name:'city'},
+      // Contact (contractor name if present, else owner name) with a
+      // small type badge so the admin can tell at a glance which kind
+      // of party they're looking at without opening the row.
+      {data:null, orderable:true, name:'contact', render:function(p){
+        var name = p.contact || p.contractor || '';
+        if (!name) return '—';
+        var t = (p.contact_type || '').toLowerCase();
+        var badge = '';
+        if (t === 'contractor') {
+          badge = ' <span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:10px;background:#1f6feb22;color:#9ecbff;margin-left:4px;">contractor</span>';
+        } else if (t === 'owner') {
+          badge = ' <span style="display:inline-block;padding:1px 6px;border-radius:10px;font-size:10px;background:#a3712b22;color:#e3b778;margin-left:4px;">owner</span>';
+        }
+        return esc(name) + badge;
+      }},
+      // Email
+      {data:'email', render:function(d){
+        return d ? '<a href="mailto:' + esc(d) + '" style="color:var(--text);text-decoration:none;">' + esc(d) + '</a>'
+                 : '<span style="color:var(--muted);">—</span>';
+      }},
+      // Phone
+      {data:'phone', render:function(d){
+        return d ? '<span class="num">' + esc(d) + '</span>'
+                 : '<span style="color:var(--muted);">—</span>';
+      }},
+      // Date
+      {data:'date', render:function(d){
+        // ISO from the server → keep YYYY-MM-DD only.
+        return d ? '<span class="num">' + esc(String(d).slice(0,10)) + '</span>'
+                 : '<span class="num">—</span>';
+      }},
+      // Project value
+      {data:'value', render:function(d){
+        return d ? '<span class="num">' + esc(d) + '</span>'
+                 : '<span class="num">—</span>';
+      }},
+      // Score (grade chip + numeric)
+      {data:null, render:function(p){
+        var letter = (p.grade || '').charAt(0).toUpperCase();
+        var chip = '<span class="grade ' + esc(letter) + '">' + (esc(p.grade) || '—') + '</span>';
+        return chip + ' <span class="num" style="margin-left:6px;">' + esc(p.score || 0) + '</span>';
+      }},
+      // Source — two affordances:
+      //   1. 👁 View → opens the Firecrawl-captured HTML modal for this
+      //      single permit (debugging a misparsed row).
+      //   2. ↗ Open  → opens the jurisdiction's own CapDetail page in
+      //      a new tab. Restored after the user noted "project link
+      //      detail not there for each one" — admins were having to
+      //      open the modal first then copy the URL out, instead of
+      //      jumping straight to the source page.
+      {data:null, orderable:false, render:function(p){
+        var view = '<button type="button" class="src-btn" onclick="openRaw(' + esc(p.id) + ')" '
+                 + 'title="Show the raw page captured for this permit">👁 View</button>';
+        var open = '';
+        if (p.detail_url) {
+          open = ' <a href="' + esc(p.detail_url) + '" target="_blank" rel="noopener noreferrer" '
+               + 'class="src-btn" '
+               + 'style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-left:6px;" '
+               + 'title="Open the original permit page on the jurisdiction site"'
+               + 'onclick="event.stopPropagation()">↗ Open</a>';
+        }
+        return view + open;
+      }},
+    ],
+  });
+
+  // Script-command preview reflects the GLOBAL max_pages setting
+  // (see window.GLOBAL_MAX_PAGES). There is no per-scraper input to
+  // wire up anymore — the global knob lives on the Scrapers toolbar.
+  refreshCmd();
+
+  // If the server told us a run was still in flight when this page
+  // rendered, resume polling immediately so the admin sees live
+  // progress + the Stop button works without a manual click.
+  if (activeRunId) {
+    setRunBusy(true, 'Running…');
+    pollRun(activeRunId, 'Scrape');
+  }
+
+  // Filter form → live, debounced reload of the DataTable's AJAX.
+  // Every input/select in #permitsFilters is wired so the user can
+  // just type or pick a value and the table refilters automatically
+  // — no need to click Apply. We keep Apply (and Enter-on-submit)
+  // as a "filter now" escape hatch in case the debounce is in flight.
+  var fForm = document.getElementById('permitsFilters');
+  if (fForm){
+    // Shared debounced reloader. 250 ms is fast enough to feel live
+    // but slow enough that a 6-char paste sends one request, not six.
+    // `null, false` keeps the user on their current page rather than
+    // jumping back to page 1 on every keystroke.
+    var _reloadTimer = null;
+    function liveReload(immediate){
+      if (_reloadTimer){ clearTimeout(_reloadTimer); _reloadTimer = null; }
+      if (immediate){ permitsTable.ajax.reload(null, false); return; }
+      _reloadTimer = setTimeout(function(){
+        permitsTable.ajax.reload(null, false);
+      }, 250);
+    }
+
+    // Apply button / Enter key — fire immediately, skipping debounce.
+    fForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      liveReload(true);
+    });
+
+    // Wire every named control. Text/number inputs use `input` for
+    // per-keystroke live filtering; <select> and date inputs use
+    // `change` because their value only updates on commit anyway.
+    Array.prototype.forEach.call(fForm.elements, function(el){
+      if (!el.name) return;
+      var tag  = el.tagName;
+      var type = (el.type || '').toLowerCase();
+      if (tag === 'SELECT' || type === 'date'){
+        el.addEventListener('change', function(){ liveReload(true); });
+      } else if (type === 'text' || type === 'number' || type === 'search'){
+        el.addEventListener('input',  function(){ liveReload(false); });
+        el.addEventListener('change', function(){ liveReload(true);  });
+      }
+    });
+  }
+
+  // Expose for debugging in DevTools.
+  window.permitsTable = permitsTable;
+
+  // ── Bulk select + delete (admin-only, scoped to this scraper) ─────
+  window.onPermitRowSel = function(){
+    var checked = document.querySelectorAll('#permitsTable tbody .rowSel:checked');
+    var all     = document.querySelectorAll('#permitsTable tbody .rowSel');
+    var btn     = document.getElementById('bulkDelBtn');
+    var cnt     = document.getElementById('bulkDelCount');
+    var hint    = document.getElementById('bulkDelHint');
+    var sa      = document.getElementById('selAll');
+    if (cnt)  cnt.textContent = checked.length;
+    if (btn)  btn.style.display = checked.length ? 'inline-flex' : 'none';
+    if (hint) hint.style.display = checked.length ? 'none' : 'inline';
+    if (sa)   sa.checked = (all.length > 0 && checked.length === all.length);
+  };
+  window.toggleSelAllPermits = function(cb){
+    document.querySelectorAll('#permitsTable tbody .rowSel').forEach(function(c){
+      c.checked = cb.checked;
+    });
+    window.onPermitRowSel();
+  };
+  // Re-sync select-all + count after every redraw (paginate, sort, filter)
+  permitsTable.on('draw', function(){
+    var sa = document.getElementById('selAll');
+    if (sa) sa.checked = false;
+    window.onPermitRowSel();
+  });
+  function _getCookie(name){
+    var v = ('; ' + document.cookie).split('; ' + name + '=');
+    return (v.length === 2) ? v.pop().split(';').shift() : '';
+  }
+  window.bulkDeletePermits = function(){
+    var checked = document.querySelectorAll('#permitsTable tbody .rowSel:checked');
+    if (!checked.length) return;
+    var ids = Array.from(checked).map(function(c){ return c.getAttribute('data-pid'); });
+    var msg = 'Permanently delete ' + ids.length + ' permit' + (ids.length>1?'s':'') + ' from this scraper?\n\n' +
+              'This cannot be undone. The rows will be removed from the underlying database.';
+    if (!window.confirm(msg)) return;
+    var fd = new FormData();
+    ids.forEach(function(id){ fd.append('ids', id); });
+    var btn = document.getElementById('bulkDelBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    fetch('/admin-panel/scrapers/' + scraperId + '/permits/bulk-delete/', {
+      method:  'POST',
+      credentials: 'same-origin',
+      headers: {'X-CSRFToken': _getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest'},
+      body:    fd,
+    }).then(function(r){ return r.json().catch(function(){ return {ok:false}; }); })
+      .then(function(j){
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        if (j && j.ok) {
+          permitsTable.ajax.reload(null, false);  // keep current page
+        } else {
+          alert('Delete failed: ' + ((j && j.error) || 'unknown error'));
+        }
+      })
+      .catch(function(){
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        alert('Delete request failed (network error). Please try again.');
+      });
+  };
+
+  // Hard-delete EVERY permit for this scraper in one statement. The
+  // per-page "select all" checkbox only ticks visible rows, so this is
+  // the only reliable way to clear a multi-page scraper completely.
+  window.deleteAllScraperPermits = function(){
+    var msg = 'Permanently delete ALL permits for this scraper (every page) from the database?\n\n' +
+              'This cannot be undone.';
+    if (!window.confirm(msg)) return;
+    var btn = document.getElementById('delAllBtn');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    fetch('/admin-panel/scrapers/' + scraperId + '/permits/delete-all/', {
+      method:  'POST',
+      credentials: 'same-origin',
+      headers: {'X-CSRFToken': _getCookie('csrftoken'), 'X-Requested-With': 'XMLHttpRequest'},
+    }).then(function(r){ return r.json().catch(function(){ return {ok:false}; }); })
+      .then(function(j){
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        if (j && j.ok) {
+          alert('Deleted ' + j.deleted + ' permit(s).');
+          permitsTable.ajax.reload(null, false);
+        } else {
+          alert('Delete failed: ' + ((j && j.error) || 'unknown error'));
+        }
+      })
+      .catch(function(){
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+        alert('Delete request failed (network error). Please try again.');
+      });
+  };
+})();
+
+/* ── Edit-scraper modal wiring ────────────────────────────────────
+ * Posts to the same /admin-panel/scrapers/<sid>/update/ endpoint
+ * the list page uses, so server-side validation & the "{City} ST"
+ * state-inference fallback are identical. On success we reload the
+ * page so the header (Source URL, page title, host meta) reflect
+ * the new values immediately. */
+(function(){
+  var form    = document.getElementById('dtEditForm');
+  var overlay = document.getElementById('dtEditOverlay');
+  if (!form || !overlay) return;
+
+  function open(){
+    document.getElementById('dtEditError').classList.remove('show');
+    overlay.classList.add('open');
+    setTimeout(function(){ document.getElementById('dtEditName').focus(); }, 50);
+  }
+  function close(){ overlay.classList.remove('open'); }
+  window.openEditScraper  = open;
+  window.closeEditScraper = close;
+
+  overlay.addEventListener('click', function(e){
+    if (e.target === overlay) close();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+  });
+
+  form.addEventListener('submit', async function(ev){
+    ev.preventDefault();
+    var sid   = form.getAttribute('data-sid');
+    var name  = document.getElementById('dtEditName').value.trim();
+    var url   = document.getElementById('dtEditUrl').value.trim();
+    var city  = document.getElementById('dtEditCity').value.trim();
+    var state = document.getElementById('dtEditState').value.trim().toUpperCase();
+    var err   = document.getElementById('dtEditError');
+    err.classList.remove('show'); err.textContent = '';
+    if (!name)                       { err.textContent = 'Name is required.';                            err.classList.add('show'); return; }
+    if (!url)                        { err.textContent = 'URL is required.';                             err.classList.add('show'); return; }
+    if (!/^https?:\/\//i.test(url))  { err.textContent = 'URL must start with http:// or https://';      err.classList.add('show'); return; }
+    if (state && !/^[A-Z]{2}$/.test(state)) {
+                                       err.textContent = 'State must be a 2-letter postal code (e.g. CA).';
+                                       err.classList.add('show'); return; }
+    var btn = document.getElementById('dtEditSave');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      var fd = new FormData();
+      fd.append('name',  name);
+      fd.append('url',   url);
+      fd.append('city',  city);
+      fd.append('state', state);
+      // Always send the field — empty string CLEARS the stored value
+      // (this is the only UI surface for it, so we don't want a stale
+      // value to persist invisibly when the admin deletes the text).
+      var pt = (document.getElementById('dtEditPermitType').value || '').trim();
+      fd.append('permit_type', pt);
+      var lf = (document.getElementById('dtEditLoopField').value || '').trim();
+      fd.append('loop_field', lf);
+      // Always send the field — empty string CLEARS the stored value
+      // (same contract as permit_type / loop_field above).
+      var si = (document.getElementById('dtEditSearchInput').value || '').trim();
+      fd.append('search_input', si);
+      var r = await fetch('/admin-panel/scrapers/' + encodeURIComponent(sid) + '/update/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': getCsrf()},
+        body: fd,
+      });
+      var d = {};
+      try { d = await r.json(); } catch(_) {}
+      if (r.ok && d.ok){
+        toast('Saved — reloading…', 'ok');
+        setTimeout(function(){ window.location.reload(); }, 600);
+      } else {
+        err.textContent = d.error || ('Save failed (HTTP ' + r.status + ')');
+        err.classList.add('show');
+        btn.disabled = false; btn.textContent = 'Save changes';
+      }
+    } catch (e){
+      err.textContent = 'Network error: ' + e.message;
+      err.classList.add('show');
+      btn.disabled = false; btn.textContent = 'Save changes';
+    }
+  });
+})();
+
+</script>
+{% endblock %}

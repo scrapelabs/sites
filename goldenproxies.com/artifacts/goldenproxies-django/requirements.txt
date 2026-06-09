@@ -1,0 +1,6 @@
+Django>=5.1,<6.0
+whitenoise>=6.0
+bleach>=6.0
+waitress>=3.0
+requests>=2.31
+beautifulsoup4>=4.12

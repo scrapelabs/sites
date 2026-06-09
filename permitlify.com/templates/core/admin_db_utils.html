@@ -1,0 +1,715 @@
+{% extends "core/admin_base.html" %}
+{% block title %}DB Utilities{% endblock %}
+{% block page_title %}Database Utilities{% endblock %}
+{% block page_meta %} · maintenance{% endblock %}
+
+{% block toasts %}
+{% if msg %}<div class="toast toast-ok" id="adminToast">✅ {{ msg }}</div>{% endif %}
+{% if error %}<div class="toast toast-err" id="adminToast">⚠️ {{ error }}</div>{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- KPI row: shows exactly what's currently in the DB so the admin
+     can see what a wipe would destroy before clicking the button. -->
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px">
+  <div class="kpi-card">
+    <div class="kpi-label">Permits</div>
+    <div class="kpi-value">{{ permits_count|default:0 }}</div>
+    <div class="kpi-sub">rows in permits table</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Scrapers</div>
+    <div class="kpi-value">{{ scrapers_count|default:0 }}</div>
+    <div class="kpi-sub">configured sources</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Scraper Runs</div>
+    <div class="kpi-value">{{ runs_count|default:0 }}</div>
+    <div class="kpi-sub">historical runs</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Firecrawl Calls</div>
+    <div class="kpi-value">{{ firecrawl_count|default:0 }}</div>
+    <div class="kpi-sub">ledger rows</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Claude Calls</div>
+    <div class="kpi-value">{{ claude_count|default:0 }}</div>
+    <div class="kpi-sub">ledger rows</div>
+  </div>
+</div>
+
+<!-- ─── Wipe Permits ──────────────────────────────────────────── -->
+<div class="users-card" style="margin-bottom:24px;border-left:3px solid var(--red,#dc2626)">
+  <div class="users-header">
+    <div>
+      <div class="card-title" style="display:flex;align-items:center;gap:8px;color:var(--red,#dc2626)">
+        🔥 Wipe All Permits
+      </div>
+      <div class="card-sub" style="margin-bottom:0">
+        TRUNCATEs <code>permits</code>, <code>scraper_runs</code>,
+        <code>firecrawl_calls</code>, and <code>claude_calls</code>,
+        and resets <code>total_permits</code> + last-run state on
+        every scraper so the admin grid and client dashboard match
+        the now-empty table. <strong>This cannot be undone — take a
+        backup first if you might want the data back.</strong>
+      </div>
+    </div>
+  </div>
+
+  <form method="POST" action="/admin-panel/db-utils/wipe-permits/"
+        style="padding:18px 20px 22px"
+        onsubmit="var n={{ permits_count|default:0 }}; return confirm('This will permanently delete '+n+' permits, clear all run/AI ledger rows, and reset every scraper counter to 0.\n\nThis cannot be undone — take a backup first if you might want the data back.\n\nContinue?');">
+    {% csrf_token %}
+    <button type="submit" class="btn"
+            style="background:var(--red,#dc2626);color:#fff;border:none;padding:10px 22px;border-radius:8px;font-weight:600;font-size:13.5px;cursor:pointer">
+      🔥 Wipe {{ permits_count|default:0 }} permits + reset counters
+    </button>
+  </form>
+</div>
+
+<!-- ─── Wipe Junk Data ───────────────────────────────────────── -->
+<div class="users-card" style="margin-bottom:24px;border-left:3px solid var(--amber,#f59e0b)">
+  <div class="users-header">
+    <div>
+      <div class="card-title" style="display:flex;align-items:center;gap:8px;color:#b45309">
+        🧹 Wipe Junk Data
+      </div>
+      <div class="card-sub" style="margin-bottom:0">
+        Empties the <code>junk_permits</code> blacklist
+        ({{ junk_count|default:0 }} record{{ junk_count|default:0|pluralize }}).
+        This is the cache scrapers consult to skip rows already judged
+        non-actionable. Wiping it forces the next run to re-evaluate
+        everything from scratch (re-paying for those detail fetches).
+        It does <strong>not</strong> touch your real <code>permits</code>.
+      </div>
+    </div>
+  </div>
+
+  <form method="POST" action="/admin-panel/db-utils/wipe-junk/"
+        style="padding:18px 20px 22px"
+        onsubmit="var n={{ junk_count|default:0 }}; return confirm('This will permanently clear '+n+' junk record(s) from the junk blacklist.\n\nContinue?');">
+    {% csrf_token %}
+    <button type="submit" class="btn"
+            style="background:#f59e0b;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-weight:600;font-size:13.5px;cursor:pointer">
+      🧹 Wipe {{ junk_count|default:0 }} junk record{{ junk_count|default:0|pluralize }}
+    </button>
+  </form>
+</div>
+
+<!-- ─── Dropbox settings (durable backup target) ─────────────── -->
+<div class="users-card" style="margin-bottom:24px;border-left:3px solid {% if dbx_configured %}#059669{% else %}#f59e0b{% endif %}">
+  <div class="users-header">
+    <div>
+      <div class="card-title" style="display:flex;align-items:center;gap:8px;color:{% if dbx_configured %}#059669{% else %}#b45309{% endif %}">
+        📦 Dropbox (durable backup target)
+        {% if dbx_configured %}
+          <span style="font-size:11px;font-weight:600;background:rgba(5,150,105,.12);color:#059669;padding:3px 9px;border-radius:20px;letter-spacing:.03em">CONFIGURED</span>
+        {% else %}
+          <span style="font-size:11px;font-weight:600;background:rgba(245,158,11,.15);color:#b45309;padding:3px 9px;border-radius:20px;letter-spacing:.03em">NOT CONFIGURED</span>
+        {% endif %}
+      </div>
+      <div class="card-sub" style="margin-bottom:0">
+        Local <code>./backups/</code> files <strong>vanish on every redeploy</strong> because the container disk is ephemeral.
+        Configure Dropbox below and every new backup is automatically uploaded to a folder in your Dropbox account —
+        so the file survives any restart, redeploy, or local-disk wipe.
+      </div>
+    </div>
+  </div>
+
+  <!-- One-time setup guide -->
+  <div style="margin:0 20px;padding:14px 16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;font-size:12.5px;line-height:1.6;color:#0c4a6e">
+    <strong style="display:block;margin-bottom:6px;font-size:13px;color:#075985">📘 One-time Dropbox setup (≈3 minutes)</strong>
+    <ol style="margin:0 0 0 20px;padding:0">
+      <li>Go to <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener" style="color:var(--pr,#1d4ed8);font-weight:600">dropbox.com/developers/apps</a> and click <strong>Create app</strong>.</li>
+      <li>Choose <strong>Scoped access</strong> → <strong>App folder</strong> (recommended — Dropbox sandboxes the app to <code>/Apps/&lt;your-app-name&gt;/</code>), name it e.g. <code>Permitlify Backups</code>.</li>
+      <li>Open the <strong>Permissions</strong> tab and tick all of: <code>files.content.write</code>, <code>files.content.read</code>, <code>files.metadata.read</code>, <code>files.metadata.write</code>. Click <strong>Submit</strong>.</li>
+      <li>Back on the <strong>Settings</strong> tab, copy the <strong>App key</strong> and <strong>App secret</strong> into the fields below.</li>
+      <li>Generate a <strong>refresh token</strong> (one-time):
+        <ul style="margin:6px 0 0 18px;padding:0">
+          <li>Fill in <strong>App key</strong> and <strong>App secret</strong> below first.</li>
+          <li>Click the <strong style="color:var(--pr,#1d4ed8)">🔗 Open Dropbox authorize page</strong> button (appears once App key is filled in) and click <strong>Allow</strong>.</li>
+          <li>Copy the short authorization code Dropbox shows you, paste it into the <strong>Authorization code</strong> box that appears below, and click <strong>Exchange for refresh token</strong>.</li>
+          <li>The Refresh token field fills in automatically. ⚠️ <strong>Do NOT</strong> paste the short auth code directly into the Refresh token field — that's the most common mistake and causes <code>invalid_grant: refresh token is malformed</code>.</li>
+        </ul>
+      </li>
+      <li>Click <strong>Save &amp; verify connection</strong> — a real test file is uploaded then deleted to confirm write access. Refresh tokens never expire, so this is a one-time setup.</li>
+    </ol>
+  </div>
+
+  <form id="dbx-form" method="POST" action="/admin-panel/db-utils/storage/save/" style="padding:18px 20px 22px">
+    {% csrf_token %}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 22px">
+
+      <!-- App key -->
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">App key</label>
+        <div class="dbx-input-wrap">
+          <input type="password" name="dropbox_app_key" value="{{ dbx_app_key }}"
+                 autocomplete="off"
+                 placeholder="abc123def456ghi" class="dbx-input">
+          <button type="button" class="dbx-eye" data-eye>👁</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px">Found on your Dropbox app's <strong>Settings</strong> tab as <em>App key</em>.</div>
+      </div>
+
+      <!-- App secret -->
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">
+          App secret <span style="color:#dc2626">*secret*</span>
+        </label>
+        <div class="dbx-input-wrap">
+          <input type="password" name="dropbox_app_secret" autocomplete="new-password"
+                 value="{% if dbx_has_secret %}••••••••••••••••••••••••{% endif %}"
+                 placeholder="(15-character secret)" class="dbx-input">
+          <button type="button" class="dbx-eye" data-eye>👁</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px">Same Settings tab — click <em>Show</em> next to <em>App secret</em>. Leave the dots in place to keep the saved value; clear the field to delete it.</div>
+      </div>
+
+      <!-- Refresh token -->
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">
+          Refresh token <span style="color:#dc2626">*secret*</span>
+        </label>
+        <div class="dbx-input-wrap">
+          <input type="password" name="dropbox_refresh_token" id="dbx-refresh-token" autocomplete="new-password"
+                 value="{% if dbx_has_refresh %}••••••••••••••••••••••••{% endif %}"
+                 placeholder="(filled in by the helper below)" class="dbx-input">
+          <button type="button" class="dbx-eye" data-eye>👁</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px">
+          Use the helper below — don't paste a Dropbox authorization code here.
+          Refresh tokens are long (~80 chars) and never expire.
+        </div>
+
+        <!-- Built-in OAuth exchange helper -->
+        <div style="margin-top:10px;padding:10px 12px;background:#fef9c3;border:1px solid #fde68a;border-radius:7px">
+          <div style="font-size:12px;font-weight:600;color:#854d0e;margin-bottom:8px">🛠 Refresh-token helper</div>
+          <a id="dbx-authorize-link" href="#" target="_blank" rel="noopener"
+             style="display:none;background:var(--pr,#1d4ed8);color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;margin-bottom:8px">
+            🔗 Open Dropbox authorize page
+          </a>
+          <div id="dbx-authorize-hint" style="font-size:11.5px;color:#854d0e;margin-bottom:8px">
+            ① Fill in App key above → the authorize button will appear here.
+          </div>
+          <div style="display:flex;gap:6px;align-items:flex-start">
+            <input type="text" id="dbx-auth-code" autocomplete="off"
+                   placeholder="② Paste the auth code from Dropbox here"
+                   style="flex:1;padding:8px 11px;border:1px solid #fde68a;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:12px;box-sizing:border-box">
+            <button type="button" id="dbx-exchange-btn"
+                    style="background:#854d0e;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap">
+              ③ Exchange for refresh token
+            </button>
+          </div>
+          <div id="dbx-exchange-status" style="font-size:11.5px;color:#854d0e;margin-top:8px;min-height:16px"></div>
+        </div>
+      </div>
+
+      <!-- Folder -->
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Dropbox folder</label>
+        <div class="dbx-input-wrap">
+          <input type="password" name="dropbox_folder" value="{{ dbx_folder }}"
+                 autocomplete="off"
+                 placeholder="/Permitlify-Backups" class="dbx-input">
+          <button type="button" class="dbx-eye" data-eye>👁</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px">Path inside your Dropbox where backups are stored. For "App folder" apps Dropbox places this under <code>/Apps/&lt;app-name&gt;/</code> automatically. Auto-created on first upload.</div>
+      </div>
+
+      <!-- App name (used only to build the "Open folder in Dropbox" link) -->
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Dropbox app name <span style="color:var(--muted);font-weight:500">(for the open-folder link)</span></label>
+        <div class="dbx-input-wrap">
+          <input type="text" name="dropbox_app_name" value="{{ dbx_app_name }}"
+                 autocomplete="off"
+                 placeholder="permitlify" class="dbx-input">
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px">The folder name Dropbox shows under <code>/Apps/</code> for your app (usually the app name in lowercase). Only used to build the green "Open in Dropbox" link below — leaves API calls unchanged.</div>
+      </div>
+
+      <!-- Status / Save -->
+      <div style="grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border,#e2e8f0)">
+        <div id="dbx-status" style="font-size:12.5px;color:var(--muted);min-height:18px;flex:1"></div>
+        <button type="submit" id="dbx-save-btn"
+                style="background:var(--pr,#1d4ed8);color:#fff;border:none;padding:10px 22px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer">
+          Save &amp; verify connection
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- ─── Backup DB ─────────────────────────────────────────────── -->
+<div class="users-card" style="border-left:3px solid var(--pr,#1d4ed8)">
+  <div class="users-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div>
+      <div class="card-title" style="display:flex;align-items:center;gap:8px;color:var(--pr,#1d4ed8)">
+        💾 Backup Database
+      </div>
+      <div class="card-sub" style="margin-bottom:0">
+        Runs <code>pg_dump</code> against the live Supabase DB, gzips
+        the SQL dump, and {% if dbx_configured %}<strong style="color:#059669">uploads it to your Dropbox folder
+        <code>{{ dbx_folder }}</code></strong> so the file survives any redeploy{% else %}saves it to
+        <code>./backups/</code> on the container disk — <strong style="color:#b45309">configure Dropbox
+        above to make backups durable</strong>{% endif %}. Local copies are capped at the
+        <strong>{{ backup_retain }} most recent</strong>; Dropbox copies are kept forever
+        (delete them in Dropbox if you want a cap). Click any row below to download.
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="bk-status" style="font-size:12px;color:var(--muted)"></span>
+      <!-- Real form so no-JS clients still get the legacy redirect
+           flow; JS below intercepts the submit event to do AJAX. -->
+      <form method="POST" action="/admin-panel/db-utils/backup/create/"
+            id="bk-create-form" style="margin:0">
+        {% csrf_token %}
+        <button type="submit" id="bk-create-btn"
+                style="background:var(--pr,#1d4ed8);color:#fff;border:none;padding:9px 18px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:8px">
+          <span id="bk-create-spinner" style="display:none;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:bk-spin .8s linear infinite"></span>
+          <span id="bk-create-label">+ Create backup</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DataTables CSS/JS (same vendored copy used by /permits/ and /dashboard/).
+       Loaded inside the card so the table can wire up immediately on
+       first render without waiting on base.html `extra_js`. -->
+  <link rel="stylesheet" href="/lib/grid.min.css?v=3">
+  <script src="/lib/core.min.js?v=3"></script>
+  <script src="/lib/grid.min.js?v=3"></script>
+
+  <div style="padding:8px 20px 0">
+    <table class="tbl display compact" id="bk-table" style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:#f8fafc">
+          <th style="text-align:left">Filename</th>
+          <th style="text-align:left">Created</th>
+          <th style="text-align:right">Size</th>
+          <th style="text-align:center">Storage</th>
+          <th style="text-align:right">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="bk-empty" style="padding:24px 20px 32px;text-align:center;color:var(--muted);display:none">
+    No backups yet. Click <strong>+ Create backup</strong> to take one — the file will appear here and in your Dropbox folder.
+  </div>
+</div>
+
+{% if dbx_configured %}
+<a href="{{ dbx_web_url }}" target="_blank" rel="noopener"
+   style="display:flex;align-items:center;gap:12px;margin:16px 0 0;padding:14px 18px;
+          background:linear-gradient(135deg,#ecfdf5,#d1fae5);
+          border:1.5px solid #059669;border-radius:10px;text-decoration:none;
+          box-shadow:0 1px 2px rgba(5,150,105,.08);transition:transform .12s, box-shadow .12s">
+  <div style="font-size:24px;line-height:1">📂</div>
+  <div style="flex:1;min-width:0">
+    <div style="font-size:13px;font-weight:700;color:#065f46;margin-bottom:2px">Open backup folder in Dropbox</div>
+    <div style="font-size:12px;color:#047857;font-family:'JetBrains Mono',monospace;word-break:break-all">{{ dbx_web_url }}</div>
+  </div>
+  <div style="background:#059669;color:#fff;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap">Open ↗</div>
+</a>
+{% endif %}
+
+<style>
+/* Dropbox settings inputs — each input gets a show/hide eye button
+   so the admin can confirm what they pasted (especially useful for
+   refresh tokens which are long and easy to mis-copy). */
+.dbx-input-wrap { position:relative; }
+.dbx-input {
+  width:100%; padding:9px 38px 9px 11px;
+  border:1px solid var(--border,#e2e8f0); border-radius:7px;
+  font-family:'JetBrains Mono',monospace; font-size:12.5px;
+  box-sizing:border-box;
+}
+.dbx-eye {
+  position:absolute; right:4px; top:50%; transform:translateY(-50%);
+  background:transparent; border:none; cursor:pointer;
+  width:30px; height:30px; padding:0; font-size:14px;
+  opacity:.55; transition: opacity .12s, background .12s;
+  border-radius:5px;
+}
+.dbx-eye:hover { opacity:1; background:#f1f5f9; }
+.dbx-eye.on { opacity:1; }
+@keyframes bk-spin { to { transform: rotate(360deg); } }
+.bk-row { border-top: 1px solid var(--border,#e2e8f0); transition: background .12s; }
+.bk-row:hover { background: #f8fafc; }
+.bk-btn { display:inline-block;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid transparent; }
+.bk-btn-dl { background:#fff;border-color:var(--pr,#1d4ed8);color:var(--pr,#1d4ed8);margin-right:6px; }
+.bk-btn-dl:hover { background:var(--pr,#1d4ed8);color:#fff; }
+.bk-btn-del { background:#fff;border-color:var(--red,#dc2626);color:var(--red,#dc2626); }
+.bk-btn-del:hover { background:var(--red,#dc2626);color:#fff; }
+
+/* ── DataTables theme overrides (match /permits/ + /dashboard/) ── */
+#bk-table thead th{
+  padding:10px 12px; font-size:11px; color:var(--muted);
+  font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+  border-bottom:1px solid var(--border,#e2e8f0); cursor:pointer;
+}
+#bk-table tbody td{
+  padding:10px 12px; border-top:1px solid var(--border,#e2e8f0);
+  font-size:12.5px; vertical-align:middle;
+}
+#bk-table tbody tr:hover{ background:#f8fafc; }
+#bk-table_wrapper{ padding:10px 20px 18px; }
+#bk-table_wrapper .dataTables_filter,
+#bk-table_wrapper .dataTables_length{
+  font-size:12px; color:var(--muted); margin-bottom:10px;
+}
+#bk-table_wrapper .dataTables_filter input{
+  border:1px solid var(--border,#e2e8f0); border-radius:6px;
+  padding:6px 10px; font-size:12.5px; margin-left:6px; min-width:220px;
+}
+#bk-table_wrapper .dataTables_length select{
+  border:1px solid var(--border,#e2e8f0); border-radius:6px;
+  padding:4px 6px; font-size:12.5px; margin:0 4px;
+}
+#bk-table_wrapper .dataTables_info{ font-size:12px; color:var(--muted); padding-top:10px; }
+#bk-table_wrapper .dataTables_paginate{ padding-top:8px; }
+#bk-table_wrapper .dataTables_paginate .paginate_button{
+  padding:5px 10px; margin:0 2px; border-radius:5px; font-size:12px;
+  border:1px solid transparent; cursor:pointer; color:var(--muted)!important;
+}
+#bk-table_wrapper .dataTables_paginate .paginate_button:hover{
+  background:#f1f5f9!important; color:var(--text)!important; border-color:var(--border,#e2e8f0);
+}
+#bk-table_wrapper .dataTables_paginate .paginate_button.current{
+  background:var(--pr,#1d4ed8)!important; color:#fff!important; border-color:var(--pr,#1d4ed8);
+}
+</style>
+
+<script>
+(function(){
+  // ── AJAX-driven backup table ──────────────────────────────
+  // The legacy form-POST flow did a full page reload on every
+  // backup, which was painful on big databases where pg_dump can
+  // take ~30 s. This script:
+  //   1) Submits "Create backup" via fetch (button shows spinner).
+  //   2) Refreshes the list in place from /backup/list.json.
+  //   3) Same flow for per-row Delete.
+  // Filenames are server-side whitelisted (`permitlify-\d{8}-\d{6}\.sql\.gz`)
+  // so download/delete URLs remain safe even though they're built
+  // client-side from the JSON response.
+  var CSRF = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value
+          || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+  var btn   = document.getElementById('bk-create-btn');
+  var lbl   = document.getElementById('bk-create-label');
+  var spin  = document.getElementById('bk-create-spinner');
+  var stat  = document.getElementById('bk-status');
+  var empty = document.getElementById('bk-empty');
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,
+    function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  function fmtLocal(iso){
+    try {
+      var d = new Date(iso);
+      return d.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',
+                                        hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    } catch(e){ return iso; }
+  }
+
+  function badgeFor(b){
+    if (b.local && b.remote) {
+      return '<span title="On local disk AND in Dropbox — durable" style="background:rgba(5,150,105,.12);color:#059669;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px">LOCAL + DROPBOX ✓</span>';
+    } else if (b.remote) {
+      return '<span title="Only in Dropbox — durable. Local copy was pruned or wiped on redeploy." style="background:rgba(29,78,216,.12);color:#1d4ed8;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px">DROPBOX ✓</span>';
+    }
+    return '<span title="Local disk only — will vanish on next redeploy! Configure Dropbox above." style="background:rgba(245,158,11,.18);color:#b45309;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px">LOCAL ONLY ⚠</span>';
+  }
+
+  // ── DataTables init (client-side: list is tiny — at most a few
+  // hundred files even on a noisy folder, so a single fetch +
+  // in-browser sort/search/page is the simplest path). ──
+  var bkDt = jQuery('#bk-table').DataTable({
+    data:       [],
+    paging:     true,
+    pageLength: 10,
+    lengthMenu: [[10,25,50,100,-1],[10,25,50,100,'All']],
+    searching:  true,
+    ordering:   true,
+    order:      [[1,'desc']],   /* newest first by Created column */
+    autoWidth:  false,
+    language:   { search: '🔍', searchPlaceholder: 'Filter backups…',
+                  emptyTable: 'No backups yet — click + Create backup.',
+                  zeroRecords: 'No backups match your search.' },
+    columns: [
+      { data: 'name',
+        render: function(d){ return '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12.5px;color:var(--text);word-break:break-all">'+esc(d)+'</span>'; }},
+      { data: 'mtime_iso',
+        render: function(d, type, row){
+          if (type === 'sort' || type === 'type') return d;
+          return '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;color:var(--muted)" title="'+esc(row.mtime_human)+'">'+esc(fmtLocal(d))+'</span>';
+        }},
+      { data: 'size', className: 'dt-body-right',
+        render: function(d, type, row){
+          if (type === 'sort' || type === 'type') return d;
+          return '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12.5px">'+esc(row.size_mb)+' MB</span>';
+        }},
+      { data: null, orderable: false, className: 'dt-body-center',
+        render: function(row){ return badgeFor(row); }},
+      { data: null, orderable: false, searchable: false, className: 'dt-body-right',
+        render: function(row){
+          return '<a href="' + esc(row.download_url) + '" class="bk-btn bk-btn-dl" download>⬇ Download</a>' +
+                 '<form method="POST" action="' + esc(row.delete_url) + '" class="bk-del-form" style="display:inline;margin:0">' +
+                   '<input type="hidden" name="csrfmiddlewaretoken" value="' + esc(CSRF) + '">' +
+                   '<button type="submit" class="bk-btn bk-btn-del" data-name="' + esc(row.name) + '">Delete</button>' +
+                 '</form>';
+        }},
+    ],
+  });
+
+  function render(backups){
+    backups = backups || [];
+    bkDt.clear().rows.add(backups).draw(false);
+    empty.style.display = backups.length ? 'none' : 'block';
+  }
+
+  function setStatus(msg, isErr){
+    stat.textContent = msg || '';
+    stat.style.color = isErr ? 'var(--red,#dc2626)' : 'var(--muted)';
+    if(msg && !isErr){
+      setTimeout(function(){ if(stat.textContent === msg) stat.textContent=''; }, 8000);
+    }
+  }
+
+  function showDbxError(err){
+    if(!err) return;
+    setStatus('⚠️ ' + err, true);
+  }
+
+  function refresh(){
+    return fetch('/admin-panel/db-utils/backup/list.json', {
+      credentials: 'same-origin',
+      headers: {'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json'}
+    }).then(function(r){ return r.json(); }).then(function(j){
+      if(j && j.ok){ render(j.backups); showDbxError(j.dbx_list_error); }
+    }).catch(function(){ setStatus('Failed to load backup list', true); });
+  }
+
+  document.getElementById('bk-create-form').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    btn.disabled = true; spin.style.display = 'inline-block';
+    lbl.textContent = 'Backing up…';
+    setStatus('Running pg_dump — this may take a moment.', false);
+    var t0 = Date.now();
+    fetch('/admin-panel/db-utils/backup/create/', {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json',
+                'X-CSRFToken': CSRF},
+    }).then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
+      .then(function(res){
+        var j = res.body || {};
+        if(res.status >= 200 && res.status < 300 && j.ok){
+          render(j.backups || []);
+          var secs = ((Date.now()-t0)/1000).toFixed(1);
+          setStatus('✅ ' + (j.msg || 'Backup created') + ' (' + secs + 's)', false);
+          showDbxError(j.dbx_list_error);
+        } else {
+          setStatus('⚠️ ' + (j.error || ('HTTP ' + res.status)), true);
+        }
+      }).catch(function(e){
+        setStatus('⚠️ Request failed: ' + e, true);
+      }).then(function(){
+        btn.disabled = false; spin.style.display = 'none';
+        lbl.textContent = '+ Create backup';
+      });
+  });
+
+  // Delegate delete-form submits to the DataTable wrapper. The
+  // raw <tbody> is rebuilt by DataTables on every page/sort, so a
+  // direct tbody listener would be wiped — wrapper-level delegation
+  // survives all redraws.
+  document.getElementById('bk-table').addEventListener('submit', function(e){
+    var form = e.target.closest('form.bk-del-form');
+    if(!form) return;
+    e.preventDefault();
+    var t = form.querySelector('button[data-name]');
+    var name = t.getAttribute('data-name');
+    if(!confirm('Delete backup ' + name + '?')) return;
+    t.disabled = true; t.textContent = 'Deleting…';
+    fetch(form.action, {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json',
+                'X-CSRFToken': CSRF},
+    }).then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
+      .then(function(res){
+        var j = res.body || {};
+        if(res.status >= 200 && res.status < 300 && j.ok){
+          render(j.backups || []);
+          setStatus('🗑 ' + (j.msg || ('Deleted ' + name)), false);
+          showDbxError(j.dbx_list_error);
+        } else {
+          setStatus('⚠️ ' + (j.error || ('HTTP ' + res.status)), true);
+          t.disabled = false; t.textContent = 'Delete';
+        }
+      }).catch(function(e){
+        setStatus('⚠️ Request failed: ' + e, true);
+        t.disabled = false; t.textContent = 'Delete';
+      });
+  });
+
+  // Seed the table on first paint with whatever the server
+  // rendered into the page (so the UI is populated before the
+  // first JSON refresh round-trip completes). Show the SSR-side
+  // Dropbox-list error too if one was passed down.
+  render(window.__BK_INITIAL || []);
+  if (window.__BK_DBX_ERROR) showDbxError(window.__BK_DBX_ERROR);
+  refresh();
+
+  // ── Refresh-token helper: build authorize URL + exchange code ──
+  // The authorize URL needs the App key, so we wire it live: as soon
+  // as the App key field has a value the link appears with the
+  // correct client_id baked in. After the admin clicks Allow on
+  // Dropbox and pastes back the short code, we POST it to our
+  // backend which calls /oauth2/token with grant_type=authorization_code
+  // and stuffs the resulting refresh_token into the form field.
+  var appKeyInput   = document.querySelector('input[name="dropbox_app_key"]');
+  var appSecInput   = document.querySelector('input[name="dropbox_app_secret"]');
+  var authLink      = document.getElementById('dbx-authorize-link');
+  var authHint      = document.getElementById('dbx-authorize-hint');
+  var codeInput     = document.getElementById('dbx-auth-code');
+  var exchangeBtn   = document.getElementById('dbx-exchange-btn');
+  var exchangeStat  = document.getElementById('dbx-exchange-status');
+  var refreshInput  = document.getElementById('dbx-refresh-token');
+
+  function updateAuthorizeLink(){
+    var k = (appKeyInput.value || '').trim();
+    if (k && !k.startsWith('•')){
+      // Explicitly request the scopes we need in the authorize URL.
+      // Dropbox only embeds scopes in the token at the moment the
+      // token is minted — if the user ticks scopes on the Permissions
+      // tab AFTER generating a refresh token, that existing token
+      // still carries the old (empty) scope set and uploads fail
+      // with missing_scope. Listing them here forces a fresh consent
+      // screen and guarantees the new refresh token has them.
+      var scopes = 'files.content.write files.content.read files.metadata.read files.metadata.write account_info.read';
+      authLink.href = 'https://www.dropbox.com/oauth2/authorize?client_id=' +
+        encodeURIComponent(k) + '&response_type=code&token_access_type=offline' +
+        '&scope=' + encodeURIComponent(scopes);
+      authLink.style.display = 'inline-block';
+      authHint.textContent = '② Click the button above → Allow → copy the short code Dropbox shows you.';
+    } else {
+      authLink.style.display = 'none';
+      authHint.textContent = '① Fill in App key above → the authorize button will appear here.';
+    }
+  }
+  if (appKeyInput){
+    appKeyInput.addEventListener('input', updateAuthorizeLink);
+    updateAuthorizeLink();
+  }
+
+  if (exchangeBtn){
+    exchangeBtn.addEventListener('click', function(){
+      var code = (codeInput.value || '').trim();
+      var k    = (appKeyInput.value || '').trim();
+      var s    = (appSecInput.value || '').trim();
+      if (!code){
+        exchangeStat.style.color = '#dc2626';
+        exchangeStat.textContent = '⚠️ Paste the authorization code first.';
+        return;
+      }
+      if (!k || k.startsWith('•')){
+        exchangeStat.style.color = '#dc2626';
+        exchangeStat.textContent = '⚠️ App key required.';
+        return;
+      }
+      exchangeBtn.disabled = true; exchangeBtn.textContent = 'Exchanging…';
+      exchangeStat.style.color = '#854d0e';
+      exchangeStat.textContent = 'Contacting Dropbox…';
+      var fd = new FormData();
+      fd.append('app_key', k);
+      fd.append('app_secret', s);   // backend falls back to saved value if masked
+      fd.append('code', code);
+      fetch('/admin-panel/db-utils/dropbox/exchange-code/', {
+        method:'POST', credentials:'same-origin', body: fd,
+        headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json',
+                 'X-CSRFToken':CSRF},
+      }).then(function(r){return r.json().then(function(j){return {status:r.status, body:j};});})
+        .then(function(res){
+          var j = res.body || {};
+          if (res.status >= 200 && res.status < 300 && j.ok && j.refresh_token){
+            refreshInput.value = j.refresh_token;
+            refreshInput.type  = 'text';   // briefly reveal so admin sees it landed
+            exchangeStat.style.color = '#059669';
+            exchangeStat.textContent = '✅ ' + (j.msg || 'Done.');
+            codeInput.value = '';
+            setTimeout(function(){ refreshInput.type = 'password'; }, 4000);
+          } else {
+            exchangeStat.style.color = '#dc2626';
+            exchangeStat.textContent = '⚠️ ' + (j.error || ('HTTP ' + res.status));
+          }
+        }).catch(function(e){
+          exchangeStat.style.color = '#dc2626';
+          exchangeStat.textContent = '⚠️ Request failed: ' + e;
+        }).then(function(){
+          exchangeBtn.disabled = false;
+          exchangeBtn.textContent = '③ Exchange for refresh token';
+        });
+    });
+  }
+
+  // ── Show/hide toggle on each Dropbox input ──
+  // Click the eye button to flip the input between password/text so
+  // the admin can verify a long pasted value before saving.
+  document.querySelectorAll('[data-eye]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var input = btn.parentNode.querySelector('input');
+      if(!input) return;
+      var showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.classList.toggle('on', !showing);
+      btn.textContent = showing ? '👁' : '🙈';
+      btn.setAttribute('title', showing ? 'Show value' : 'Hide value');
+    });
+  });
+
+  // ── Dropbox settings form (AJAX save + verify) ──
+  var dbxForm = document.getElementById('dbx-form');
+  if (dbxForm){
+    var dbxBtn  = document.getElementById('dbx-save-btn');
+    var dbxStat = document.getElementById('dbx-status');
+    dbxForm.addEventListener('submit', function(ev){
+      ev.preventDefault();
+      dbxBtn.disabled = true; dbxBtn.textContent = 'Saving…';
+      dbxStat.textContent = 'Contacting Dropbox…'; dbxStat.style.color = 'var(--muted)';
+      var fd = new FormData(dbxForm);
+      fetch(dbxForm.action, {
+        method:'POST', credentials:'same-origin', body: fd,
+        headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json',
+                 'X-CSRFToken':CSRF},
+      }).then(function(r){return r.json().then(function(j){return {status:r.status, body:j};});})
+        .then(function(res){
+          var j = res.body || {};
+          if (res.status>=200 && res.status<300 && j.ok){
+            dbxStat.style.color = '#059669';
+            dbxStat.textContent = '✅ ' + (j.msg || 'Saved.');
+            setTimeout(function(){ window.location.reload(); }, 1100);
+          } else {
+            dbxStat.style.color = 'var(--red,#dc2626)';
+            dbxStat.textContent = '⚠️ ' + (j.msg || j.error || ('HTTP ' + res.status));
+          }
+        }).catch(function(e){
+          dbxStat.style.color = 'var(--red,#dc2626)';
+          dbxStat.textContent = '⚠️ Request failed: ' + e;
+        }).then(function(){
+          dbxBtn.disabled = false; dbxBtn.textContent = 'Save & verify connection';
+        });
+    });
+  }
+})();
+</script>
+
+{{ backups_initial|json_script:"bk-initial" }}
+{{ dbx_list_error|default:""|json_script:"bk-dbx-error" }}
+<script>
+try{ window.__BK_INITIAL = JSON.parse(document.getElementById('bk-initial').textContent); }catch(e){ window.__BK_INITIAL = []; }
+try{ window.__BK_DBX_ERROR = JSON.parse(document.getElementById('bk-dbx-error').textContent) || ''; }catch(e){ window.__BK_DBX_ERROR = ''; }
+</script>
+
+{% endblock %}

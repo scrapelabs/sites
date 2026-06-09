@@ -1,0 +1,425 @@
+{% extends "core/admin_base.html" %}
+{% block title %}{% if editing %}Edit Post · {{ post.title }}{% else %}New Blog Post{% endif %}{% endblock %}
+{% block page_title %}{% if editing %}Edit: {{ post.title|truncatechars:60 }}{% else %}New Blog Post{% endif %}{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; <a href="/admin-panel/blog/" style="color:var(--blue);text-decoration:none;font-weight:600;">← All posts</a>{% endblock %}
+
+{% block extra_head %}
+<style>
+.be-step{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:18px;overflow:hidden;}
+.be-step-head{display:flex;align-items:center;gap:13px;padding:16px 22px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(29,78,216,.04),rgba(5,150,105,.04));cursor:pointer;user-select:none;}
+.be-step-head.no-toggle{cursor:default;}
+.be-step-num{width:32px;height:32px;border-radius:9px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:13px;flex-shrink:0;box-shadow:var(--sh-grad);}
+.be-step-num.done{background:#16a34a;box-shadow:0 2px 8px rgba(22,163,74,.3);}
+.be-step-num.idle{background:#cbd5e1;color:#fff;box-shadow:none;}
+.be-step-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14.5px;color:var(--text);}
+.be-step-sub{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.45;}
+.be-step-toggle{margin-left:auto;color:var(--muted);font-size:18px;transition:transform .25s;}
+.be-step.collapsed .be-step-body{display:none;}
+.be-step.collapsed .be-step-toggle{transform:rotate(-90deg);}
+.be-step-body{padding:18px 22px;}
+
+.be-row{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap;}
+.be-row .be-input{flex:1;min-width:240px;}
+.be-input{width:100%;padding:10px 13px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--text);background:#fff;outline:none;transition:border .15s,box-shadow .15s;box-sizing:border-box;}
+.be-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.be-textarea{width:100%;padding:11px 13px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--text);background:#fff;outline:none;line-height:1.55;resize:vertical;min-height:140px;box-sizing:border-box;transition:border .15s,box-shadow .15s;}
+.be-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.be-textarea.body{min-height:380px;font-family:'DM Sans',sans-serif;font-size:13.5px;line-height:1.7;}
+
+.be-btn{padding:10px 20px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px;box-shadow:var(--sh-grad);transition:opacity .18s,transform .18s;white-space:nowrap;}
+.be-btn:hover:not(:disabled){opacity:.92;transform:translateY(-1px);}
+.be-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;}
+.be-btn svg{width:14px;height:14px;}
+.be-btn.secondary{background:#fff;color:var(--text);border:1px solid var(--border);box-shadow:none;}
+.be-btn.secondary:hover:not(:disabled){border-color:var(--blue);color:var(--blue);}
+.be-btn.spinning{cursor:wait;}
+.be-btn.spinning .spin{display:inline-block;animation:spin 1s linear infinite;}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+.be-hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.55;}
+.be-hint code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+.be-hint strong{color:var(--text);}
+.be-hint a{color:var(--blue);text-decoration:none;font-weight:600;}
+
+.be-warn{background:#fffbeb;border:1px solid #fcd34d;border-radius:9px;padding:11px 14px;font-size:12px;color:#92400e;line-height:1.55;display:flex;gap:10px;align-items:flex-start;margin-top:10px;}
+.be-warn a{color:#92400e;font-weight:700;text-decoration:underline;}
+.be-warn-icon{flex-shrink:0;font-size:14px;}
+
+.be-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:760px){.be-grid{grid-template-columns:1fr;}}
+.be-field{display:flex;flex-direction:column;gap:5px;}
+.be-field.full{grid-column:1/-1;}
+.be-field label{font-size:11.5px;font-weight:600;color:var(--text);letter-spacing:.02em;}
+.be-field label span{font-weight:400;color:var(--muted);margin-left:4px;}
+
+.be-thumb-row{display:grid;grid-template-columns:80px 1fr 1fr;gap:14px;align-items:start;}
+@media(max-width:760px){.be-thumb-row{grid-template-columns:1fr;}}
+.be-thumb-preview{width:80px;height:80px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:38px;background:linear-gradient(135deg,#1d4ed8,#059669);transition:background .25s;}
+
+.be-publish-bar{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,0),#fff 25%);padding:18px 0 4px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:6px;z-index:10;}
+.be-publish-status{font-size:12.5px;color:var(--muted);}
+.be-publish-status.ok{color:#16a34a;font-weight:600;}
+.be-publish-status.err{color:#dc2626;font-weight:600;}
+.be-publish-actions{display:flex;gap:10px;align-items:center;}
+
+.be-meta-strip{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;padding:8px 14px;background:#f8fafc;border:1px dashed var(--border);border-radius:8px;margin-bottom:12px;}
+.be-meta-strip strong{color:var(--text);}
+
+#toastBe{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;font-size:12.5px;font-weight:500;padding:11px 18px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;font-family:'DM Sans',sans-serif;max-width:380px;}
+#toastBe.ok{background:#16a34a;}
+#toastBe.err{background:#dc2626;}
+#toastBe.show{opacity:1;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="toastBe"></div>
+
+{% if not has_firecrawl or not has_inference %}
+<div class="be-warn">
+  <span class="be-warn-icon">⚠️</span>
+  <div>
+    <strong>AI not fully configured.</strong>
+    {% if not has_firecrawl %}Firecrawl is not configured — scraping will fail. {% endif %}
+    {% if not has_inference %}DO Inference key is not configured — rewriting will fail. Add it in <a href="/admin-panel/scraper-settings/">Scraper Settings</a>. {% endif %}
+    Configure Firecrawl in <a href="/admin-panel/blog-settings/">Blog AI Settings</a>. You can still manually paste content below if you skip the AI flow.
+  </div>
+</div>
+{% endif %}
+
+{# ── Step 1: scrape URL ──────────────────────────────────────────── #}
+<div class="be-step{% if editing %} collapsed{% endif %}" id="be-step-1">
+  <div class="be-step-head" onclick="toggleStep(1)">
+    <div class="be-step-num idle" id="be-num-1">1</div>
+    <div style="flex:1;min-width:0;">
+      <div class="be-step-title">Scrape source URL</div>
+      <div class="be-step-sub">Paste any article URL — Firecrawl returns clean markdown.</div>
+    </div>
+    <span class="be-step-toggle">⌄</span>
+  </div>
+  <div class="be-step-body">
+    <div class="be-row">
+      <input type="url" class="be-input" id="be-url" placeholder="https://example.com/article-to-rewrite"
+             value="" autocomplete="off">
+      <button type="button" class="be-btn" id="be-scrape-btn" onclick="doScrape()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Scrape URL
+      </button>
+    </div>
+    <div class="be-hint">Tip: any article from a blog, news site, or competitor's site works. The scraper strips ads/nav and returns just the article body.</div>
+    <div id="be-scraped-wrap" style="display:none;margin-top:14px;">
+      <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text);margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase;">Scraped content (editable before rewrite)</label>
+      <textarea class="be-textarea" id="be-scraped" placeholder="Scraped markdown will appear here…"></textarea>
+      <div class="be-meta-strip" id="be-scraped-meta" style="margin-top:10px;display:none;"></div>
+    </div>
+  </div>
+</div>
+
+{# ── Step 2: rewrite via DO Inference ─────────────────────────────── #}
+<div class="be-step{% if editing %} collapsed{% endif %}" id="be-step-2">
+  <div class="be-step-head" onclick="toggleStep(2)">
+    <div class="be-step-num idle" id="be-num-2">2</div>
+    <div style="flex:1;min-width:0;">
+      <div class="be-step-title">Rewrite with AI</div>
+      <div class="be-step-sub">DO Inference rewrites the scraped article in Permitlify's voice and fills the form below.</div>
+    </div>
+    <span class="be-step-toggle">⌄</span>
+  </div>
+  <div class="be-step-body">
+    <div class="be-field">
+      <label for="be-hint">Editor note for the AI <span>(optional — angle, audience, length)</span></label>
+      <textarea class="be-textarea" id="be-hint" style="min-height:70px;" placeholder="e.g. 'Focus on residential remodelers — keep it under 1000 words, more bullets than prose.'"></textarea>
+    </div>
+    <div class="be-row" style="margin-top:14px;">
+      <button type="button" class="be-btn" id="be-rewrite-btn" onclick="doRewrite()" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Rewrite with AI
+      </button>
+      <span style="font-size:12px;color:var(--muted);align-self:center;" id="be-rewrite-hint">Scrape a URL first, or paste markdown manually above.</span>
+    </div>
+  </div>
+</div>
+
+{# ── Step 3: edit + publish ──────────────────────────────────────── #}
+<div class="be-step" id="be-step-3">
+  <div class="be-step-head no-toggle">
+    <div class="be-step-num {% if editing %}done{% else %}idle{% endif %}" id="be-num-3">3</div>
+    <div style="flex:1;min-width:0;">
+      <div class="be-step-title">{% if editing %}Edit &amp; save{% else %}Review, edit &amp; publish{% endif %}</div>
+      <div class="be-step-sub">Tweak any field, then {% if editing %}save changes{% else %}publish to /blog/{% endif %}.</div>
+    </div>
+  </div>
+  <div class="be-step-body">
+    <form id="be-form" onsubmit="event.preventDefault();doPublish();">
+      {% csrf_token %}
+      {% if editing %}<input type="hidden" name="original_slug" value="{{ post.slug }}">{% endif %}
+
+      <div class="be-grid">
+        <div class="be-field full">
+          <label for="be-title">Title <span>(50-70 chars works best)</span></label>
+          <input class="be-input" type="text" id="be-title" name="title" required maxlength="200"
+                 value="{{ post.title|default:'' }}" oninput="onTitleInput()">
+        </div>
+        <div class="be-field full">
+          <label for="be-slug">URL Slug <span>(auto-generated from title — edit to override)</span></label>
+          <input class="be-input" type="text" id="be-slug" name="slug" required maxlength="140"
+                 value="{{ post.slug|default:'' }}">
+        </div>
+        <div class="be-field full">
+          <label for="be-excerpt">Excerpt / Dek <span>(1-2 sentences, shown on /blog/)</span></label>
+          <textarea class="be-textarea" id="be-excerpt" name="excerpt" required style="min-height:80px;"
+                    maxlength="500">{{ post.excerpt|default:'' }}</textarea>
+        </div>
+
+        <div class="be-field">
+          <label for="be-tag">Tag</label>
+          <input class="be-input" type="text" id="be-tag" name="tag" value="{{ post.tag|default:'Insights' }}" maxlength="60">
+        </div>
+        <div class="be-field">
+          <label for="be-tag-color">Tag color</label>
+          <select class="be-input" id="be-tag-color" name="tag_color">
+            <option value="blue"   {% if post.tag_color == 'blue' or not post %}selected{% endif %}>Blue</option>
+            <option value="green"  {% if post.tag_color == 'green' %}selected{% endif %}>Green</option>
+            <option value="purple" {% if post.tag_color == 'purple' %}selected{% endif %}>Purple</option>
+            <option value="orange" {% if post.tag_color == 'orange' %}selected{% endif %}>Orange</option>
+            <option value="red"    {% if post.tag_color == 'red' %}selected{% endif %}>Red</option>
+          </select>
+        </div>
+
+        <div class="be-field">
+          <label for="be-read-time">Read time</label>
+          <input class="be-input" type="text" id="be-read-time" name="read_time"
+                 value="{{ post.read_time|default:'5 min read' }}" maxlength="40">
+        </div>
+        <div class="be-field">
+          <label for="be-date-label">Date label <span>(human-readable)</span></label>
+          <input class="be-input" type="text" id="be-date-label" name="date_label"
+                 value="{{ post.date|default:'' }}" placeholder="April 29, 2026" maxlength="60">
+        </div>
+
+        <div class="be-field">
+          <label for="be-author">Author</label>
+          <input class="be-input" type="text" id="be-author" name="author"
+                 value="{{ post.author|default:'Permitlify Team' }}" maxlength="120">
+        </div>
+        <div class="be-field">
+          <label for="be-author-initials">Author initials <span>(2 chars)</span></label>
+          <input class="be-input" type="text" id="be-author-initials" name="author_initials"
+                 value="{{ post.author_initials|default:'PL' }}" maxlength="8">
+        </div>
+
+        <div class="be-field full">
+          <label>Thumbnail</label>
+          <div class="be-thumb-row">
+            <div class="be-thumb-preview" id="be-thumb-preview"
+                 style="background:{{ post.thumb_bg|default:'linear-gradient(135deg,#1d4ed8,#059669)' }};">
+              <span id="be-thumb-emoji">{{ post.thumb|default:'📝' }}</span>
+            </div>
+            <div class="be-field" style="margin-bottom:0;">
+              <label for="be-thumb">Emoji</label>
+              <input class="be-input" type="text" id="be-thumb" name="thumb"
+                     value="{{ post.thumb|default:'📝' }}" maxlength="8" oninput="updateThumb()">
+            </div>
+            <div class="be-field" style="margin-bottom:0;">
+              <label for="be-thumb-bg">Background <span>(CSS gradient or color)</span></label>
+              <input class="be-input" type="text" id="be-thumb-bg" name="thumb_bg"
+                     value="{{ post.thumb_bg|default:'linear-gradient(135deg,#1d4ed8,#059669)' }}"
+                     oninput="updateThumb()">
+            </div>
+          </div>
+        </div>
+
+        <div class="be-field full">
+          <label for="be-content">Body <span>(markdown — use ## and ### for headings)</span></label>
+          <textarea class="be-textarea body" id="be-content" name="content" required>{{ post.content|default:'' }}</textarea>
+        </div>
+
+        <div class="be-field full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;font-size:12.5px;">
+            <input type="checkbox" id="be-featured" name="is_featured" {% if post.is_featured %}checked{% endif %}
+                   style="width:15px;height:15px;cursor:pointer;">
+            Mark as featured (shown in big card on /blog/)
+          </label>
+        </div>
+      </div>
+
+      <div class="be-publish-bar">
+        <div class="be-publish-status" id="be-publish-status">
+          {% if editing %}Editing existing post — slug: <code style="background:rgba(0,0,0,.05);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;">{{ post.slug }}</code>{% else %}Ready to publish.{% endif %}
+        </div>
+        <div class="be-publish-actions">
+          {% if editing %}
+          <a href="/blog/{{ post.slug }}/" target="_blank" class="be-btn secondary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            View live
+          </a>
+          {% endif %}
+          <button type="submit" class="be-btn" id="be-publish-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            {% if editing %}Save changes{% else %}Publish post{% endif %}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const csrf = document.cookie.split('; ').find(r=>r.startsWith('csrftoken='))?.split('=')[1] || '';
+const toast = (msg, kind='ok') => {
+  const t = document.getElementById('toastBe');
+  t.textContent = msg; t.className=''; t.classList.add('show', kind);
+  setTimeout(()=>t.classList.remove('show'), 2800);
+};
+
+function toggleStep(n){
+  document.getElementById('be-step-'+n).classList.toggle('collapsed');
+}
+function setStepDone(n){
+  const el = document.getElementById('be-num-'+n);
+  el.classList.remove('idle'); el.classList.add('done');
+}
+
+function setBtnSpinning(btn, spinning, idleHTML){
+  if (spinning) {
+    btn.dataset.html = btn.innerHTML;
+    btn.disabled = true; btn.classList.add('spinning');
+    btn.innerHTML = '<span class="spin">⟳</span> Working…';
+  } else {
+    btn.disabled = false; btn.classList.remove('spinning');
+    btn.innerHTML = idleHTML || btn.dataset.html || btn.innerHTML;
+  }
+}
+
+async function doScrape(){
+  const url = document.getElementById('be-url').value.trim();
+  if (!url) { toast('Paste a URL first.', 'err'); return; }
+  const btn = document.getElementById('be-scrape-btn');
+  setBtnSpinning(btn, true);
+  try {
+    const r = await fetch('/admin-panel/blog/scrape/', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+      body: JSON.stringify({url}),
+    });
+    const data = await r.json();
+    if (!data.ok) { toast(data.error || 'Scrape failed', 'err'); return; }
+    document.getElementById('be-scraped').value = data.markdown;
+    document.getElementById('be-scraped-wrap').style.display = 'block';
+    const meta = data.metadata || {};
+    const metaEl = document.getElementById('be-scraped-meta');
+    const parts = [];
+    if (meta.title)       parts.push('<strong>Title:</strong> '+ escapeHtml(meta.title));
+    if (meta.description) parts.push('<strong>Desc:</strong> '+ escapeHtml((meta.description||'').slice(0,140)));
+    if (meta.sourceURL)   parts.push('<strong>Source:</strong> '+ escapeHtml(meta.sourceURL));
+    metaEl.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+    metaEl.style.display = parts.length ? 'flex' : 'none';
+    setStepDone(1);
+    document.getElementById('be-rewrite-btn').disabled = false;
+    document.getElementById('be-rewrite-hint').textContent = 'Ready to rewrite ('+ data.markdown.length +' chars scraped).';
+    toast('Scraped '+ data.markdown.length +' chars', 'ok');
+  } catch(e){ toast('Network error: '+e.message, 'err'); }
+  finally { setBtnSpinning(btn, false); }
+}
+
+async function doRewrite(){
+  const md = document.getElementById('be-scraped').value.trim();
+  if (!md) { toast('Scrape a URL or paste content first.', 'err'); return; }
+  const btn = document.getElementById('be-rewrite-btn');
+  setBtnSpinning(btn, true);
+  document.getElementById('be-rewrite-hint').textContent = 'AI is thinking… (15-60s)';
+  try {
+    const r = await fetch('/admin-panel/blog/rewrite/', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+      body: JSON.stringify({
+        markdown: md,
+        source_url: document.getElementById('be-url').value.trim(),
+        hint: document.getElementById('be-hint').value.trim(),
+      }),
+    });
+    const data = await r.json();
+    if (!data.ok) { toast(data.error || 'Rewrite failed', 'err'); document.getElementById('be-rewrite-hint').textContent = 'Failed — try again or edit manually.'; return; }
+    fillForm(data.post);
+    setStepDone(2);
+    setStepDone(3);
+    document.getElementById('be-rewrite-hint').textContent = 'Done — review the form and publish.';
+    document.getElementById('be-step-3').scrollIntoView({behavior:'smooth', block:'start'});
+    toast('Rewrite complete — review below', 'ok');
+  } catch(e){ toast('Network error: '+e.message, 'err'); document.getElementById('be-rewrite-hint').textContent = 'Network error.'; }
+  finally { setBtnSpinning(btn, false); }
+}
+
+function fillForm(p){
+  document.getElementById('be-title').value     = p.title || '';
+  document.getElementById('be-slug').value      = p.slug || '';
+  document.getElementById('be-excerpt').value   = p.excerpt || '';
+  document.getElementById('be-tag').value       = p.tag || 'Insights';
+  document.getElementById('be-thumb').value     = p.thumb || '📝';
+  document.getElementById('be-thumb-bg').value  = p.thumb_bg || '';
+  document.getElementById('be-content').value   = p.content || '';
+  document.getElementById('be-read-time').value = p.read_time || '5 min read';
+  const sel = document.getElementById('be-tag-color');
+  for (const o of sel.options) { if (o.value === (p.tag_color||'blue')) { o.selected = true; break; } }
+  updateThumb();
+}
+
+function slugify(s){
+  return (s||'').toString().normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,120);
+}
+function onTitleInput(){
+  const slugEl = document.getElementById('be-slug');
+  // Only auto-fill slug if user hasn't manually edited it OR it's empty.
+  if (!slugEl.dataset.touched) slugEl.value = slugify(document.getElementById('be-title').value);
+}
+document.getElementById('be-slug').addEventListener('input', function(){ this.dataset.touched = '1'; });
+
+function updateThumb(){
+  const emoji = document.getElementById('be-thumb').value || '📝';
+  const bg    = document.getElementById('be-thumb-bg').value || 'linear-gradient(135deg,#1d4ed8,#059669)';
+  document.getElementById('be-thumb-emoji').textContent = emoji;
+  document.getElementById('be-thumb-preview').style.background = bg;
+}
+
+function escapeHtml(s){
+  return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+async function doPublish(){
+  const form = document.getElementById('be-form');
+  const btn  = document.getElementById('be-publish-btn');
+  const status = document.getElementById('be-publish-status');
+  setBtnSpinning(btn, true);
+  status.className = 'be-publish-status'; status.textContent = 'Saving…';
+  try {
+    const r = await fetch('/admin-panel/blog/publish/', {
+      method:'POST',
+      headers:{'X-CSRFToken':csrf},
+      body: new FormData(form),
+    });
+    const data = await r.json();
+    if (!data.ok) {
+      status.className = 'be-publish-status err';
+      status.textContent = '✗ '+ (data.error || 'Save failed');
+      toast(data.error || 'Save failed', 'err');
+      return;
+    }
+    status.className = 'be-publish-status ok';
+    status.innerHTML = '✓ Published. Redirecting to editor…';
+    toast('Published! Live at /blog/'+ data.slug +'/', 'ok');
+    setTimeout(()=>{ window.location.href = data.edit_url; }, 900);
+  } catch(e){
+    status.className = 'be-publish-status err';
+    status.textContent = '✗ Network error: '+e.message;
+    toast('Network error', 'err');
+  } finally { setBtnSpinning(btn, false); }
+}
+
+// Initial setup
+{% if editing %}
+document.getElementById('be-slug').dataset.touched = '1';  // don't auto-overwrite
+{% endif %}
+updateThumb();
+</script>
+{% endblock %}

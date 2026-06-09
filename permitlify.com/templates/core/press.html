@@ -1,0 +1,122 @@
+{% extends "core/public_base.html" %}
+{% block title %}Press Kit — Logos, screenshots, brand assets{% endblock %}
+{% block meta_description %}Permitlify press kit. Download official logos, brand colours, product screenshots, executive bios, and the latest company facts for journalists and media partners.{% endblock %}
+{% block og_title %}Permitlify Press Kit{% endblock %}
+{% block og_description %}Logos, brand assets, product screenshots, and company facts for press and media.{% endblock %}
+{% block twitter_title %}Permitlify Press Kit{% endblock %}
+{% block twitter_description %}Logos, brand assets, and company facts for press and media.{% endblock %}
+
+{% block extra_css %}
+.color-swatches{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;}
+.swatch{width:80px;text-align:center;}
+.swatch-box{width:80px;height:80px;border-radius:12px;border:1px solid var(--b1);margin-bottom:6px;}
+.swatch-name{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx3);}
+.swatch-hex{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);font-weight:600;}
+.download-btn{display:inline-flex;align-items:center;gap:8px;background:var(--bg2);border:1.5px solid var(--b1);border-radius:10px;padding:10px 18px;font-size:13.5px;font-weight:600;color:var(--tx2);text-decoration:none;transition:all .2s;cursor:pointer;}
+.download-btn:hover{border-color:var(--bl);color:var(--bl);}
+.download-btn svg{width:15px;height:15px;}
+.fact-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;}
+@media(max-width:580px){.fact-grid{grid-template-columns:1fr;}}
+.fact-item{background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:18px;}
+.fact-item .label{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.fact-item .value{font-size:16px;font-weight:700;color:var(--tx);}
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-hero-inner">
+    <div class="page-breadcrumb"><a href="{% url 'index' %}">Home</a><span>/</span>About<span>/</span>Press Kit</div>
+    <h1>Press Kit</h1>
+    <p class="lead">Resources for journalists, analysts, and partners writing about Permitlify. For press inquiries, email <a href="mailto:press@permitlify.com" style="color:var(--bl);">press@permitlify.com</a>.</p>
+  </div>
+</div>
+
+<div class="content-wrap">
+
+  <div class="sec-label">Company Overview</div>
+  <h2 style="font-size:24px;letter-spacing:-.4px;margin-bottom:16px;">About Permitlify</h2>
+  <div class="prose">
+    <p>Permitlify is an AI-powered permit intelligence platform that helps home service contractors find and win new jobs using building permit data. The platform monitors 248+ municipal permit portals across the United States daily, enriches each permit record with homeowner contact information, scores every lead using a proprietary AI model (0–100), and delivers a ranked daily feed to contractors' dashboards and email inboxes by 6 AM local time.</p>
+    <p>Permitlify was founded in 2024 and is based in Fort Worth, Texas. The company serves roofing, HVAC, plumbing, electrical, and general contracting businesses across the United States.</p>
+  </div>
+
+  <div class="fact-grid" style="margin-top:28px;margin-bottom:44px;">
+    <div class="fact-item"><div class="label">Founded</div><div class="value">2024</div></div>
+    <div class="fact-item"><div class="label">Headquarters</div><div class="value">Fort Worth, TX</div></div>
+    <div class="fact-item"><div class="label">Cities Covered</div><div class="value">248+</div></div>
+    <div class="fact-item"><div class="label">Permits Processed Daily</div><div class="value">30,000+</div></div>
+    <div class="fact-item"><div class="label">Lead Delivery Time</div><div class="value">6 AM Local</div></div>
+    <div class="fact-item"><div class="label">Pricing Starts At</div><div class="value">${{ pricing.starter_monthly }}/month</div></div>
+  </div>
+
+  <div class="sec-label">Brand Identity</div>
+  <h2 style="font-size:24px;letter-spacing:-.4px;margin-bottom:16px;">Logo & Wordmark</h2>
+  <div class="prose">
+    <p>The Permitlify logo consists of two elements: the <strong>document icon</strong> (a permit document with a checkmark and location pin overlay, rendered in a blue-to-green gradient) and the <strong>wordmark</strong> ("Permit" in deep navy #1C2F74, "lify" in green #49C85B, Plus Jakarta Sans 800).</p>
+    <p>Do not alter, recolor, distort, or add effects to the logo. Always use the logo with adequate clear space equal to the height of the "P" in Permitlify.</p>
+  </div>
+  <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap;">
+    <a class="download-btn" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Logo SVG (Light bg)</a>
+    <a class="download-btn" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Logo SVG (Dark bg)</a>
+    <a class="download-btn" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Logo PNG (2x)</a>
+  </div>
+
+  <div style="margin-top:40px;">
+    <div class="sec-label">Colors</div>
+    <h2 style="font-size:22px;letter-spacing:-.4px;margin-bottom:8px;">Brand Colors</h2>
+    <div class="color-swatches">
+      <div class="swatch">
+        <div class="swatch-box" style="background:#1C2F74;"></div>
+        <div class="swatch-name">Navy</div>
+        <div class="swatch-hex">#1C2F74</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-box" style="background:#49C85B;"></div>
+        <div class="swatch-name">Green</div>
+        <div class="swatch-hex">#49C85B</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-box" style="background:#1d4ed8;"></div>
+        <div class="swatch-name">Blue</div>
+        <div class="swatch-hex">#1D4ED8</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-box" style="background:linear-gradient(135deg,#1d4ed8,#059669);"></div>
+        <div class="swatch-name">Gradient</div>
+        <div class="swatch-hex">BL → AC</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-box" style="background:#0f172a;"></div>
+        <div class="swatch-name">Dark</div>
+        <div class="swatch-hex">#0F172A</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-box" style="background:#f8fafc;border:1px solid #e2e8f0;"></div>
+        <div class="swatch-name">Surface</div>
+        <div class="swatch-hex">#F8FAFC</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:40px;">
+    <div class="sec-label">Typography</div>
+    <h2 style="font-size:22px;letter-spacing:-.4px;margin-bottom:16px;">Brand Fonts</h2>
+    <div class="prose">
+      <p><strong>Plus Jakarta Sans</strong> (Google Fonts) — used for all headings, the logo wordmark, and UI labels. Weights 600, 700, 800.</p>
+      <p><strong>DM Sans</strong> (Google Fonts) — used for body copy, buttons, and UI text. Weights 400, 500, 600.</p>
+      <p><strong>JetBrains Mono</strong> (Google Fonts) — used for data labels, tags, permit IDs, and monospaced elements. Weights 400, 500, 600.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:40px;" class="prose">
+    <div class="sec-label">Boilerplate</div>
+    <h2>Standard company description</h2>
+    <div class="callout">
+      <p><strong>Short (50 words):</strong> Permitlify is a building permit intelligence platform that helps US home service contractors find new jobs before their competitors. It monitors 248+ city permit portals daily, enriches leads with contact data, scores them with AI, and delivers a ranked feed to contractors' dashboards every morning at 6 AM.</p>
+    </div>
+    <h3>Press contact</h3>
+    <p>For media inquiries, interview requests, or additional brand assets, contact:<br><a href="mailto:press@permitlify.com">press@permitlify.com</a><br>Response time: typically within 1 business day.</p>
+  </div>
+
+</div>
+{% endblock %}

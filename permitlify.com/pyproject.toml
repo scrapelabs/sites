@@ -1,0 +1,22 @@
+[project]
+name = "repl-nix-workspace"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.11"
+dependencies = [
+    "django>=5.2.13,<6.0",
+    "pillow>=12.2.0",
+    "pyotp>=2.9.0",
+    "qrcode[pil]>=8.2",
+    "psycopg[binary]>=3.3.3",
+    "psycopg-pool>=3.3.0",
+    "gunicorn>=23.0.0",
+    "waitress>=3.0.2",
+    "whitenoise>=6.8.2",
+    "reportlab>=4.4.10",
+    "pyjwt[crypto]>=2.8.0",
+    "firecrawl-py>=4.23.1",
+    "pydantic>=2.13.3",
+    "usaddress>=0.5.16",
+    "lxml>=5.0.0",
+]

@@ -1,0 +1,51 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}Invoice History{% endblock %}
+{% block mobile_title %}Invoices{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-5xl mx-auto">
+  <div class="glass-card rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-base font-bold text-gray-900">All Invoices</h2>
+        <p class="text-sm text-gray-500">Total revenue: <strong class="text-[#D4AF37]">${{ total_revenue }}</strong></p>
+      </div>
+      <span class="text-xs text-gray-400">{{ invoices|length }} invoice{{ invoices|length|pluralize }}</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[#D4AF37]/15">
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2 pr-4">Invoice</th>
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2 pr-4">User</th>
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2 pr-4">Plan</th>
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2 pr-4">Date</th>
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2 pr-4">Amount</th>
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#D4AF37]/10">
+          {% for inv in invoices %}
+          <tr class="hover:bg-[#D4AF37]/4 transition-colors">
+            <td class="py-2.5 pr-4 font-mono text-xs text-gray-500">{{ inv.invoice_id }}</td>
+            <td class="py-2.5 pr-4">
+              <a href="/admin-panel/users/{{ inv.user.pk }}/" class="text-gray-700 hover:text-[#D4AF37] text-xs">{{ inv.user.email }}</a>
+            </td>
+            <td class="py-2.5 pr-4 text-gray-700">{{ inv.plan_label }}</td>
+            <td class="py-2.5 pr-4 text-gray-500 text-xs">{{ inv.date }}</td>
+            <td class="py-2.5 pr-4 font-semibold text-gray-800">{{ inv.amount }}</td>
+            <td class="py-2.5">
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">{{ inv.status|title }}</span>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="py-8 text-center text-gray-400 text-sm">No invoices yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

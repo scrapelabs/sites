@@ -1,0 +1,43 @@
+name: Recovery emails cron
+
+# Fires the recovery-email dispatcher every 15 minutes so the 3-step
+# drip queued in core.enqueue_recovery_for_user (signup, +24h, +72h)
+# actually lands in inboxes.
+#
+# Auth: SCRAPER_INGEST_KEY repo secret matched server-side.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 minutes
+  workflow_dispatch: {}
+
+concurrency:
+  group: recovery-emails-cron
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fire recovery_emails tick
+        env:
+          SCRAPER_INGEST_KEY: ${{ secrets.SCRAPER_INGEST_KEY }}
+        run: |
+          if [ -z "$SCRAPER_INGEST_KEY" ]; then
+            echo "::error::SCRAPER_INGEST_KEY repo secret is not set"
+            exit 1
+          fi
+          RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}" \
+            -X POST \
+            -H "X-Scraper-Key: $SCRAPER_INGEST_KEY" \
+            -H "Content-Length: 0" \
+            "https://permitlify.com/api/cron/recovery-emails/tick/")
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          STATUS=$(echo "$RESPONSE" | tail -n1 | sed 's/HTTP_STATUS://')
+          echo "status=$STATUS"
+          echo "body=$BODY"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::recovery-emails tick failed (HTTP $STATUS)"
+            exit 1
+          fi

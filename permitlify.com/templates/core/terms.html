@@ -1,0 +1,78 @@
+{% extends "core/public_base.html" %}
+{% block title %}Terms of Service{% endblock %}
+{% block meta_description %}The terms governing your use of the Permitlify platform, billing, and APIs.{% endblock %}
+{% block meta_robots %}index,follow{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-hero-inner">
+    <div class="page-breadcrumb"><a href="{% url 'index' %}">Home</a><span>/</span>Company<span>/</span>Terms of Service</div>
+    <h1>Terms of Service</h1>
+    <p class="lead">Last updated: April 19, 2026. Please read these terms carefully before using Permitlify.</p>
+  </div>
+</div>
+
+<div class="content-wrap">
+  <div class="prose">
+
+    <h2>1. Acceptance of terms</h2>
+    <p>By creating a Permitlify account or using any part of our service, you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use our service. These Terms apply to all users of the Permitlify platform, including subscribers, trial users, and visitors.</p>
+
+    <h2>2. Description of service</h2>
+    <p>Permitlify provides a software-as-a-service (SaaS) platform that collects, processes, and delivers building permit data sourced from US government portals. Our service includes AI-powered lead scoring, contact enrichment (using publicly available data), delivery of daily permit reports, and integrations with third-party CRM and communication tools. The service is intended for use by licensed home service contractors and related businesses.</p>
+
+    <h2>3. Eligibility</h2>
+    <p>You must be at least 18 years old and capable of forming a legally binding contract to use Permitlify. By using our service, you represent that you meet this requirement. You must provide accurate, current, and complete account information and maintain the security of your login credentials.</p>
+
+    <h2>4. Acceptable use</h2>
+    <p>You agree to use Permitlify only for lawful purposes and in compliance with these Terms. You specifically agree that you will:</p>
+    <ul>
+      <li>Use permit lead data only for legitimate business outreach to homeowners who have filed building permits</li>
+      <li>Comply with all applicable laws, including the Telephone Consumer Protection Act (TCPA), CAN-SPAM Act, and applicable state telemarketing and data privacy laws</li>
+      <li>Not use our service to spam, harass, or contact individuals in violation of law</li>
+      <li>Not resell, redistribute, or share permit data with third parties outside your organization without our written consent</li>
+      <li>Not attempt to scrape, copy, or reverse-engineer our platform or data pipeline</li>
+      <li>Not use automated tools to access the platform in excess of normal use patterns</li>
+    </ul>
+    <div class="callout">
+      <p><strong>Important:</strong> You are solely responsible for ensuring your use of permit lead data complies with TCPA, state Do Not Call lists, and any applicable state privacy laws. Permitlify is a data provider — compliance with outreach regulations is your responsibility as the caller or sender.</p>
+    </div>
+
+    <h2>5. Subscription and billing</h2>
+    <p>Permitlify offers subscription plans billed monthly. Pricing is displayed on our website and in your account settings. Subscriptions auto-renew unless cancelled before the renewal date. You may cancel at any time through your account settings. No refunds are issued for partial months, except during the 7-day money-back guarantee period for first-time subscribers. We reserve the right to change pricing with 30 days' notice.</p>
+
+    <h2>6. Free trial</h2>
+    <p>We offer a free trial for new accounts (3 days for Starter, 5 days for Pro, 7 days for Agency). A valid credit card is required at signup to begin the trial. You will not be charged until the trial period ends. Cancelling before the trial ends results in no charge. Trial accounts are limited to one per person and one per company. We reserve the right to terminate trial accounts that we reasonably believe are abusing the trial system.</p>
+
+    <h2>7. Data accuracy disclaimer</h2>
+    <p>Permitlify processes permit data sourced from government portals. We make reasonable efforts to ensure accuracy but <strong>cannot guarantee that permit data, contact information, or AI scores are error-free, complete, or current</strong>. Government data systems may have delays, gaps, or errors that are beyond our control. You should independently verify any lead information before making business decisions based on it.</p>
+
+    <h2>8. Intellectual property</h2>
+    <p>All content, software, technology, and branding on the Permitlify platform are owned by Permitlify and protected by US and international intellectual property laws. You may not reproduce, modify, distribute, or create derivative works from our platform or content without our express written permission. Your subscription grants you a limited, non-exclusive, non-transferable license to use the platform for its intended purpose during your subscription term.</p>
+
+    <h2>9. Limitation of liability</h2>
+    <p>To the fullest extent permitted by law, Permitlify's total liability for any claims arising from your use of the service is limited to the greater of (a) the total fees you paid to us in the 12 months preceding the claim or (b) $100. Permitlify is not liable for indirect, incidental, special, consequential, or punitive damages, including lost profits, lost business, or data loss.</p>
+
+    <h2>10. Indemnification</h2>
+    <p>You agree to indemnify, defend, and hold harmless Permitlify, its officers, directors, employees, and agents from any claims, liabilities, damages, costs, or expenses (including attorneys' fees) arising from (a) your use of the service, (b) your violation of these Terms, (c) your violation of any applicable law, or (d) your use of permit lead data in a manner that infringes any third-party rights.</p>
+
+    <h2>11. Termination</h2>
+    <p>We may suspend or terminate your account at any time if we reasonably believe you are violating these Terms, engaging in illegal activity, or causing harm to other users or our platform. You may terminate your account at any time through your account settings. Upon termination, your access to the service will end immediately.</p>
+
+    <h2>12. Governing law and disputes</h2>
+    <p>These Terms are governed by the laws of the State of Texas, without regard to conflict of law principles. Any disputes arising from these Terms or your use of Permitlify will be resolved through binding arbitration administered by the American Arbitration Association under its Commercial Arbitration Rules, seated in Tarrant County, Texas. You waive your right to a jury trial and to participate in class action lawsuits.</p>
+
+    <h2>13. Changes to these terms</h2>
+    <p>We may update these Terms from time to time. We will notify you of material changes by email or by posting a notice in your dashboard. Your continued use of Permitlify after changes take effect constitutes acceptance of the updated Terms. If you disagree with any changes, you must cancel your subscription and stop using the service.</p>
+
+    <h2>14. Contact</h2>
+    <p>For questions about these Terms, contact us at:<br><a href="mailto:legal@permitlify.com">legal@permitlify.com</a><br>Permitlify, Fort Worth, TX 76104</p>
+
+  </div>
+
+  <div style="margin-top:40px;background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="font-size:14px;color:var(--tx2);">Also see our <a href="{% url 'privacy' %}" style="color:var(--bl);font-weight:600;">Privacy Policy</a></div>
+    <a href="{% url 'contact' %}" style="font-size:13.5px;font-weight:600;color:var(--bl);text-decoration:none;">Questions? Contact us →</a>
+  </div>
+</div>
+{% endblock %}

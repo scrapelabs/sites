@@ -1,0 +1,123 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Blog Posts{% endblock %}
+{% block page_title %}Blog Posts{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; {{ total }} post{{ total|pluralize }} published{% endblock %}
+
+{% block extra_head %}
+<style>
+.bl-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.bl-search{position:relative;flex:1;max-width:380px;}
+.bl-search input{width:100%;padding:9px 14px 9px 36px;border:1px solid var(--border);border-radius:9px;font-size:13px;background:#fff;outline:none;font-family:inherit;color:var(--text);transition:border .15s,box-shadow .15s;}
+.bl-search input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.bl-search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);width:15px;height:15px;}
+.bl-actions{display:flex;gap:10px;align-items:center;}
+.bl-new-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:var(--grad);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;text-decoration:none;box-shadow:var(--sh-grad);transition:opacity .18s,transform .18s;}
+.bl-new-btn:hover{opacity:.92;transform:translateY(-1px);}
+.bl-new-btn svg{width:14px;height:14px;}
+.bl-settings-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:9px;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;text-decoration:none;transition:border .15s,color .15s;}
+.bl-settings-btn:hover{border-color:var(--blue);color:var(--blue);}
+.bl-settings-btn svg{width:13px;height:13px;}
+
+.bl-card{background:var(--card);border:1px solid var(--border);border-radius:13px;overflow:hidden;}
+.bl-row{display:grid;grid-template-columns:64px 1fr 110px 110px 130px 90px;gap:14px;padding:14px 18px;align-items:center;border-bottom:1px solid var(--border);transition:background .12s;}
+.bl-row:last-child{border-bottom:none;}
+.bl-row:hover{background:#f8fafc;}
+@media(max-width:900px){.bl-row{grid-template-columns:48px 1fr 90px;}.bl-col-tag,.bl-col-date,.bl-col-read{display:none;}}
+.bl-thumb{width:48px;height:48px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+.bl-meta{min-width:0;}
+.bl-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;color:var(--text);text-decoration:none;display:block;line-height:1.3;}
+.bl-title:hover{color:var(--blue);}
+.bl-excerpt{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+.bl-tag{font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',monospace;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;display:inline-block;}
+.bl-tag.blue{background:rgba(29,78,216,.1);color:#1d4ed8;}
+.bl-tag.green{background:rgba(22,163,74,.1);color:#15803d;}
+.bl-tag.purple{background:rgba(147,51,234,.1);color:#7e22ce;}
+.bl-tag.orange{background:rgba(234,88,12,.1);color:#c2410c;}
+.bl-tag.red{background:rgba(220,38,38,.1);color:#b91c1c;}
+.bl-date{font-size:11.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.bl-read{font-size:11.5px;color:var(--muted);}
+.bl-actions-col{display:flex;gap:6px;justify-content:flex-end;}
+.bl-act-btn{padding:5px 9px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--text);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:all .15s;}
+.bl-act-btn:hover{border-color:var(--blue);color:var(--blue);}
+.bl-act-btn.danger{color:#b91c1c;border-color:rgba(220,38,38,.25);}
+.bl-act-btn.danger:hover{background:#fef2f2;border-color:#dc2626;color:#991b1b;}
+
+.bl-empty{padding:60px 20px;text-align:center;color:var(--muted);}
+.bl-empty-icon{font-size:42px;margin-bottom:10px;}
+.bl-empty-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15px;color:var(--text);margin-bottom:5px;}
+.bl-empty-sub{font-size:13px;line-height:1.55;max-width:380px;margin:0 auto;}
+
+.bl-pag{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-top:1px solid var(--border);background:#f8fafc;}
+.bl-pag-info{font-size:12px;color:var(--muted);}
+.bl-pag-btns{display:flex;gap:6px;}
+.bl-pag-btn{padding:6px 12px;background:#fff;border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;color:var(--text);text-decoration:none;cursor:pointer;font-family:inherit;}
+.bl-pag-btn:hover{border-color:var(--blue);color:var(--blue);}
+.bl-pag-btn[aria-disabled="true"]{opacity:.4;cursor:not-allowed;pointer-events:none;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bl-toolbar">
+  <form method="get" class="bl-search" role="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="search" name="q" value="{{ q }}" placeholder="Search posts by title, excerpt, or tag…" autocomplete="off">
+  </form>
+  <div class="bl-actions">
+    <a href="/admin-panel/blog-settings/" class="bl-settings-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      AI Settings
+    </a>
+    <a href="/admin-panel/blog/new/" class="bl-new-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Post
+    </a>
+  </div>
+</div>
+
+<div class="bl-card">
+  {% if posts %}
+    {% for p in posts %}
+    <div class="bl-row">
+      <div class="bl-thumb" style="background:{{ p.thumb_bg }};">{{ p.thumb }}</div>
+      <div class="bl-meta">
+        <a href="/admin-panel/blog/edit/{{ p.slug }}/" class="bl-title">{{ p.title }}</a>
+        <div class="bl-excerpt">{{ p.excerpt }}</div>
+      </div>
+      <div class="bl-col-tag"><span class="bl-tag {{ p.tag_color|default:'blue' }}">{{ p.tag }}</span></div>
+      <div class="bl-col-date bl-date">{{ p.date }}</div>
+      <div class="bl-col-read bl-read">{{ p.read_time }}</div>
+      <div class="bl-actions-col">
+        <a href="/blog/{{ p.slug }}/" target="_blank" class="bl-act-btn" title="View live">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </a>
+        <a href="/admin-panel/blog/edit/{{ p.slug }}/" class="bl-act-btn" title="Edit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </a>
+        <form method="post" action="/admin-panel/blog/delete/{{ p.slug }}/" style="display:inline;" onsubmit="return confirm('Delete &quot;{{ p.title|escapejs }}&quot;? This cannot be undone.');">
+          {% csrf_token %}
+          <button type="submit" class="bl-act-btn danger" title="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if total_pages > 1 %}
+    <div class="bl-pag">
+      <div class="bl-pag-info">Page {{ page }} of {{ total_pages }} · {{ total }} total</div>
+      <div class="bl-pag-btns">
+        <a class="bl-pag-btn" {% if page <= 1 %}aria-disabled="true"{% else %}href="?{% if q %}q={{ q }}&{% endif %}page={{ page|add:'-1' }}"{% endif %}>← Prev</a>
+        <a class="bl-pag-btn" {% if page >= total_pages %}aria-disabled="true"{% else %}href="?{% if q %}q={{ q }}&{% endif %}page={{ page|add:'1' }}"{% endif %}>Next →</a>
+      </div>
+    </div>
+    {% endif %}
+  {% else %}
+    <div class="bl-empty">
+      <div class="bl-empty-icon">📝</div>
+      <div class="bl-empty-title">{% if q %}No posts match "{{ q }}"{% else %}No blog posts yet{% endif %}</div>
+      <div class="bl-empty-sub">{% if q %}Try a different search term, or {% endif %}click <strong>+ New Post</strong> to scrape, rewrite, and publish your first article.</div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#1d4ed8">
+<title>Permitlify — Two-Factor Authentication</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --pr:#1d4ed8;--pr2:#3b82f6;--pr3:#1e3a8a;
+  --pd:rgba(29,78,216,.09);--pg:rgba(29,78,216,.18);
+  --ac:#059669;--ac2:#10b981;
+  --grad:linear-gradient(135deg,#1d4ed8 0%,#059669 100%);
+  --tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;
+  --b1:rgba(0,0,0,.07);--sur2:#f8fafc;
+  --re:#dc2626;
+}
+body{font-family:'DM Sans',sans-serif;min-height:100vh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+.left,.right{min-width:0;}
+@media(max-width:820px){body{grid-template-columns:1fr;}}
+
+/* LEFT */
+.left{background:linear-gradient(155deg,#0f172a 0%,#111827 60%,#0d1f3c 100%);padding:48px 52px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;}
+.left::before{content:'';position:absolute;top:-80px;right:-80px;width:420px;height:420px;background:radial-gradient(circle,rgba(29,78,216,.12) 0%,transparent 65%);pointer-events:none;}
+.left::after{content:'';position:absolute;bottom:-60px;left:-40px;width:320px;height:320px;background:radial-gradient(circle,rgba(5,150,105,.08) 0%,transparent 65%);pointer-events:none;}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:60px;text-decoration:none;}
+.logo-icon{width:40px;height:40px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px rgba(29,78,216,.4);}
+.logo-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:800;color:#f1f5f9;letter-spacing:-.4px;}
+.logo-name span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding-bottom:24px;}
+.shield-wrap{width:96px;height:96px;border-radius:24px;background:rgba(29,78,216,.15);border:1px solid rgba(29,78,216,.25);display:flex;align-items:center;justify-content:center;margin-bottom:28px;}
+.left-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:800;color:#f1f5f9;line-height:1.25;letter-spacing:-.5px;margin-bottom:12px;}
+.left-title span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.left-sub{font-size:14px;color:#64748b;line-height:1.7;max-width:300px;}
+@media(max-width:820px){.left{display:none;}}
+
+/* RIGHT */
+.right{background:#ffffff;display:flex;align-items:center;justify-content:center;padding:40px 36px;}
+.form-box{width:100%;max-width:400px;}
+.mob-logo{display:none;justify-content:center;align-items:center;gap:10px;margin-bottom:32px;}
+@media(max-width:820px){.mob-logo{display:flex;}}
+
+.badge{display:inline-flex;align-items:center;gap:7px;padding:6px 14px;background:rgba(29,78,216,.06);border:1px solid rgba(29,78,216,.15);border-radius:20px;font-size:11.5px;font-weight:600;color:var(--pr);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.6px;margin-bottom:20px;}
+.form-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:800;color:var(--tx);letter-spacing:-.5px;margin-bottom:6px;}
+.form-sub{font-size:14px;color:var(--tx2);margin-bottom:28px;line-height:1.6;}
+
+.code-wrap{position:relative;margin-bottom:24px;}
+.code-input{width:100%;padding:18px 16px;background:var(--sur2);border:2px solid var(--b1);border-radius:14px;font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;color:var(--tx);outline:none;text-align:center;letter-spacing:8px;transition:all .2s;}
+.code-input:focus{border-color:rgba(29,78,216,.45);box-shadow:0 0 0 4px rgba(29,78,216,.08);background:#fff;}
+.code-label{font-size:11px;font-weight:600;color:var(--tx3);font-family:'JetBrains Mono',monospace;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;display:block;}
+
+.auto-hint{margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace;letter-spacing:.3px;}
+.auto-hint-dot{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.18);animation:hintPulse 1.4s ease-in-out infinite;}
+@keyframes hintPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.55;transform:scale(.85);}}
+
+.error-box{background:#fef2f2;border:1px solid #fecaca;border-radius:11px;padding:11px 14px;margin-bottom:18px;font-size:13.5px;color:#b91c1c;display:flex;align-items:center;gap:8px;}
+.back-link{display:block;text-align:center;margin-top:18px;font-size:13px;color:var(--tx2);}
+.back-link a{color:var(--pr);text-decoration:none;font-weight:600;}
+.back-link a:hover{text-decoration:underline;}
+
+.hint-box{margin-top:20px;padding:14px 16px;background:var(--sur2);border:1px solid var(--b1);border-radius:12px;}
+.hint-box .ht{font-size:12px;font-weight:600;color:var(--tx3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.hint-box .hb{font-size:13px;color:var(--tx2);line-height:1.6;}
+</style>
+</head>
+<body>
+
+<div class="left">
+  <div>
+    <a class="logo" href="{% url 'index' %}">
+      <div class="logo-icon">
+        <svg viewBox="0 0 512 512" fill="none" style="width:22px;height:22px">
+          <defs><linearGradient id="lgBG2" x1="128" y1="90" x2="350" y2="360" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#4DB8FF"/><stop offset="0.55" stop-color="#2B8CFF"/><stop offset="1" stop-color="#63D95C"/>
+          </linearGradient></defs>
+          <path d="M148 8C82 8 28 61 28 127C28 212 128 298 140 313C144 319 153 319 157 313C169 298 268 215 268 127C268 61 214 8 148 8Z" fill="url(#lgBG2)" transform="translate(100,48)"/>
+          <circle cx="249" cy="175" r="54" fill="white"/>
+        </svg>
+      </div>
+      <span class="logo-name">Permit<span>lify</span></span>
+    </a>
+    <div class="hero">
+      <div class="shield-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="url(#sg)" stroke-width="1.8" stroke-linecap="round" width="44" height="44">
+          <defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <polyline points="9 12 11 14 15 10" stroke="url(#sg)"/>
+        </svg>
+      </div>
+      <div class="left-title">One more step to<br><span>verify it's you</span></div>
+      <div class="left-sub">Open your authenticator app and enter the 6-digit code for your Permitlify account.</div>
+    </div>
+  </div>
+  <div style="font-size:12px;color:#334155;font-family:'JetBrains Mono',monospace;">© 2026 Permitlify.com</div>
+</div>
+
+<div class="right">
+  <div class="form-box">
+    <div class="mob-logo">
+      <div style="width:36px;height:36px;border-radius:9px;background:var(--grad);display:flex;align-items:center;justify-content:center;">
+        <svg viewBox="0 0 20 20" fill="none" width="20" height="20"><rect x="3" y="2" width="10" height="14" rx="1.5" fill="white" opacity=".9"/><circle cx="15" cy="15" r="4" fill="rgba(255,255,255,.9)"/><rect x="14.4" y="13" width="1.2" height="2.8" rx=".6" fill="#059669"/><rect x="13" y="14.4" width="4" height="1.2" rx=".6" fill="#059669"/></svg>
+      </div>
+      <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;color:var(--tx);">Permit<span style="background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">lify</span></span>
+    </div>
+
+    <div class="badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="12" height="12"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Two-Factor Authentication
+    </div>
+    <div class="form-title">Check your app</div>
+    <div class="form-sub">Open <strong>Google Authenticator</strong>, <strong>Authy</strong>, or your TOTP app and enter the 6-digit code for <strong>Permitlify</strong>.</div>
+
+    {% if error %}
+    <div class="error-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" novalidate id="tfaForm">
+      {% csrf_token %}
+      <label class="code-label">Authenticator Code</label>
+      <div class="code-wrap">
+        <input type="text" name="code" id="codeInput"
+          class="code-input" placeholder="000000"
+          maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+          autofocus required
+          oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6);if(this.value.length===6){document.getElementById('autoVerifyHint').textContent='Verifying…';document.getElementById('tfaForm').submit();}">
+      </div>
+      <div id="autoVerifyHint" class="auto-hint">
+        <span class="auto-hint-dot"></span>
+        Auto-verifies as soon as you finish typing
+      </div>
+    </form>
+
+    <div class="hint-box">
+      <div class="ht">Having trouble?</div>
+      <div class="hb">Make sure your phone's clock is accurate. The code refreshes every 30 seconds — wait for a new one if it just changed.</div>
+    </div>
+
+    <div class="back-link"><a href="{% url 'login' %}">← Back to sign in</a></div>
+  </div>
+</div>
+
+</body>
+</html>

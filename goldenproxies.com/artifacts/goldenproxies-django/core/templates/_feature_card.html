@@ -1,0 +1,8 @@
+{% load static %}
+<div class="glass-card rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300 group">
+  <div class="icon-halo w-11 h-11 rounded-xl bg-gradient-to-br from-[#FFE9A3] via-[#E8C84A] to-[#B8941F] flex items-center justify-center mb-4 text-xl group-hover:scale-110 transition-transform shadow-md shadow-[#D4AF37]/25">
+    {{ icon }}
+  </div>
+  <h3 class="font-bold text-gray-900 mb-1.5 text-base group-hover:text-[#A07818] transition-colors">{{ t }}</h3>
+  <p class="text-gray-500 text-sm leading-relaxed">{{ d }}</p>
+</div>

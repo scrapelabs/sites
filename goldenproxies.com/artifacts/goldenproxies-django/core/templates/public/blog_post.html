@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} — GoldenProxies Blog{% endblock %}
+{% block extra_head %}
+<meta name="description" content="{{ post.meta_description }}">
+{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-14">
+
+  <!-- Back -->
+  <a href="/blog/" class="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-[#D4AF37] transition-colors mb-8">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    Back to Blog
+  </a>
+
+  <!-- Tags -->
+  {% if post.tag_list %}
+  <div class="flex flex-wrap gap-2 mb-5">
+    {% for tag in post.tag_list %}
+    <span class="text-xs font-semibold text-[#D4AF37] bg-[#D4AF37]/10 border border-[#D4AF37]/20 px-3 py-1 rounded-full uppercase tracking-widest">{{ tag }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Title -->
+  <h1 class="text-3xl lg:text-4xl font-serif font-bold text-gray-900 leading-tight mb-5">{{ post.title }}</h1>
+
+  <!-- Meta -->
+  <div class="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-8 pb-6 border-b border-[#D4AF37]/10">
+    <span>{{ post.published_at|date:"F j, Y" }}</span>
+    <span>·</span>
+    <span>{{ post.reading_time }} min read</span>
+    {% if post.author %}
+    <span>·</span>
+    <span>By {{ post.author.get_full_name|default:post.author.email }}</span>
+    {% endif %}
+    {% if post.ai_generated %}
+    <span>·</span>
+    <span class="text-[#D4AF37] font-medium">✦ AI-assisted</span>
+    {% endif %}
+  </div>
+
+  <!-- Cover image -->
+  {% if post.cover_image_url %}
+  <div class="mb-8 rounded-2xl overflow-hidden">
+    <img src="{{ post.cover_image_url }}" alt="{{ post.title }}" class="w-full h-72 object-cover">
+  </div>
+  {% endif %}
+
+  <!-- Excerpt -->
+  {% if post.excerpt %}
+  <div class="glass-card rounded-2xl p-5 mb-8">
+    <p class="text-gray-700 text-base leading-relaxed italic">{{ post.excerpt }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Content -->
+  <div class="blog-prose">
+    {{ post.content|safe }}
+  </div>
+
+  <!-- Footer -->
+  <div class="mt-12 pt-8 border-t border-[#D4AF37]/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <a href="/blog/" class="text-sm text-gray-400 hover:text-[#D4AF37] transition-colors">← More articles</a>
+    <div class="flex items-center gap-3">
+      <a href="/register/" class="gold-btn px-5 py-2.5 rounded-xl text-sm">Get Started with GoldenProxies</a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,1249 @@
+{% extends "core/base.html" %}
+{% block title %}Dashboard — Permitlify{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block extra_css %}
+/* ── BEST LEAD hero panel ─────────────────────────────────────── */
+.bl-hero{
+  position:relative;overflow:hidden;
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:26px;
+  padding:26px 30px;margin-bottom:20px;
+  border-radius:20px;
+  color:#fff;
+  background:
+    radial-gradient(ellipse at 8% 0%, rgba(251,191,36,.34) 0%, transparent 55%),
+    radial-gradient(ellipse at 100% 100%, rgba(124,58,237,.32) 0%, transparent 60%),
+    linear-gradient(135deg,#0f172a 0%,#1e293b 45%,#312e81 100%);
+  box-shadow:0 18px 44px -14px rgba(15,23,42,.55), 0 4px 12px rgba(15,23,42,.18),
+             inset 0 1px 0 rgba(255,255,255,.10);
+  isolation:isolate;
+}
+.bl-hero::before{
+  /* moving glow band */
+  content:'';position:absolute;inset:-50% -10% auto auto;
+  width:520px;height:520px;border-radius:50%;
+  background:radial-gradient(circle,rgba(251,191,36,.22) 0%,rgba(251,191,36,0) 65%);
+  pointer-events:none;z-index:-1;
+  animation:bl-glow-pan 9s ease-in-out infinite alternate;
+}
+@keyframes bl-glow-pan{
+  0%  {transform:translate(0,0)       scale(1);}
+  100%{transform:translate(-90px,40px) scale(1.18);}
+}
+.bl-hero::after{
+  /* fine grain overlay */
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:-1;opacity:.6;
+  background-image:
+    radial-gradient(circle at 24% 32%, rgba(255,255,255,.10) 1px, transparent 1.5px),
+    radial-gradient(circle at 68% 78%, rgba(255,255,255,.07) 1px, transparent 1.5px),
+    radial-gradient(circle at 88% 24%, rgba(255,255,255,.09) 1px, transparent 1.5px);
+  background-size:120px 120px,160px 160px,200px 200px;
+}
+.bl-tag{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:'DM Sans',monospace;
+  font-size:10.5px;font-weight:800;letter-spacing:1.8px;
+  color:#fde68a;
+  background:rgba(251,191,36,.14);
+  border:1px solid rgba(251,191,36,.42);
+  padding:4px 11px 4px 9px;border-radius:999px;
+  margin-bottom:10px;
+  text-transform:uppercase;
+}
+.bl-tag-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#fbbf24;
+  box-shadow:0 0 10px rgba(251,191,36,.85), 0 0 0 2px rgba(251,191,36,.22);
+  animation:bl-pulse 1.6s ease-in-out infinite;
+}
+@keyframes bl-pulse{
+  0%,100%{opacity:1;transform:scale(1);}
+  50%{opacity:.55;transform:scale(.78);}
+}
+.bl-score{
+  position:relative;flex-shrink:0;
+  width:118px;height:118px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 30% 28%, #fef3c7 0%, #fbbf24 55%, #d97706 100%);
+  box-shadow:
+    0 0 0 4px rgba(251,191,36,.18),
+    0 0 28px rgba(251,191,36,.55),
+    inset 0 -6px 12px rgba(120,53,15,.35),
+    inset 0 4px 10px rgba(255,255,255,.45);
+  animation:bl-score-pulse 2.6s ease-in-out infinite;
+}
+@keyframes bl-score-pulse{
+  0%,100%{box-shadow:0 0 0 4px rgba(251,191,36,.18),0 0 28px rgba(251,191,36,.55),inset 0 -6px 12px rgba(120,53,15,.35),inset 0 4px 10px rgba(255,255,255,.45);}
+  50%    {box-shadow:0 0 0 6px rgba(251,191,36,.28),0 0 44px rgba(251,191,36,.78),inset 0 -6px 12px rgba(120,53,15,.35),inset 0 4px 10px rgba(255,255,255,.45);}
+}
+.bl-score-num{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:42px;font-weight:900;letter-spacing:-1.5px;
+  color:#451a03;line-height:1;
+  text-shadow:0 1px 0 rgba(255,255,255,.45);
+}
+.bl-score-grade{
+  font-family:'DM Sans',monospace;
+  font-size:11px;font-weight:800;letter-spacing:1.6px;
+  color:#78350f;margin-top:3px;
+}
+.bl-body{flex:1;min-width:0;}
+.bl-headline{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:23px;font-weight:800;letter-spacing:-.5px;line-height:1.18;
+  color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  max-width:560px;
+}
+.bl-meta{
+  display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;
+  margin-top:10px;
+  font-family:'DM Sans',sans-serif;
+  font-size:12.5px;color:rgba(255,255,255,.78);
+}
+.bl-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+  font-size:11.5px;font-weight:700;color:#e2e8f0;letter-spacing:.2px;
+}
+.bl-chip-dot{width:6px;height:6px;border-radius:50%;background:#34d399;}
+.bl-sub{
+  font-size:13px;font-weight:500;line-height:1.5;
+  color:rgba(255,255,255,.88);margin-top:8px;
+  max-width:600px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.bl-sub b{color:#fef3c7;font-weight:700;}
+.bl-actions{
+  flex-shrink:0;display:flex;flex-direction:column;gap:10px;align-items:stretch;min-width:200px;
+}
+.bl-btn{
+  position:relative;
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  padding:13px 22px;
+  border-radius:12px;
+  font-family:'DM Sans',sans-serif;
+  font-size:13.5px;font-weight:800;letter-spacing:.2px;
+  text-decoration:none;
+  cursor:pointer;border:none;
+  transition:transform .15s ease, box-shadow .25s ease, filter .15s ease;
+  isolation:isolate;
+}
+.bl-btn svg{width:16px;height:16px;}
+.bl-btn-call{
+  color:#052e16;
+  background:linear-gradient(135deg,#bbf7d0 0%,#34d399 50%,#10b981 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.18),
+    0 8px 22px -6px rgba(16,185,129,.6),
+    0 0 24px rgba(52,211,153,.45),
+    inset 0 1px 0 rgba(255,255,255,.55);
+  animation:bl-btn-glow-green 2.4s ease-in-out infinite;
+}
+@keyframes bl-btn-glow-green{
+  0%,100%{box-shadow:0 0 0 1px rgba(255,255,255,.18),0 8px 22px -6px rgba(16,185,129,.6),0 0 24px rgba(52,211,153,.45),inset 0 1px 0 rgba(255,255,255,.55);}
+  50%    {box-shadow:0 0 0 1px rgba(255,255,255,.22),0 10px 28px -6px rgba(16,185,129,.78),0 0 38px rgba(52,211,153,.7),inset 0 1px 0 rgba(255,255,255,.6);}
+}
+.bl-btn-email{
+  color:#1e1b4b;
+  background:linear-gradient(135deg,#e0e7ff 0%,#a5b4fc 50%,#818cf8 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.18),
+    0 8px 22px -6px rgba(99,102,241,.55),
+    0 0 22px rgba(165,180,252,.45),
+    inset 0 1px 0 rgba(255,255,255,.55);
+}
+.bl-btn-view{
+  color:#fff;
+  background:rgba(255,255,255,.08);
+  border:1.5px solid rgba(255,255,255,.22);
+  font-weight:700;font-size:12.5px;letter-spacing:.4px;
+  padding:10px 18px;
+  text-transform:uppercase;
+}
+.bl-btn:hover{transform:translateY(-1.5px);filter:brightness(1.06);}
+.bl-btn:active{transform:translateY(0);}
+.bl-btn-view:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.36);}
+
+@media(max-width:900px){
+  .bl-hero{grid-template-columns:auto 1fr;gap:18px;padding:22px 22px;}
+  .bl-headline{font-size:19px;white-space:normal;}
+  .bl-actions{grid-column:1 / -1;flex-direction:row;flex-wrap:wrap;min-width:0;}
+  .bl-actions .bl-btn{flex:1 1 140px;}
+}
+@media(max-width:560px){
+  .bl-hero{grid-template-columns:1fr;text-align:center;padding:20px 18px;}
+  .bl-score{margin:0 auto;width:96px;height:96px;}
+  .bl-score-num{font-size:34px;}
+  .bl-headline{font-size:17px;}
+  .bl-meta,.bl-sub{justify-content:center;text-align:center;margin-left:auto;margin-right:auto;}
+  .bl-actions{flex-direction:column;}
+}
+
+/* ── Heads-up banner: "permits aren't filed every day" ──────── */
+.hu-banner{
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:16px;
+  padding:16px 22px;margin-bottom:18px;
+  border-radius:16px;
+  color:#fff;
+  background:linear-gradient(135deg,#059669 0%,#10b981 50%,#34d399 100%);
+  box-shadow:0 10px 28px -10px rgba(5,150,105,.55), 0 2px 6px rgba(15,23,42,.06);
+  isolation:isolate;
+}
+.hu-banner-bubbles{
+  position:absolute;inset:0;
+  pointer-events:none;z-index:-1;
+  background-image:
+    radial-gradient(circle at 12% 30%, rgba(255,255,255,.22) 22px, transparent 23px),
+    radial-gradient(circle at 28% 78%, rgba(255,255,255,.16) 14px, transparent 15px),
+    radial-gradient(circle at 47% 18%, rgba(255,255,255,.12) 10px, transparent 11px),
+    radial-gradient(circle at 63% 62%, rgba(255,255,255,.20) 28px, transparent 29px),
+    radial-gradient(circle at 82% 28%, rgba(255,255,255,.14) 18px, transparent 19px),
+    radial-gradient(circle at 92% 82%, rgba(255,255,255,.18) 24px, transparent 25px),
+    radial-gradient(circle at 38% 50%, rgba(255,255,255,.10)  8px, transparent  9px),
+    radial-gradient(circle at 72% 88%, rgba(255,255,255,.13) 12px, transparent 13px);
+  animation:hu-bubble-drift 18s ease-in-out infinite alternate;
+}
+@keyframes hu-bubble-drift{
+  0%  {transform:translate3d(0,0,0)        scale(1);}
+  50% {transform:translate3d(-8px,4px,0)   scale(1.04);}
+  100%{transform:translate3d(6px,-3px,0)   scale(.98);}
+}
+.hu-banner-icon{
+  flex-shrink:0;
+  width:44px;height:44px;border-radius:12px;
+  background:rgba(255,255,255,.18);
+  border:1.5px solid rgba(255,255,255,.32);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.30);
+}
+.hu-banner-text{flex:1;min-width:0;}
+.hu-banner-headline{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:15.5px;font-weight:800;letter-spacing:-.2px;
+  color:#fff;line-height:1.25;
+}
+.hu-banner-sub{
+  font-size:12.5px;font-weight:500;line-height:1.55;
+  color:rgba(255,255,255,.92);margin-top:3px;
+  max-width:760px;
+}
+.hu-banner-sub strong{color:#fff;font-weight:800;}
+@media(max-width:780px){
+  .hu-banner{flex-wrap:wrap;padding:14px 16px;gap:12px;}
+  .hu-banner-headline{font-size:14px;}
+  .hu-banner-sub{font-size:12px;}
+}
+
+/* ── Wide plan banner ─────────────────────────────────────────── */
+.plan-banner{
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:18px;
+  padding:20px 26px;margin-bottom:22px;
+  border-radius:18px;
+  color:#fff;
+  box-shadow:0 12px 32px -8px rgba(15,23,42,.28), 0 2px 6px rgba(15,23,42,.06);
+  isolation:isolate;
+}
+.plan-banner--starter{background:linear-gradient(135deg,#0ea5e9 0%,#1d4ed8 55%,#7c3aed 100%);}
+.plan-banner--pro    {background:linear-gradient(135deg,#1d4ed8 0%,#0ea5e9 45%,#10b981 100%);}
+.plan-banner--agency {background:linear-gradient(135deg,#7c3aed 0%,#1d4ed8 50%,#f59e0b 130%);}
+.plan-banner-glow{
+  position:absolute;inset:auto -40px -120px auto;
+  width:340px;height:340px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.32) 0%,rgba(255,255,255,0) 70%);
+  pointer-events:none;z-index:-1;
+}
+.plan-banner-pattern{
+  position:absolute;inset:0;
+  background-image:
+    radial-gradient(circle at 18% 22%, rgba(255,255,255,.18) 1.4px, transparent 1.6px),
+    radial-gradient(circle at 76% 70%, rgba(255,255,255,.14) 1.4px, transparent 1.6px),
+    radial-gradient(circle at 42% 88%, rgba(255,255,255,.10) 1.4px, transparent 1.6px);
+  background-size:140px 140px, 180px 180px, 220px 220px;
+  pointer-events:none;z-index:-1;opacity:.85;
+}
+.plan-banner-icon{
+  flex-shrink:0;
+  width:54px;height:54px;border-radius:14px;
+  background:rgba(255,255,255,.16);
+  border:1.5px solid rgba(255,255,255,.28);
+  backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 4px 14px rgba(15,23,42,.18);
+}
+.plan-banner-icon svg{width:26px;height:26px;}
+.plan-banner-text{flex:1;min-width:0;}
+.plan-banner-tag{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:'DM Sans',monospace;
+  font-size:10.5px;font-weight:800;letter-spacing:1.6px;
+  color:rgba(255,255,255,.82);
+  background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.22);
+  padding:3px 9px 3px 7px;border-radius:999px;
+  margin-bottom:8px;
+}
+.plan-banner-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:#fff;
+  box-shadow:0 0 0 2px rgba(255,255,255,.32);
+  animation:plan-banner-pulse 2.4s ease-in-out infinite;
+}
+@keyframes plan-banner-pulse{
+  0%,100%{opacity:1;transform:scale(1);}
+  50%{opacity:.55;transform:scale(.85);}
+}
+.plan-banner-headline{
+  font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+  font-size:20px;font-weight:800;letter-spacing:-.4px;
+  color:#fff;line-height:1.2;
+}
+.plan-banner-sub{
+  font-size:13.5px;font-weight:500;line-height:1.55;
+  color:rgba(255,255,255,.88);margin-top:5px;
+  max-width:640px;
+}
+.plan-banner-sub strong{color:#fff;font-weight:800;}
+.plan-banner-cta{
+  flex-shrink:0;
+  display:inline-flex;align-items:center;gap:8px;
+  padding:11px 18px;
+  background:#fff;color:#1d4ed8;
+  border-radius:10px;
+  font-size:13px;font-weight:800;
+  text-decoration:none;letter-spacing:.2px;
+  box-shadow:0 6px 16px -4px rgba(15,23,42,.32);
+  transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.plan-banner-cta:hover{
+  transform:translateY(-1px);
+  box-shadow:0 10px 22px -6px rgba(15,23,42,.4);
+  background:#f8fafc;
+}
+.plan-banner-cta svg{transition:transform .15s ease;}
+.plan-banner-cta:hover svg{transform:translateX(2px);}
+.plan-banner--pro    .plan-banner-cta{color:#0e7c46;}
+.plan-banner--starter .plan-banner-cta{color:#1d4ed8;}
+@media(max-width:780px){
+  .plan-banner{flex-wrap:wrap;padding:18px 20px;gap:14px;}
+  .plan-banner-headline{font-size:17px;}
+  .plan-banner-sub{font-size:12.5px;}
+  .plan-banner-cta{width:100%;justify-content:center;}
+}
+
+/* Page-specific CSS only — th.sortable, .pf-* filter panel,
+   and DataTables overrides now live in base.html so dashboard
+   and /permits stay in sync. */
+{% endblock %}
+
+{% block content %}
+{% include "core/_locked_banner.html" %}
+{% if cities_frozen %}
+<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:14px;padding:16px 20px;display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;">
+  <div style="width:38px;height:38px;background:#fee2e2;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round" width="20" height="20"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  </div>
+  <div style="flex:1">
+    <div style="font-weight:700;font-size:14px;color:#991b1b;margin-bottom:4px;">Action required — too many states for your current plan</div>
+    <div style="font-size:13px;color:#b91c1c;line-height:1.55;">
+      Your plan allows <strong>{{ city_limit }} state{{ city_limit|pluralize }}</strong>. You currently have <strong>{{ city_count }}</strong>.
+      Daily permit emails and permit history are paused until you remove <strong>{{ city_excess }}</strong> excess state{{ city_excess|pluralize }}.
+    </div>
+    <a href="/settings/#coverage" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:7px 14px;background:#dc2626;color:#fff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;">
+      Manage Coverage →
+    </a>
+  </div>
+</div>
+{% endif %}
+{% if pending_downgrade %}
+<div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:14px;padding:16px 20px;display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;">
+  <div style="width:38px;height:38px;background:#ffedd5;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2.2" stroke-linecap="round" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  </div>
+  <div style="flex:1">
+    <div style="font-weight:700;font-size:14px;color:#7c2d12;margin-bottom:4px;">
+      You're on <strong>{{ user_plan }}</strong> &mdash; downgrade to <strong>{{ pending_downgrade.plan|title }}</strong> scheduled for {{ pending_downgrade.date }}{% if days_until_downgrade is not None %} <span style="font-weight:500;font-size:12px;color:#9a3412;">({{ days_until_downgrade }} day{{ days_until_downgrade|pluralize }} away)</span>{% endif %}
+    </div>
+    <div style="font-size:13px;color:#9a3412;line-height:1.55;">
+      Everything stays fully active until then — states, permits and emails all keep running.
+      {% if city_count > pending_downgrade.city_limit %}
+        <br>After that, {{ pending_downgrade.plan|title }} allows only <strong>{{ pending_downgrade.city_limit }} state{{ pending_downgrade.city_limit|pluralize }}</strong> — you have <strong>{{ city_count }}</strong>. Reduce before {{ pending_downgrade.date }} to avoid a freeze.
+      {% endif %}
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
+      <form method="POST" action="/billing/apply-downgrade/" style="margin:0;" onsubmit="return confirm('Switch to {{ pending_downgrade.plan|title }} now? This takes effect immediately and cannot be undone.')">
+        {% csrf_token %}
+        <button type="submit" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#ea580c;border:none;color:#fff;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Switch to {{ pending_downgrade.plan|title }} Now</button>
+      </form>
+      <form method="POST" action="/billing/cancel-downgrade/" style="margin:0;" onsubmit="return confirm('Cancel the scheduled downgrade? You will stay on {{ user_plan }} and continue to be billed at the {{ user_plan }} rate.')">
+        {% csrf_token %}
+        <button type="submit" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#fff;border:1.5px solid #fb923c;color:#9a3412;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Stay on {{ user_plan }}</button>
+      </form>
+      {% if city_count > pending_downgrade.city_limit %}
+      <a href="/settings/#coverage" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#fff3;border:1.5px solid #fdba74;color:#9a3412;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">Manage Cities →</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ── Wide plan banner (eye-catching, plan-aware) ───────────────────── #}
+<div class="plan-banner plan-banner--{{ user_plan|lower }}">
+  <div class="plan-banner-glow"></div>
+  <div class="plan-banner-pattern"></div>
+  <div class="plan-banner-icon">
+    {% if user_plan == 'Agency' %}
+      {# Crown #}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 19h20l-2-9-5 4-3-7-3 7-5-4-2 9z"/><path d="M2 19h20"/></svg>
+    {% elif user_plan == 'Pro' %}
+      {# Trending-up chart #}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="14 7 21 7 21 14"/></svg>
+    {% else %}
+      {# Rocket #}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+    {% endif %}
+  </div>
+  <div class="plan-banner-text">
+    <div class="plan-banner-tag">
+      <span class="plan-banner-dot"></span>
+      {{ user_plan|upper }} PLAN
+    </div>
+    {% if user_plan == 'Agency' %}
+      <div class="plan-banner-headline">You're on our best plan.</div>
+      <div class="plan-banner-sub">Full city coverage, unlimited alerts, and priority AI scoring — no caps, ever. Enjoy the view from the top.</div>
+    {% elif user_plan == 'Pro' %}
+      <div class="plan-banner-headline">You're ahead of the curve.</div>
+      <div class="plan-banner-sub">Pro contractors close <strong>3× more deals</strong> with targeted permit alerts. Keep it up.</div>
+    {% else %}
+      <div class="plan-banner-headline">Great start — leads are flowing in.</div>
+      <div class="plan-banner-sub">Unlock more cities, unlimited alerts, and AI-scored opportunities the moment you're ready.</div>
+    {% endif %}
+  </div>
+  {% if user_plan != 'Agency' %}
+  <a href="/pricing/" class="plan-banner-cta">
+    {% if user_plan == 'Pro' %}Explore Agency{% else %}Upgrade to Pro{% endif %}
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+  </a>
+  {% endif %}
+</div>
+
+{% if best_lead %}
+<!-- ── BEST LEAD hero — your highest-scoring permit in the window ── -->
+<div class="bl-hero" role="region" aria-label="Best lead in the last 3 days">
+  <div class="bl-score" aria-hidden="true">
+    <div class="bl-score-num">{{ best_lead.score }}</div>
+    <div class="bl-score-grade">{{ best_lead.grade|default:"A+" }}</div>
+  </div>
+  <div class="bl-body">
+    <div class="bl-tag"><span class="bl-tag-dot"></span> ⭐ Best Lead Right Now</div>
+    <div class="bl-headline" title="{{ best_lead.owner|default:'Permit owner' }}">{{ best_lead.owner|default:"New high-score permit"|truncatechars:64 }}</div>
+    <div class="bl-meta">
+      <span class="bl-chip"><span class="bl-chip-dot"></span> {{ best_lead.type|default:"Permit" }}</span>
+      {% if best_lead.city %}<span class="bl-chip">📍 {{ best_lead.city }}{% if best_lead.state %}, {{ best_lead.state }}{% endif %}</span>{% endif %}
+      {% if best_lead.status %}<span class="bl-chip">{{ best_lead.status|title }}</span>{% endif %}
+      {% if best_lead.issued %}<span class="bl-chip">Issued {{ best_lead.issued }}</span>{% endif %}
+    </div>
+    {% if best_lead.project or best_lead.desc %}
+    <div class="bl-sub">
+      {% if best_lead.project %}<b>{{ best_lead.project|truncatechars:80 }}</b>{% if best_lead.desc %} — {% endif %}{% endif %}
+      {% if best_lead.desc %}{{ best_lead.desc|truncatechars:140 }}{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="bl-actions">
+    {% if best_lead.phone %}
+    <a class="bl-btn bl-btn-call" href="tel:{{ best_lead.phone }}" aria-label="Call this lead now">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 12 19.79 19.79 0 01.12 3.38 2 2 0 012.1 1.21L5.07 1a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.08 8.9a16 16 0 006 6l1.26-1.26a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 15.92z"/></svg>
+      Call now
+    </a>
+    {% endif %}
+    {% if best_lead.email %}
+    <a class="bl-btn bl-btn-email" href="mailto:{{ best_lead.email }}" aria-label="Email this lead">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      Send email
+    </a>
+    {% endif %}
+    <button type="button" class="bl-btn bl-btn-view" onclick="openBestLeadProfile()" aria-label="View AI profile for this lead">View AI profile →</button>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Heads-up: not every day publishes new permits ──────────── -->
+<div class="hu-banner" role="note" aria-label="About your permit feed">
+  <div class="hu-banner-bubbles" aria-hidden="true"></div>
+  <div class="hu-banner-icon" aria-hidden="true">&#127793;</div>
+  <div class="hu-banner-text">
+    <div class="hu-banner-headline">Showing permits from the last 3 days</div>
+    <div class="hu-banner-sub">
+      Heads up — <strong>permit offices don't file new records every day</strong>
+      (weekends, holidays and slow days happen). We roll up the
+      <strong>last 3 days</strong> here so your feed always has fresh leads
+      to work, even on quiet days.
+    </div>
+  </div>
+</div>
+
+<div class="page-title">Dashboard</div>
+<div class="page-desc" id="dbDesc">Last 3 days of permits &middot; <span id="todayLabel"></span></div>
+
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-label">Permits (3 days)</div><div class="stat-num" id="statTotal">—</div><div class="stat-sub up">&#8593; Fresh as of {{ cron_schedule.time_label }} {{ cron_schedule.tz_label }}</div></div>
+  <div class="stat-card"><div class="stat-label">Hot Leads 80+</div><div class="stat-num" id="statHot">—</div><div class="stat-sub pr">Call these first</div></div>
+  <div class="stat-card"><div class="stat-label">Avg Lead Score</div><div class="stat-num" id="statAvg">—</div><div class="stat-sub up">3-day average</div></div>
+  <div class="stat-card"><div class="stat-label">Data Refreshed</div><div class="stat-num">{{ cron_schedule.time_label }}</div><div class="stat-sub" id="statDate">{{ cron_schedule.tz_label }} daily</div></div>
+</div>
+
+<!-- ── Filter Panel ─────────────────────────────────────── -->
+<div class="pf-panel">
+  <div class="pf-row">
+    <div class="pf-group">
+      <label class="pf-label">State</label>
+      <select id="pfState" class="pf-sel">
+        <option value="">All States</option>
+        {% for st in plan_states %}<option value="{{ st }}">{{ st }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="pf-group">
+      <label class="pf-label">City</label>
+      <select id="pfCity" class="pf-sel">
+        <option value="">All Cities</option>
+      </select>
+    </div>
+    <div class="pf-group">
+      <label class="pf-label">Permit Type</label>
+      {% if user_plan != 'Starter' %}
+      <select id="pfType" class="pf-sel">
+        <option value="">All Types</option>
+        <option value="roofing">Roofing</option>
+        <option value="hvac">HVAC</option>
+        <option value="plumbing">Plumbing</option>
+        <option value="electrical">Electrical</option>
+        <option value="solar">Solar</option>
+        <option value="civil">Civil / Construction</option>
+      </select>
+      {% else %}
+      <div style="height:37px;border:1.5px solid var(--b2);border-radius:10px;padding:0 11px;font-size:13px;color:#94a3b8;background:#f8fafc;display:flex;align-items:center;gap:6px;cursor:default;" title="Upgrade to Pro to filter by trade type">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Pro+
+      </div>
+      {% endif %}
+    </div>
+    <div class="pf-group">
+      <label class="pf-label">Status</label>
+      <select id="pfStatus" class="pf-sel">
+        <option value="">All Statuses</option>
+        <option value="approved">Approved</option>
+        <option value="issued">Issued</option>
+        <option value="pending">Pending</option>
+        <option value="review">In Review</option>
+        <option value="open">Open</option>
+        <option value="expired">Expired</option>
+        <option value="unknown">Unknown</option>
+      </select>
+    </div>
+    {% if user_plan != 'Starter' %}
+    <div class="pf-group" style="min-width:80px;max-width:88px;">
+      <label class="pf-label">Min Score</label>
+      <input id="pfScoreMin" class="pf-inp" type="number" min="0" max="100" placeholder="0">
+    </div>
+    <div class="pf-group" style="min-width:80px;max-width:88px;">
+      <label class="pf-label">Max Score</label>
+      <input id="pfScoreMax" class="pf-inp" type="number" min="0" max="100" placeholder="100">
+    </div>
+    {% else %}
+    <input id="pfScoreMin" type="hidden" value="0">
+    <input id="pfScoreMax" type="hidden" value="100">
+    {% endif %}
+    <div class="pf-divider"></div>
+    <div class="pf-group pf-grow" style="min-width:160px;">
+      <label class="pf-label">Owner Name</label>
+      <input id="pfOwner" class="pf-inp" type="text" placeholder="Search owner…">
+    </div>
+  </div>
+  <div class="pf-row">
+    <div class="pf-group pf-grow">
+      <label class="pf-label">Phone</label>
+      <input id="pfPhone" class="pf-inp" type="text" placeholder="(817)…">
+    </div>
+    <div class="pf-group pf-grow">
+      <label class="pf-label">Email</label>
+      <input id="pfEmail" class="pf-inp" type="text" placeholder="@domain…">
+    </div>
+    <div class="pf-group pf-grow">
+      <label class="pf-label">Expires Before</label>
+      <input id="pfExpiresBefore" class="pf-inp" type="date">
+    </div>
+    <div class="pf-group pf-grow">
+      <label class="pf-label">Record # / Keyword</label>
+      <input id="pfKeyword" class="pf-inp" type="text" placeholder="PW26-… or keyword">
+    </div>
+    <button class="pf-clear" onclick="clearFilters()">✕ Clear All</button>
+  </div>
+</div>
+
+<!-- ── Score tier + count + export ─────────────────────── -->
+<div class="th-row">
+  <div class="filters" id="tierFilters">
+    <button class="fb active" data-tier="all"  onclick="setTier('all',this)">All</button>
+    <button class="fb"        data-tier="hot"  onclick="setTier('hot',this)">&#11088; Hot 80+</button>
+    <button class="fb"        data-tier="warm" onclick="setTier('warm',this)">&#127777; Warm 60–79</button>
+    <button class="fb"        data-tier="cool" onclick="setTier('cool',this)">&#10052; Cool &lt;60</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <span class="pcount" id="pinfo"></span>
+    {% if user_plan != 'Starter' %}
+    <button class="exp-btn" onclick="exportCsv()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
+    </button>
+    {% endif %}
+    <a href="{% url 'permits' %}" style="white-space:nowrap;font-size:12.5px;font-weight:700;color:var(--pr);text-decoration:none;padding:6px 4px;display:inline-flex;align-items:center;gap:4px;">Permit History <span style="font-size:14px;">→</span></a>
+  </div>
+</div>
+
+<div class="tw">
+  <div class="tw-scroll">
+    <table class="tbl leads-tbl" id="dashboardTable" style="width:100%;">
+      <thead>
+        <tr>
+          <th>Record #</th>
+          <th>City / State</th>
+          <th>Permit Type</th>
+          <th>Status</th>
+          <th>Issued</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>Owner / Contractor</th>
+          <th>Score</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="emptyFiltered" style="display:none;text-align:center;padding:48px 24px;color:var(--tx3);">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="margin-bottom:12px;opacity:.4"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div style="font-size:15px;font-weight:600;color:var(--tx2);margin-bottom:6px;">No permits match your filters</div>
+    <div style="font-size:13px;">Try adjusting your search or <a href="#" onclick="clearFilters();return false;" style="color:var(--pr)">clear all filters</a>.</div>
+  </div>
+</div>
+
+<!-- No data at all in the last 3 days -->
+<div id="emptyNoData" style="display:none;background:var(--sur);border:1px solid var(--b1);border-radius:16px;text-align:center;padding:56px 32px;box-shadow:var(--sh);margin-top:16px;">
+  <div style="font-size:48px;margin-bottom:16px;">&#128274;</div>
+  <div style="font-size:18px;font-weight:700;color:var(--tx);margin-bottom:8px;">No new leads in the last 3 days</div>
+  <div style="font-size:13.5px;color:var(--tx2);max-width:460px;margin:0 auto 20px;line-height:1.7;">
+    Permit offices don't always file every day — weekends and holidays often go quiet. New filings typically arrive around <strong>{{ cron_schedule.window_label }} {{ cron_schedule.tz_label }}</strong>, and your feed will refresh automatically as soon as the next batch lands.
+  </div>
+  <div style="display:inline-flex;flex-direction:column;align-items:flex-start;gap:10px;background:var(--pd);border:1px solid rgba(29,78,216,.15);border-radius:12px;padding:18px 24px;margin-bottom:24px;text-align:left;">
+    <div style="font-size:11px;font-weight:800;color:var(--pr);text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px;">What happens next</div>
+    <div style="font-size:13px;color:var(--tx2);display:flex;align-items:center;gap:10px;"><span style="font-size:16px;">&#9993;</span> Email alert sent the moment new permits are scraped</div>
+    <div style="font-size:13px;color:var(--tx2);display:flex;align-items:center;gap:10px;"><span style="font-size:16px;">&#11088;</span> Every lead AI-scored 0–100 before it hits your feed</div>
+    <div style="font-size:13px;color:var(--tx2);display:flex;align-items:center;gap:10px;"><span style="font-size:16px;">&#128200;</span> Yesterday's leads are still in <a href="{% url 'permits' %}" style="color:var(--pr);font-weight:600;">Permit History →</a></div>
+  </div>
+  <div style="font-size:12px;color:var(--tx3);">Check back shortly — or we'll notify you by email as soon as your next batch is ready.</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- DataTables core (themed via overrides below) — same wiring as /permits/
+     so the dashboard table can never drift from the permit-history table. -->
+<link rel="stylesheet" href="/lib/grid.min.css?v=3">
+<script src="/lib/core.min.js?v=3"></script>
+<script src="/lib/grid.min.js?v=3"></script>
+<style>
+/* ── DataTables theme — mirrors templates/core/permits.html ── */
+.tw{position:relative;}
+.tw .dataTables_processing{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:#fff;border:1.5px solid var(--b1);border-radius:10px;
+  padding:8px 16px;font-size:12px;font-weight:600;color:var(--tx2);
+  font-family:'DM Sans',sans-serif;
+  box-shadow:0 4px 14px rgba(15,23,42,.08);z-index:30;
+}
+.dt-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:16px 6px 4px;flex-wrap:wrap;font-family:'DM Sans',sans-serif;
+}
+.dataTables_info{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx3);}
+.dataTables_paginate{display:flex;align-items:center;gap:6px;}
+.dataTables_paginate .paginate_button{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:34px;height:34px;padding:0 10px;
+  border:1.5px solid var(--b2);border-radius:9px;
+  background:#fff;color:var(--tx2);
+  font-size:12.5px;font-weight:600;cursor:pointer;
+  font-family:'DM Sans',sans-serif;
+  transition:all .15s;text-decoration:none;
+}
+.dataTables_paginate .paginate_button:hover{border-color:var(--pr);color:var(--pr);background:#f8fafc;}
+.dataTables_paginate .paginate_button.current,
+.dataTables_paginate .paginate_button.current:hover{background:var(--pr);border-color:var(--pr);color:#fff;}
+.dataTables_paginate .paginate_button.disabled,
+.dataTables_paginate .paginate_button.disabled:hover{opacity:.4;cursor:not-allowed;color:var(--tx3);border-color:var(--b2);background:#fff;}
+.dataTables_paginate .paginate_button:focus{outline:none;box-shadow:0 0 0 3px rgba(29,78,216,.15);}
+.dataTables_paginate .ellipsis{padding:0 4px;color:var(--tx3);font-weight:600;}
+.dataTables_length{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--tx2);}
+.dataTables_length label{display:flex;align-items:center;gap:8px;margin:0;}
+.dataTables_length select{
+  height:32px;border:1.5px solid var(--b2);border-radius:8px;
+  padding:0 24px 0 9px;font-size:12px;font-weight:600;color:var(--tx);
+  background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;
+  transition:border-color .15s,box-shadow .15s;
+}
+.dataTables_length select:hover{border-color:var(--pr);}
+.dataTables_length select:focus{border-color:var(--pr);box-shadow:0 0 0 3px rgba(29,78,216,.1);outline:none;}
+</style>
+<script>
+var PLAN_CITIES = {{ plan_cities_json|safe }};
+var USER_PLAN   = '{{ user_plan|lower }}';
+var _activeTier = 'all';
+
+/* ── Today's date for the header chrome ────────────────── */
+var _today = new Date();
+document.getElementById('todayLabel').textContent = _today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+document.getElementById('statDate').textContent   = _today.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+/* ── Best lead (highest-scoring permit in the window) ────
+   Server-rendered as a hero card above the table; kept as a
+   page-context object so the "View AI profile" button can
+   delegate straight to the existing openProfile() modal. */
+var BEST_LEAD = {{ best_lead_json|safe }};
+
+/* Candidate pool (top 50 by DB ai_score). The server picks by the
+ * stored Claude score because that's the only score it has, but the
+ * ground-truth ranking is the 12-factor heuristic the rest of the UI
+ * uses. We re-score every candidate on the client and promote whoever
+ * actually wins — preventing the situation where the hero said
+ * "Richard Trawicki · 58" while the table's top row scored 65. */
+var BEST_LEAD_CANDIDATES = {{ best_lead_candidates_json|safe }};
+
+/* Minimal HTML escaper for fields we inject straight into the hero
+ * card. The dashboard table uses jQuery DataTables' built-in
+ * escaping; here we need our own because we touch innerHTML. */
+function _blEsc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+function _blTrunc(s, n){
+  s = String(s == null ? '' : s);
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+}
+
+/* Repaint the hero card from a permit object. Mirrors the
+ * server-side template block at the top of dashboard.html so the
+ * rendered DOM is structurally identical after the swap. */
+function _renderBestLeadHero(p){
+  var hero = document.querySelector('.bl-hero');
+  if(!hero || !p) return;
+  var bodyEl  = hero.querySelector('.bl-body');
+  var actsEl  = hero.querySelector('.bl-actions');
+  var numEl   = hero.querySelector('.bl-score .bl-score-num');
+  var gradeEl = hero.querySelector('.bl-score .bl-score-grade');
+  if(numEl)   numEl.textContent   = (p.score == null ? '' : p.score);
+  if(gradeEl) gradeEl.textContent = p.grade || '';
+
+  if(bodyEl){
+    var owner = p.owner || 'New high-score permit';
+    var chips = '<span class="bl-chip"><span class="bl-chip-dot"></span> ' +
+                _blEsc(p.type || 'Permit') + '</span>';
+    if(p.city){
+      chips += '<span class="bl-chip">📍 ' + _blEsc(p.city) +
+               (p.state ? ', ' + _blEsc(p.state) : '') + '</span>';
+    }
+    if(p.status){
+      var st = String(p.status);
+      chips += '<span class="bl-chip">' + _blEsc(st.charAt(0).toUpperCase() + st.slice(1)) + '</span>';
+    }
+    if(p.issued){
+      chips += '<span class="bl-chip">Issued ' + _blEsc(p.issued) + '</span>';
+    }
+    var sub = '';
+    if(p.project || p.desc){
+      sub = '<div class="bl-sub">' +
+            (p.project ? '<b>' + _blEsc(_blTrunc(p.project, 80)) + '</b>' +
+                         (p.desc ? ' — ' : '') : '') +
+            (p.desc ? _blEsc(_blTrunc(p.desc, 140)) : '') +
+            '</div>';
+    }
+    bodyEl.innerHTML =
+      '<div class="bl-tag"><span class="bl-tag-dot"></span> ⭐ Best Lead Right Now</div>' +
+      '<div class="bl-headline" title="' + _blEsc(p.owner || 'Permit owner') + '">' +
+        _blEsc(_blTrunc(owner, 64)) + '</div>' +
+      '<div class="bl-meta">' + chips + '</div>' +
+      sub;
+  }
+
+  if(actsEl){
+    var phoneSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 12 19.79 19.79 0 01.12 3.38 2 2 0 012.1 1.21L5.07 1a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.08 8.9a16 16 0 006 6l1.26-1.26a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 15.92z"/></svg>';
+    var mailSvg  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>';
+    var btns = '';
+    if(p.phone){
+      btns += '<a class="bl-btn bl-btn-call" href="tel:' + _blEsc(p.phone) +
+              '" aria-label="Call this lead now">' + phoneSvg + 'Call now</a>';
+    }
+    if(p.email){
+      btns += '<a class="bl-btn bl-btn-email" href="mailto:' + _blEsc(p.email) +
+              '" aria-label="Email this lead">' + mailSvg + 'Send email</a>';
+    }
+    btns += '<button type="button" class="bl-btn bl-btn-view" onclick="openBestLeadProfile()" aria-label="View AI profile for this lead">View AI profile →</button>';
+    actsEl.innerHTML = btns;
+  }
+}
+
+/* Pick the actual best lead from the candidate pool using the same
+ * 12-factor scoring the rest of the UI shows, then repaint the
+ * hero. Runs once on DOM ready (or immediately if the script loads
+ * after parsing). */
+function _syncBestLeadHero(){
+  if(typeof computeOverallScore !== 'function') return;
+  var pool = (BEST_LEAD_CANDIDATES && BEST_LEAD_CANDIDATES.length)
+    ? BEST_LEAD_CANDIDATES
+    : (BEST_LEAD ? [BEST_LEAD] : []);
+  if(!pool.length) return;
+  var winner = null, winningScore = -1;
+  for(var i = 0; i < pool.length; i++){
+    var c = pool[i];
+    computeOverallScore(c);
+    if(c.score > winningScore){ winningScore = c.score; winner = c; }
+  }
+  if(!winner) return;
+  BEST_LEAD = winner;
+  _renderBestLeadHero(winner);
+}
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', _syncBestLeadHero);
+} else {
+  _syncBestLeadHero();
+}
+
+function openBestLeadProfile(){
+  if(!BEST_LEAD){ return; }
+  if(typeof openProfile === 'function'){ openProfile(BEST_LEAD); }
+  else { window.location.href = '{% url "permits" %}'; }
+}
+
+/* ── Date formatter — must match /permits/ exactly so the
+   same row reads identically across both pages. ─────────── */
+function fmtDate(iso){
+  if(!iso) return '';
+  var d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+/* ── Score colour ──────────────────────────────────────── */
+function sc(s){ return s>=90?'#16a34a':s>=75?'#1d4ed8':s>=60?'#d97706':'#dc2626'; }
+
+/* ── HTML-escape user-supplied strings before injecting ── */
+function esc(s){
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+/* ── Status badge ──────────────────────────────────────── */
+function sb(s){
+  var k = (s||'').toLowerCase();
+  var m = {
+    approved:'<span class="sb_ st-approved">Approved</span>',
+    pending:'<span class="sb_ st-pending">Pending</span>',
+    review:'<span class="sb_ st-review">In Review</span>',
+    expired:'<span class="sb_ st-expired">Expired</span>',
+    issued:'<span class="sb_ st-issued">Issued</span>',
+    open:'<span class="sb_ st-open">Open</span>',
+    unknown:'<span class="sb_ st-unknown">Unknown</span>',
+  };
+  if (m[k]) return m[k];
+  if (!s)   return '<span class="sb_ st-unknown">Unknown</span>';
+  return '<span class="sb_ st-other">' + esc(s.charAt(0).toUpperCase() + s.slice(1)) + '</span>';
+}
+
+/* ── Read all panel filters into the AJAX param dict ────
+ *  Note: the Score range (pfScoreMin/pfScoreMax) and Tier
+ *  filter are NOT sent to the server — they would filter on
+ *  the DB ai_score, which no longer matches what the user sees.
+ *  Those two filters are applied client-side instead (see the
+ *  ext.search hook below) against the 12-factor derived score
+ *  so the chip count, the table rows, and the displayed scores
+ *  always tell the same story. */
+function readFilters(d){
+  var pfType = document.getElementById('pfType');
+  d.f_state          = document.getElementById('pfState').value;
+  d.f_city           = document.getElementById('pfCity').value;
+  d.f_type           = (pfType && pfType.tagName === 'SELECT') ? pfType.value : '';
+  d.f_status         = document.getElementById('pfStatus').value;
+  d.f_owner          = document.getElementById('pfOwner').value;
+  d.f_phone          = document.getElementById('pfPhone').value;
+  d.f_email          = document.getElementById('pfEmail').value;
+  d.f_expires_before = document.getElementById('pfExpiresBefore').value;
+  d.f_keyword        = document.getElementById('pfKeyword').value;
+  /* Always fetch the full 3-day window in one shot — the table
+   * now sorts/pages/score-filters client-side, so we need every
+   * matching row up front. The dashboard endpoint raises its
+   * server-side cap to 2000 for exactly this reason (see
+   * ``dashboard_data_view``); anything bigger is bounded by the
+   * 3-day window and the user's city set. */
+  d.length = 2000;
+  d.start  = 0;
+  return d;
+}
+
+/* ── Stat cards — driven by the server-side `summary` block
+   so the cards always reflect the *full filtered population*
+   instead of the visible page slice. ───────────────────── */
+function updateStats(summary){
+  var total = (summary && summary.total) || 0;
+  var hot   = (summary && summary.hot)   || 0;
+  var avg   = (summary && summary.avg)   || 0;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statHot').textContent   = hot;
+  if (USER_PLAN === 'starter') {
+    var avgEl = document.getElementById('statAvg');
+    avgEl.textContent = '🔒';
+    avgEl.title = 'Upgrade to Pro to see average lead score';
+  } else {
+    document.getElementById('statAvg').textContent = avg || '—';
+  }
+}
+
+/* ── Server-side panel filters that affect the chip / empty-
+ *    state messaging. Score range + tier are NOT in this list
+ *    on purpose — those are applied client-side against the
+ *    derived score (see ext.search below). _serverTotal is the
+ *    full-window cardinality from the last fetch and is used to
+ *    decide which empty state to show after the client filter
+ *    layer runs. */
+var _serverTotal     = 0;
+var _serverFiltered  = 0;
+
+/* ── DataTables init — client-side mode so sorting / paging
+ *    work on the 12-factor derived score. The dashboard window
+ *    is hard-capped to 3 days (≤500 rows), which fits trivially
+ *    in a single fetch — far less data than the home page. */
+var dashboardTable = jQuery('#dashboardTable').DataTable({
+  serverSide: false,
+  processing: true,
+  searching:  true,  /* needed so ext.search filters fire; we still
+                        hide DataTables' built-in search box via `dom`. */
+  /* Mirrors the 500-row server cap so the user never gets
+     a silently-truncated "all rows" view. */
+  lengthMenu: [[25,50,100,250,500],[25,50,100,250,500]],
+  pageLength: 25,
+  order:      [[8,'desc']],  /* score column (col 8 of 10), descending */
+  dom:        'rt<"dt-foot"lip>',
+  ajax: {
+    url:  '/dashboard/data/',
+    data: function(d){ return readFilters(d); },
+    dataSrc: function(json){
+      _serverTotal    = json.recordsTotal    || 0;
+      _serverFiltered = json.recordsFiltered || 0;
+      /* Trial preview banner — mirrors /permits/. Shows the
+       * full filtered count + upgrade CTA so trial users see
+       * abundance, not a capped view. */
+      var tv = json && json.trial_view_limit;
+      var bn = document.getElementById('trialPreviewBanner');
+      if (tv && tv.capped) {
+        if (!bn) {
+          bn = document.createElement('div');
+          bn.id = 'trialPreviewBanner';
+          bn.className = 'trial-cap-banner';
+          var tw = document.querySelector('.tw') || document.querySelector('#permitsTable');
+          if (tw && tw.parentNode) tw.parentNode.insertBefore(bn, tw);
+        }
+        var hidden = Math.max(0, tv.total_filtered - tv.cap);
+        bn.style.display = '';
+        bn.innerHTML =
+          '<div class="tcb-msg"><b>Trial preview:</b> showing the top ' + tv.cap +
+          ' of ' + tv.total_filtered.toLocaleString() + ' permits from the last 3 days. ' +
+          '<b>' + hidden.toLocaleString() + '</b> more are waiting for you.</div>' +
+          '<a class="tcb-cta" href="/billing/upgrade/">Upgrade to see all &rarr;</a>';
+      } else if (bn) {
+        bn.style.display = 'none';
+      }
+      var rows = json.data || [];
+      /* Pre-derive the 12-factor score on every row so client-
+       * side sort (Score column) and the score-range / tier
+       * client filters all read the same number the user sees
+       * rendered in the cell. */
+      if (typeof computeOverallScore === 'function') {
+        rows.forEach(function(p){ computeOverallScore(p); });
+      }
+      /* Promote the table's full row pool (up to 500 rows
+       * spanning the 3-day window) into the hero card's
+       * candidate set, then re-pick. Previously the hero only
+       * saw a 50-row pool sorted by DB ``ai_score`` server-
+       * side, so any high-derived-score row that ranked low
+       * on Claude's original score (e.g. Jenna Klum / 76 vs
+       * the hero's Carson Wasowski / 70) was invisible to the
+       * hero. Sharing the table's pool guarantees the hero
+       * and the table's #1 row always describe the same
+       * permit. */
+      if (rows.length && typeof _syncBestLeadHero === 'function') {
+        BEST_LEAD_CANDIDATES = rows;
+        _syncBestLeadHero();
+      }
+      return rows;
+    },
+  },
+  columns: [
+    {data:'id', render:function(d){ return '<span class="rec">'+esc(d)+'</span>'; }},
+    {data:null, render:function(p){
+      return '<div style="font-size:12.5px;font-weight:600;color:var(--tx)">'+esc(p.city)+'</div>'+
+             '<div style="font-size:11px;color:var(--tx3);font-family:\'JetBrains Mono\',monospace">'+esc(p.state)+'</div>';
+    }},
+    {data:null, render:function(p){
+      /* Permit type only — the scope-of-work description was moved
+         out of the table cell to keep rows compact; the full text
+         shows in the row-detail modal when the user clicks a row. */
+      return '<div class="pt">'+esc(p.type)+'</div>';
+    }},
+    {data:'status', render:function(d){ return sb(d); }},
+    {data:'issuedIso', render:function(d){
+      return '<span style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px">'+esc(fmtDate(d))+'</span>';
+    }},
+    {data:'phone', render:function(d){
+      return '<span style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px">'+esc(d)+'</span>';
+    }},
+    {data:'email', render:function(d){
+      return '<a href="mailto:'+esc(d)+'" onclick="event.stopPropagation()" style="color:var(--pr);font-size:11.5px;font-family:\'JetBrains Mono\',monospace;text-decoration:none">'+esc(d)+'</a>';
+    }},
+    {data:null, render:function(p){
+      var name = (p.lead || p.owner || '').trim();
+      var t    = (p.lead_type || '').toLowerCase();
+      var pill = '';
+      if (t === 'owner') {
+        pill = '<span style="display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;padding:1px 6px;border-radius:9px;background:#e7f5ee;color:#1f7a4d;margin-left:6px;vertical-align:1px">Owner</span>';
+      } else if (t === 'contractor') {
+        pill = '<span style="display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;padding:1px 6px;border-radius:9px;background:#eef2ff;color:#3b46c4;margin-left:6px;vertical-align:1px">Contractor</span>';
+      }
+      var nameHtml = name
+        ? '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(name)+'</span>'+pill
+        : '<span style="color:var(--tx3)">—</span>';
+      return '<div style="max-width:200px"><div style="font-size:12.5px;font-weight:600;color:var(--tx);display:flex;align-items:center;overflow:hidden">'+nameHtml+'</div>'+
+             '<div style="font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.address || '')+'</div></div>';
+    }},
+    {data:null, render:function(p, type){
+      /* Score is pre-derived in dataSrc, but recompute defensively
+       * — render fires for every cell on every draw and the cost
+       * (string regex + small arithmetic) is negligible. */
+      if (typeof computeOverallScore === 'function') computeOverallScore(p);
+      /* Sort/type/filter queries from DataTables get the raw
+       * number so client-side ordering works correctly. Display
+       * queries get the styled cell HTML. */
+      if (type === 'sort' || type === 'type' || type === 'filter') {
+        return (typeof p.score === 'number' ? p.score : 0);
+      }
+      if (USER_PLAN === 'starter') {
+        var lbl = p.score>=80?'🔥 Hot':p.score>=60?'🌡️ Warm':'❄️ Cool';
+        var tc  = p.score>=80?'#16a34a':p.score>=60?'#d97706':'#dc2626';
+        var tbg = p.score>=80?'rgba(22,163,74,.1)':p.score>=60?'rgba(217,119,6,.1)':'rgba(220,38,38,.1)';
+        return '<span style="display:inline-block;padding:3px 11px;border-radius:99px;font-size:11px;font-weight:800;background:'+tbg+';color:'+tc+';">'+lbl+'</span>';
+      }
+      var c = sc(p.score);
+      return '<div class="sr" style="border-color:'+c+'"><span class="sn" style="color:'+c+'">'+esc(p.score)+'</span><span class="sg" style="color:'+c+'">'+esc(p.grade)+'</span></div>';
+    }},
+    {data:null, orderable:false, render:function(p){
+      var phoneDigits = (p.phone||'').replace(/\D/g,'');
+      return '<div class="ar" onclick="event.stopPropagation()">'+
+        '<a class="ab call" href="tel:'+esc(phoneDigits)+'" title="Call"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 12 19.79 19.79 0 01.12 3.38 2 2 0 012.1 1.21L5.07 1a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.08 8.9a16 16 0 006 6l1.26-1.26a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 15.92z"/></svg></a>'+
+        '<a class="ab" href="mailto:'+esc(p.email)+'" title="Email"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></a>'+
+      '</div>';
+    }},
+  ],
+  rowCallback: function(row, data){
+    row.style.cursor = 'pointer';
+    row.title = 'Click to view AI profile';
+    row.onclick = function(){
+      if (typeof openProfile === 'function') openProfile(data);
+    };
+  },
+  drawCallback: function(){
+    /* IMPORTANT: use ``this.api()`` not the closure var
+     * ``dashboardTable`` — DataTables fires the first
+     * drawCallback *before* the ``.DataTable()`` constructor
+     * returns, so the closure is still ``undefined`` on the
+     * initial empty draw and would throw a TypeError that
+     * aborts the AJAX load (symptom: dashboard hangs on
+     * "Processing..." and never renders rows). */
+    var api  = this.api();
+    /* The chip + stat cards must reflect the *client-filtered*
+     * population (after the derived-score and tier filters), not
+     * the server's pre-filter count — otherwise the chip would
+     * say "473 of 473" while the user sees only 7 rows because
+     * their MinScore=80 filter trimmed everything client-side. */
+    var rows = api.rows({ filter: 'applied' }).data().toArray();
+    var pi   = document.getElementById('pinfo');
+    if (pi) {
+      pi.innerHTML = '<b>' + rows.length + '</b> of ' +
+                     _serverTotal + ' in last 3 days';
+    }
+    var sum = 0, hot = 0;
+    rows.forEach(function(p){
+      var s = typeof p.score === 'number' ? p.score : 0;
+      sum += s;
+      if (s >= 80) hot++;
+    });
+    updateStats({
+      total: rows.length,
+      hot:   hot,
+      avg:   rows.length ? Math.round(sum / rows.length) : 0,
+    });
+    var emptyFiltered = document.getElementById('emptyFiltered');
+    var emptyNoData   = document.getElementById('emptyNoData');
+    if (emptyFiltered) emptyFiltered.style.display = 'none';
+    if (emptyNoData)   emptyNoData.style.display   = 'none';
+    if (rows.length === 0) {
+      if (_serverTotal === 0) {
+        if (emptyNoData) emptyNoData.style.display = 'block';
+      } else {
+        if (emptyFiltered) emptyFiltered.style.display = 'block';
+      }
+    }
+  },
+});
+
+/* ── Client-side score / tier filter ─────────────────────
+ *  Runs against the 12-factor derived score (already on
+ *  ``data.score`` after dataSrc / score-column render). Scoped
+ *  to the dashboard table only so it doesn't accidentally
+ *  filter any other DataTable elsewhere in the page. */
+jQuery.fn.dataTable.ext.search.push(function(settings, dataArr, dataIndex, data){
+  if (settings.nTable.id !== 'dashboardTable') return true;
+  var s = (data && typeof data.score === 'number') ? data.score : 0;
+  var minEl = document.getElementById('pfScoreMin');
+  var maxEl = document.getElementById('pfScoreMax');
+  var mn = minEl && minEl.value !== '' ? parseInt(minEl.value, 10) : 0;
+  var mx = maxEl && maxEl.value !== '' ? parseInt(maxEl.value, 10) : 100;
+  if (isNaN(mn)) mn = 0;
+  if (isNaN(mx)) mx = 100;
+  if (s < mn || s > mx) return false;
+  var t = _activeTier;
+  if (t === 'hot'  && s < 80)               return false;
+  if (t === 'warm' && (s < 60 || s >= 80))  return false;
+  if (t === 'cool' && s >= 60)              return false;
+  return true;
+});
+
+/* ── Debounced reload helper for text/date filter inputs ─ */
+var _reloadTimer = null;
+function reloadSoon(){
+  if (_reloadTimer) clearTimeout(_reloadTimer);
+  _reloadTimer = setTimeout(function(){ dashboardTable.ajax.reload(); }, 220);
+}
+function reloadNow(){ dashboardTable.ajax.reload(); }
+
+/* ── State → city cascade ──────────────────────────────── */
+function onPfState(){
+  var st     = document.getElementById('pfState').value;
+  var cityEl = document.getElementById('pfCity');
+  var prev   = cityEl.value;
+  cityEl.innerHTML = '<option value="">All Cities</option>';
+  PLAN_CITIES.forEach(function(c){
+    if (!st || c.state === st) {
+      var o = document.createElement('option');
+      o.value = c.name; o.textContent = c.name;
+      if (c.name === prev) o.selected = true;
+      cityEl.appendChild(o);
+    }
+  });
+  reloadNow();
+}
+
+/* ── Wire up filter inputs ─────────────────────────────── */
+document.getElementById('pfState' ).addEventListener('change', onPfState);
+document.getElementById('pfCity'  ).addEventListener('change', reloadNow);
+var _pfType = document.getElementById('pfType');
+if (_pfType && _pfType.tagName === 'SELECT') _pfType.addEventListener('change', reloadNow);
+document.getElementById('pfStatus').addEventListener('change', reloadNow);
+['pfOwner','pfPhone','pfEmail','pfKeyword'].forEach(function(id){
+  var el = document.getElementById(id);
+  if (el) el.addEventListener('input', reloadSoon);
+});
+/* Score range inputs only affect the client-side ext.search
+ * filter — no server round-trip needed, just redraw. */
+var _drawTimer = null;
+function redrawSoon(){
+  if (_drawTimer) clearTimeout(_drawTimer);
+  _drawTimer = setTimeout(function(){ dashboardTable.draw(); }, 120);
+}
+['pfScoreMin','pfScoreMax'].forEach(function(id){
+  var el = document.getElementById(id);
+  if (el) el.addEventListener('input', redrawSoon);
+});
+document.getElementById('pfExpiresBefore').addEventListener('change', reloadNow);
+
+/* ── Score tier buttons ──────────────────────────────────
+ *  Tier filter is client-side too — just redraw, no fetch. */
+function setTier(tier, btn){
+  _activeTier = tier;
+  document.querySelectorAll('#tierFilters .fb').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  dashboardTable.draw();
+}
+
+/* ── Clear all filters ─────────────────────────────────── */
+function clearFilters(){
+  ['pfState','pfCity','pfType','pfStatus'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el && el.tagName === 'SELECT') el.value = '';
+  });
+  ['pfScoreMin','pfScoreMax','pfOwner','pfPhone','pfEmail','pfExpiresBefore','pfKeyword'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  _activeTier = 'all';
+  document.querySelectorAll('#tierFilters .fb').forEach(function(b){ b.classList.remove('active'); });
+  var allBtn = document.querySelector('#tierFilters .fb[data-tier="all"]');
+  if (allBtn) allBtn.classList.add('active');
+  onPfState();
+}
+
+/* ── Export CSV — fetches all matching rows from the
+   server (length=500, the server-side cap) and emits the
+   same column set the table shows. ─────────────────────── */
+function exportCsv(){
+  var url = new URL('/dashboard/data/', window.location.origin);
+  var d = readFilters({});
+  Object.keys(d).forEach(function(k){
+    if (d[k] !== '' && d[k] != null) url.searchParams.set(k, d[k]);
+  });
+  url.searchParams.set('start', '0');
+  url.searchParams.set('length', '500');
+  url.searchParams.set('order[0][column]', '8');
+  url.searchParams.set('order[0][dir]',    'desc');
+  fetch(url.toString(), {credentials:'same-origin'}).then(function(r){return r.json();}).then(function(json){
+    var rows = [['Record #','City','State','Type','Status','Issued','Expires','Phone','Email','Owner','Project','Score','Grade']];
+    (json.data || []).forEach(function(p){
+      /* Match the on-screen 12-factor derivation in the exported
+       * Score/Grade columns. */
+      if (typeof computeOverallScore === 'function') computeOverallScore(p);
+      rows.push([p.id,p.city,p.state,p.type,p.status,fmtDate(p.issuedIso),fmtDate(p.expiresIso),p.phone,p.email,p.owner,p.project,p.score,p.grade]);
+    });
+    var csv = rows.map(function(r){
+      return r.map(function(v){ return '"' + (String(v == null ? '' : v).replace(/"/g,'""')) + '"'; }).join(',');
+    }).join('\n');
+    var a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'permits_last_3_days.csv';
+    a.click();
+  });
+}
+
+/* ── Init: populate city dropdown for current state ───── */
+onPfState();
+
+/* ── Reload when restored from bfcache so PLAN_CITIES is always fresh ── */
+window.addEventListener('pageshow', function(e){ if(e.persisted){ window.location.reload(); } });
+</script>
+{% endblock %}

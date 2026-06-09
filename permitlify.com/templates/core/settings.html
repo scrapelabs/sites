@@ -1,0 +1,1896 @@
+{% extends "core/base.html" %}
+{% block title %}Settings — Permitlify{% endblock %}
+{% block nav_settings %}active{% endblock %}
+
+{% block extra_css %}
+.cam-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .22s;}
+.cam-overlay.open{opacity:1;pointer-events:all;}
+.cam-box{background:#fff;border-radius:20px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,.18),0 4px 16px rgba(0,0,0,.08);transform:translateY(12px);transition:transform .22s;overflow:hidden;}
+.cam-overlay.open .cam-box{transform:translateY(0);}
+.cam-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:24px 24px 0;}
+.cam-title{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:700;color:var(--tx);font-family:'Plus Jakarta Sans',sans-serif;}
+.cam-sub{font-size:13px;color:var(--tx2);margin-top:4px;line-height:1.5;}
+.cam-close{background:none;border:none;cursor:pointer;color:var(--tx3);padding:4px;border-radius:8px;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.cam-close:hover{background:var(--bg);color:var(--tx);}
+.cam-body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:20px;}
+.cam-gauge-label{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:500;color:var(--tx);}
+.cam-count-badge{background:var(--pd);color:var(--pr);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;padding:4px 12px;border-radius:20px;}
+.cam-slider-wrap{display:flex;flex-direction:column;gap:6px;}
+.cam-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;outline:none;cursor:pointer;background:linear-gradient(to right,var(--pr) 0%,#e2e8f0 0%);transition:background .05s;}
+.cam-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:2.5px solid var(--pr);box-shadow:0 2px 8px rgba(29,78,216,.22);cursor:pointer;}
+.cam-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:2.5px solid var(--pr);box-shadow:0 2px 8px rgba(29,78,216,.22);cursor:pointer;}
+.cam-slider-ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--tx3);font-family:'JetBrains Mono',monospace;padding:0 2px;}
+.cam-cost-card{background:var(--sur2);border:1px solid var(--b1);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;}
+.cam-cost-row{display:flex;align-items:center;justify-content:space-between;}
+.cam-cost-row.total{margin-top:2px;}
+.cam-cost-label{font-size:13.5px;color:var(--tx2);}
+.cam-cost-val{font-size:13.5px;font-weight:600;color:var(--tx);font-family:'JetBrains Mono',monospace;}
+.cam-cost-divider{height:1px;background:var(--b1);}
+.cam-cost-total{font-size:18px;font-weight:800;color:var(--pr);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-.5px;}
+.cam-cost-note{font-size:12px;color:var(--tx3);line-height:1.5;}
+.cam-cta{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--grad);color:#fff;border:none;border-radius:12px;padding:14px 24px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(29,78,216,.25);transition:opacity .15s,transform .15s;}
+.cam-cta:hover{opacity:.92;transform:translateY(-1px);}
+.cam-ls-note{display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:var(--tx3);}
+
+.ct-actions{display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--b2);opacity:0;transition:opacity .15s;}
+.city-tile:hover .ct-actions{opacity:1;}
+.ct-edit-btn,.ct-remove-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;border-radius:7px;padding:5px 4px;font-size:11px;font-weight:600;cursor:pointer;transition:background .15s,color .15s,border-color .15s;}
+.ct-edit-btn{background:var(--bg);border:1px solid var(--b2);color:var(--tx2);}
+.ct-edit-btn:hover{background:#fff;color:var(--pr);border-color:var(--pr);}
+.ct-remove-btn{background:var(--rd);border:1px solid rgba(220,38,38,.18);color:var(--re);}
+.ct-remove-btn:hover{background:#fee2e2;border-color:var(--re);}
+.cc-field{display:flex;flex-direction:column;gap:6px;width:100%;}
+.cc-label{font-size:12.5px;font-weight:600;color:var(--tx2);font-family:'DM Sans',sans-serif;}
+.cc-select{width:100%;border:1.5px solid var(--b2);border-radius:10px;padding:10px 12px;font-size:14px;font-family:'DM Sans',sans-serif;color:var(--tx);background:#fff;outline:none;cursor:pointer;transition:border-color .15s;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+.cc-select:focus{border-color:var(--pr);}
+.cc-select:disabled{opacity:.4;cursor:not-allowed;background-color:var(--sur2);}
+
+/* ── Billing tab ───────────────────────────────────────── */
+.bill-hero{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-bottom:18px;}
+@media(max-width:900px){.bill-hero{grid-template-columns:1fr;}}
+.bill-main{background:var(--sur);border:1px solid var(--b1);border-radius:16px;padding:22px 24px;box-shadow:var(--sh);position:relative;overflow:hidden;}
+.bill-main::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:var(--grad);opacity:.07;border-radius:50%;}
+.bill-eyebrow{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--pr);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:8px;}
+.bill-amount{font-family:'Plus Jakarta Sans',sans-serif;font-size:44px;font-weight:800;color:var(--tx);letter-spacing:-1.5px;line-height:1;display:flex;align-items:baseline;gap:4px;}
+.bill-amount .cur{font-size:22px;font-weight:700;color:var(--tx2);}
+.bill-amount .cents{font-size:22px;font-weight:700;color:var(--tx2);align-self:flex-start;margin-top:6px;}
+.bill-when{font-size:13px;color:var(--tx3);margin-top:6px;}
+.bill-when b{color:var(--tx);font-weight:600;}
+.bill-meta{display:flex;gap:22px;margin-top:18px;padding-top:18px;border-top:1px dashed var(--b2);flex-wrap:wrap;}
+.bill-meta-item{display:flex;flex-direction:column;gap:3px;}
+.bill-meta-item .k{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;}
+.bill-meta-item .v{font-size:13px;color:var(--tx);font-weight:600;}
+.bill-side{display:flex;flex-direction:column;gap:12px;}
+.usage-card{background:var(--sur);border:1px solid var(--b1);border-radius:14px;padding:16px 18px;box-shadow:var(--sh);}
+.usage-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.usage-label{font-size:12px;font-weight:600;color:var(--tx2);display:flex;align-items:center;gap:8px;}
+.usage-label svg{width:14px;height:14px;color:var(--pr);}
+.usage-pct{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3);}
+.usage-bar{height:7px;background:var(--sur2);border-radius:6px;overflow:hidden;}
+.usage-fill{height:100%;background:var(--grad);border-radius:6px;transition:width .6s;}
+.usage-fill.warn{background:linear-gradient(135deg,#f59e0b,#dc2626);}
+.usage-foot{display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace;}
+.usage-foot b{color:var(--tx);font-weight:600;}
+.bp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+@media(max-width:900px){.bp-grid{grid-template-columns:1fr;}}
+.bp-card{border:1.5px solid var(--b1);border-radius:22px;padding:26px 24px;position:relative;display:flex;flex-direction:column;gap:14px;background:#fff;transition:box-shadow .2s,transform .2s;}
+.bp-card:hover{box-shadow:0 8px 32px rgba(0,0,0,.07);transform:translateY(-2px);}
+.bp-card.featured{background:linear-gradient(145deg,#1a3fbe 0%,#0f766e 100%);border-color:transparent;box-shadow:0 16px 48px rgba(29,78,216,.32);}
+.bp-card.featured:hover{box-shadow:0 20px 56px rgba(29,78,216,.4);transform:translateY(-3px);}
+.bp-card.is-current:not(.featured){border-color:var(--pr);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.bp-pop{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(90deg,#1d4ed8,#059669);color:#fff;font-size:9.5px;font-weight:800;padding:4px 14px;border-radius:20px;letter-spacing:.9px;font-family:'JetBrains Mono',monospace;white-space:nowrap;box-shadow:0 2px 8px rgba(29,78,216,.3);}
+.bp-cur-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(29,78,216,.08);color:var(--pr);font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;font-family:'JetBrains Mono',monospace;width:fit-content;}
+.bp-card.featured .bp-cur-badge{background:rgba(255,255,255,.18);color:#fff;}
+.bp-plan-name{font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--tx3);font-family:'JetBrains Mono',monospace;}
+.bp-card.featured .bp-plan-name{color:rgba(255,255,255,.65);}
+.bp-trial-tag{font-size:11px;font-weight:600;color:var(--ac);font-family:'JetBrains Mono',monospace;}
+.bp-card.featured .bp-trial-tag{color:rgba(255,255,255,.7);}
+.bp-price-row{display:flex;align-items:baseline;gap:3px;line-height:1;}
+.bp-amount{font-size:46px;font-weight:900;color:var(--tx);letter-spacing:-2.5px;font-family:'Plus Jakarta Sans',sans-serif;}
+.bp-card.featured .bp-amount{color:#fff;}
+.bp-period{font-size:15px;color:var(--tx3);font-weight:500;margin-left:2px;}
+.bp-card.featured .bp-period{color:rgba(255,255,255,.6);}
+.bp-divider{height:1px;background:var(--b1);}
+.bp-card.featured .bp-divider{background:rgba(255,255,255,.15);}
+.bp-feats{list-style:none;display:flex;flex-direction:column;gap:9px;flex:1;}
+.bp-feat{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:var(--tx2);line-height:1.4;}
+.bp-card.featured .bp-feat{color:rgba(255,255,255,.88);}
+.bp-chk{width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;background:var(--pd);}
+.bp-card.featured .bp-chk{background:rgba(255,255,255,.2);}
+.bp-chk svg{width:9px;height:9px;stroke:var(--pr);}
+.bp-card.featured .bp-chk svg{stroke:#fff;}
+.bp-action{width:100%;padding:12px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;border:none;transition:all .18s;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:6px;}
+.bp-action.primary{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(29,78,216,.25);}
+.bp-action.primary:hover{opacity:.9;transform:translateY(-1px);}
+.bp-action.outline{background:transparent;color:var(--pr);border:1.5px solid var(--pr);}
+.bp-action.outline:hover{background:var(--pd);}
+.bp-action.ghost{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.35);}
+.bp-action.ghost:hover{background:rgba(255,255,255,.22);}
+.bp-action.ghost.active-plan{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.6);}
+.bp-action.disabled-plan{background:var(--sur2);color:var(--tx3);cursor:default;pointer-events:none;}
+.card-face{background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 45%,#059669 110%);color:#fff;border-radius:14px;padding:20px 22px;position:relative;overflow:hidden;min-height:160px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 8px 24px rgba(29,78,216,.18);}
+.card-face::after{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(255,255,255,.15),transparent 70%);}
+.card-face.sec{background:linear-gradient(135deg,#334155 0%,#0f172a 100%);box-shadow:0 8px 24px rgba(15,23,42,.2);}
+.card-chip{width:34px;height:24px;background:linear-gradient(135deg,#fbbf24,#d97706);border-radius:5px;position:relative;z-index:1;}
+.card-chip::before{content:'';position:absolute;inset:3px;border:1px solid rgba(0,0,0,.15);border-radius:3px;}
+.card-num{font-family:'JetBrains Mono',monospace;font-size:17px;letter-spacing:2.5px;font-weight:500;z-index:1;position:relative;}
+.card-footer{display:flex;justify-content:space-between;align-items:flex-end;z-index:1;position:relative;}
+.card-name{font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;opacity:.92;font-family:'Plus Jakarta Sans',sans-serif;}
+.card-exp{font-size:10px;opacity:.7;margin-top:3px;font-family:'JetBrains Mono',monospace;}
+.card-brand{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;letter-spacing:.5px;font-style:italic;}
+.pm-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--b1);}
+.pm-row:last-child{border:none;padding-bottom:0;}
+.pm-logo{width:44px;height:30px;border-radius:6px;background:var(--sur2);border:1px solid var(--b2);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:10px;font-weight:800;color:var(--tx2);flex-shrink:0;}
+.pm-logo.visa{background:linear-gradient(135deg,#1a1f71,#2b4899);color:#fff;}
+.pm-logo.mc{background:#fff;overflow:hidden;}
+.pm-logo.mc::before{content:'';width:16px;height:16px;border-radius:50%;background:#eb001b;margin-right:-5px;display:inline-block;}
+.pm-logo.mc::after{content:'';width:16px;height:16px;border-radius:50%;background:#f79e1b;opacity:.85;display:inline-block;}
+.pm-logo.amex{background:linear-gradient(135deg,#006fcf,#0099cc);color:#fff;}
+.pm-info{flex:1;min-width:0;}
+.pm-info .t{font-size:13.5px;font-weight:500;color:var(--tx);}
+.pm-info .t b{font-family:'JetBrains Mono',monospace;font-weight:500;color:var(--tx2);margin-left:4px;}
+.pm-info .s{font-size:11.5px;color:var(--tx3);margin-top:2px;font-family:'JetBrains Mono',monospace;}
+.pm-default{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;background:var(--gd);color:#16a34a;border:1px solid rgba(34,197,94,.2);padding:3px 8px;border-radius:10px;white-space:nowrap;}
+.pm-actions{display:flex;gap:4px;}
+.pm-ico-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--b1);background:var(--sur2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx3);transition:all .15s;}
+.pm-ico-btn:hover{border-color:var(--pr);color:var(--pr);}
+.pm-ico-btn svg{width:13px;height:13px;}
+.exp-btn{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--tx2);background:var(--sur2);border:1px solid var(--b2);border-radius:9px;padding:7px 13px;cursor:pointer;transition:all .18s;font-family:'DM Sans',sans-serif;}
+.exp-btn:hover{border-color:var(--pr);color:var(--pr);background:#fff;}
+.exp-btn svg{width:13px;height:13px;}
+.inv-status{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+.inv-status.paid{background:var(--gd);color:#16a34a;border:1px solid rgba(34,197,94,.2);}
+.inv-status.upcoming{background:var(--bd);color:var(--bl);border:1px solid rgba(59,130,246,.22);}
+.inv-status.failed{background:var(--rd);color:var(--re);border:1px solid rgba(220,38,38,.2);}
+.inv-status::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;}
+.amt-cell{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--tx);}
+.rec-id{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500;color:var(--pr);}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:640px){.field-grid{grid-template-columns:1fr;}}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field.full{grid-column:1/-1;}
+.field label{font-size:11.5px;font-weight:600;color:var(--tx3);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;text-transform:uppercase;}
+.field input{padding:10px 13px;background:var(--sur2);border:1px solid var(--b1);border-radius:10px;color:var(--tx);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:background .15s;}
+.field input:not([readonly]):focus{border-color:rgba(29,78,216,.4);box-shadow:0 0 0 3px rgba(29,78,216,.08);background:#fff;}
+
+/* ── Security tab ───────────────────────────────────────── */
+.sec-session{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--b1);}
+.sec-session:last-child{border-bottom:none;}
+.sec-session.current{background:rgba(29,78,216,.03);}
+.sec-sess-ico{width:36px;height:36px;border-radius:10px;background:var(--sur2);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;color:var(--tx3);flex-shrink:0;}
+.sec-session.current .sec-sess-ico{background:var(--pd);border-color:rgba(29,78,216,.2);color:var(--pr);}
+.sec-sess-info{flex:1;min-width:0;}
+.sec-sess-info .t{font-size:13px;font-weight:500;color:var(--tx);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.sec-sess-info .s{font-size:11.5px;color:var(--tx3);margin-top:2px;font-family:'JetBrains Mono',monospace;}
+.sec-sess-time{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3);white-space:nowrap;flex-shrink:0;}
+.sec-badge{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.5px;}
+.sec-badge.current-badge{background:var(--pd);color:var(--pr);border:1px solid rgba(29,78,216,.2);}
+
+/* ── Billing toast ──────────────────────────────────────── */
+.bill-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#0f172a;color:#fff;font-size:13px;font-weight:500;padding:12px 22px;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.25);z-index:9999;display:flex;align-items:center;gap:10px;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .25s;opacity:0;pointer-events:none;white-space:nowrap;}
+.bill-toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.bt-icon{flex-shrink:0;}
+.bill-toast.success .bt-icon{color:#4ade80;}
+.bill-toast.error .bt-icon{color:#f87171;}
+.bill-toast.info .bt-icon{color:#60a5fa;}
+.bill-toast.warn .bt-icon{color:#fbbf24;}
+
+/* ── Billing confirm dialog ─────────────────────────────── */
+.bill-conf{position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.bill-conf.open{opacity:1;pointer-events:all;}
+.bill-conf-box{background:#fff;border-radius:20px;padding:28px 28px 24px;max-width:390px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.18);transform:scale(.95);transition:transform .25s cubic-bezier(.34,1.56,.64,1);}
+.bill-conf.open .bill-conf-box{transform:scale(1);}
+.bill-conf-icon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.bill-conf-icon.danger{background:rgba(220,38,38,.1);}
+.bill-conf-icon.danger svg{color:#dc2626;}
+.bill-conf-icon.info{background:var(--pd);}
+.bill-conf-icon.info svg{color:var(--pr);}
+.bill-conf-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:700;color:var(--tx);margin-bottom:6px;}
+.bill-conf-body{font-size:13px;color:var(--tx3);line-height:1.6;margin-bottom:22px;white-space:pre-line;}
+.bill-conf-actions{display:flex;gap:10px;justify-content:flex-end;}
+@media(max-width:640px){
+  .bill-amount{font-size:32px;letter-spacing:-1px;}
+  .bill-amount .cur{font-size:17px;}
+  .bill-amount .cents{font-size:17px;}
+  .bill-main{padding:18px 18px;}
+  .bill-side > *{padding:16px 18px !important;}
+  .bp-grid{gap:12px;}
+  .bill-conf-box{padding:22px 20px 18px;}
+  .bill-conf-actions{flex-direction:column;}
+  .bill-conf-actions button,.bill-conf-actions a{width:100%;justify-content:center;}
+}
+{% endblock %}
+
+{% block content %}
+<div class="page-title">Settings</div>
+<div class="page-desc">Subscription, coverage, alerts and account security</div>
+
+<div class="stab-row">
+  <button class="stab active" onclick="switchTab('coverage',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Coverage
+  </button>
+  <button class="stab" onclick="switchTab('billing',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Billing
+  </button>
+  <button class="stab" onclick="switchTab('alerts',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.268 21a2 2 0 003.464 0"/><path d="M3.262 15.326A1 1 0 004 17h16a1 1 0 00.74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 006 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>Alerts
+  </button>
+  <button class="stab" onclick="switchTab('security',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Security
+  </button>
+</div>
+
+<!-- COVERAGE -->
+<div id="tab-coverage" class="tab-panel active">
+  <div class="section-card">
+    <div class="section-head">
+      <div>
+        <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>State Coverage</div>
+        {% if cities_frozen %}
+        <div class="section-sub" style="color:#dc2626;font-weight:600;">&#9888; {{ user_plan }} plan &middot; limit {{ city_limit }} state{{ city_limit|pluralize }} &middot; you have {{ city_count }} &mdash; remove {{ city_excess }} state{{ city_excess|pluralize }}</div>
+        {% else %}
+        <div style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(120deg,#1d4ed8 0%,#0891b2 50%,#059669 100%);color:#fff;font-size:12px;font-weight:700;padding:5px 13px;border-radius:20px;letter-spacing:.02em;margin-top:4px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="12" height="12"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          {{ user_plan }} plan &nbsp;&middot;&nbsp; <span id="cityCountDisplay">{{ city_count }}</span>&nbsp;of {{ city_limit }} state{{ city_limit|pluralize }} active{% if cities_remaining > 0 %}&nbsp;&middot;&nbsp;<span id="freeSlotsDisplay">{{ cities_remaining }}</span>&nbsp;slot{{ cities_remaining|pluralize }} left{% else %}&nbsp;&middot;&nbsp;Upgrade for more states{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      {% if cities_frozen %}
+      <span style="display:inline-flex;align-items:center;gap:5px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="13" height="13"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        Locked — remove excess states
+      </span>
+      {% elif cities_remaining <= 0 %}
+      <button class="btn primary sm" onclick="goToBillingPlans()" style="display:inline-flex;align-items:center;gap:6px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Upgrade
+      </button>
+      {% endif %}
+    </div>
+
+    {% if cities_frozen %}
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:13px 16px;display:flex;gap:12px;align-items:flex-start;margin:0 0 16px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round" width="18" height="18" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <div style="font-size:13px;color:#991b1b;line-height:1.6;">
+        <strong>Daily permit emails and permit history are paused.</strong>
+        Remove the states highlighted in red below to restore full access. You need to get down to <strong>{{ city_limit }} state{{ city_limit|pluralize }}</strong>.
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section-body">
+      <!-- Selected states -->
+      <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin:2px 0 10px;">Your states</div>
+      <div class="city-grid">
+        {% for city in cities %}
+        <div class="city-tile{% if city.overflow %} city-tile-overflow{% endif %}" data-entry="{{ city.entry }}" {% if city.overflow %}style="border-color:#fca5a5;background:#fff5f5;"{% endif %}>
+          {% if city.overflow %}
+          <div class="city-check" style="background:#dc2626;"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+          {% else %}
+          <div class="city-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+          {% endif %}
+          <div class="ct-name" {% if city.overflow %}style="color:#991b1b;"{% endif %}>{{ city.name }}</div>
+          <div class="ct-state">{{ city.state }}</div>
+          {% if city.overflow %}
+          <div class="ct-count" style="color:#dc2626;font-weight:600;">Remove to unlock</div>
+          {% else %}
+          <div class="ct-count">Full-state coverage</div>
+          {% endif %}
+          <div class="ct-actions">
+            <button class="ct-remove-btn" onclick="removeState(this,event)" title="Remove state" {% if city.overflow %}style="background:#fee2e2;color:#991b1b;border-color:#fca5a5;"{% endif %}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="11" height="11"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              Remove
+            </button>
+          </div>
+        </div>
+        {% empty %}
+        <div style="grid-column:1/-1;padding:18px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;color:#64748b;font-size:13px;text-align:center;">
+          No states selected yet — pick from the list below.
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Available states -->
+      {% if not cities_frozen and cities_remaining > 0 %}
+      <div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin:22px 0 10px;">
+        Available states &middot; <span style="color:var(--pr);">{{ cities_remaining }} slot{{ cities_remaining|pluralize }} left</span>
+      </div>
+      <div class="city-grid" id="availStateGrid">
+        {% for s in available_states %}
+        <div class="city-tile avail-state" data-code="{{ s.state }}" data-name="{{ s.name }}"
+             onclick="addState(this)" style="cursor:pointer;border-style:dashed;border-color:rgba(29,78,216,.3);">
+          <div class="city-check" style="background:transparent;color:var(--pr);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </div>
+          <div class="ct-name">{{ s.name }}</div>
+          <div class="ct-state">{{ s.state }}</div>
+          <div class="ct-count">{{ s.count }} permits / 30d</div>
+        </div>
+        {% empty %}
+        <div style="grid-column:1/-1;padding:14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;color:#64748b;font-size:13px;text-align:center;">
+          You've added every state we currently support.
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- BILLING -->
+<div id="tab-billing" class="tab-panel">
+
+  <!-- 1. HERO: Next charge + usage sidebar -->
+  <div class="bill-hero">
+    <div class="bill-main">
+      {% if has_ls_sub %}
+        <div class="bill-eyebrow">
+          {% if ls_info.cancelled %}Cancels{% elif ls_info.paused %}Paused &middot;{% else %}Next Charge &middot;{% endif %}
+          {{ user_plan }} Plan
+        </div>
+        <div class="bill-amount">
+          <span class="cur">$</span>{% if user_plan == 'Starter' %}29{% elif user_plan == 'Pro' %}99{% else %}249{% endif %}<span class="cents">.00</span>
+        </div>
+        <div class="bill-when">
+          {% if ls_info.cancelled %}
+            Access until <b>{{ ls_info.renews_at }}</b> &middot; Subscription cancelled
+          {% elif ls_info.paused %}
+            Subscription paused &mdash; <a href="/billing/portal/" style="color:var(--pd)">resume anytime</a>
+          {% elif ls_info.status == 'on_trial' and ls_info.trial_ends %}
+            Free trial ends <b>{{ ls_info.trial_ends }}</b> &middot; first charge on that date
+            {% if ls_info.card_last4 %}&middot; {{ ls_info.card_brand|default:"Card" }} ending <b>{{ ls_info.card_last4 }}</b>{% endif %}
+          {% else %}
+            on <b>{{ ls_info.renews_at }}</b>
+            {% if ls_info.card_last4 %}&middot; {{ ls_info.card_brand|default:"Card" }} ending <b>{{ ls_info.card_last4 }}</b>{% endif %}
+          {% endif %}
+        </div>
+        <div class="bill-meta">
+          <div class="bill-meta-item"><div class="k">Billing Cycle</div><div class="v">Monthly</div></div>
+          <div class="bill-meta-item"><div class="k">Status</div><div class="v" style="color:{% if ls_info.status == 'active' %}var(--gr){% elif ls_info.cancelled %}var(--re){% else %}var(--tx2){% endif %}">&#9679; {{ ls_info.status|title }}</div></div>
+          <div class="bill-meta-item">
+            <a href="/billing/portal/" class="btn secondary sm" style="font-size:11px;padding:4px 10px">Manage Billing ↗</a>
+          </div>
+        </div>
+      {% else %}
+        {% if trial_state.is_trial %}
+          <div class="bill-eyebrow">{{ user_plan }} Plan &middot; Free Trial</div>
+          <div class="bill-amount" style="font-size:42px;line-height:1.1;letter-spacing:-1px">Free Trial</div>
+          <div class="bill-when" style="color:var(--tx2)">
+            {% if trial_state.days_left > 0 %}
+              <b>{{ trial_state.days_left }} day{{ trial_state.days_left|pluralize }}</b> left &middot; no card on file, no charges yet
+            {% else %}
+              <b>{{ trial_state.hours_left }} hour{{ trial_state.hours_left|pluralize }}</b> left &middot; no card on file, no charges yet
+            {% endif %}
+          </div>
+        {% elif trial_state.is_expired %}
+          <div class="bill-eyebrow">{{ user_plan }} Plan &middot; Trial Ended</div>
+          <div class="bill-amount" style="font-size:42px;line-height:1.1;letter-spacing:-1px">Trial Ended</div>
+          <div class="bill-when" style="color:var(--tx2)">Pick a plan below to keep full access &mdash; no charges until you subscribe.</div>
+        {% else %}
+          <div class="bill-eyebrow">{{ user_plan }} Plan &middot; No Active Subscription</div>
+          <div class="bill-amount" style="font-size:42px;line-height:1.1;letter-spacing:-1px">Free Trial</div>
+          <div class="bill-when" style="color:var(--tx2)">Subscribe below to activate your plan with Lemon Squeezy</div>
+        {% endif %}
+        <div class="bill-meta">
+          <div class="bill-meta-item">
+            <button class="btn primary sm" style="font-size:12px" onclick="lsOpenCheckout('{{ user_plan|lower }}')">Subscribe Now &rarr;</button>
+          </div>
+          <div class="bill-meta-item" style="margin-top:6px;">
+            <button onclick="lsSyncNow()" class="btn secondary sm" style="font-size:11px;color:var(--tx2)">Already subscribed? Sync &rarr;</button>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+    <div class="bill-side">
+      <div class="usage-card">
+        <div class="usage-head">
+          <div class="usage-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Cities</div>
+          <div class="usage-pct">{{ city_count }} / {{ city_limit }}</div>
+        </div>
+        <div class="usage-bar"><div class="usage-fill{% if city_pct >= 90 %} warn{% endif %}" style="width:{{ city_pct }}%"></div></div>
+        <div class="usage-foot"><span>{{ city_names_preview }}</span><span><b>{{ cities_remaining }}</b> remaining</span></div>
+      </div>
+      <div class="usage-card">
+        <div class="usage-head">
+          <div class="usage-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>Alerts Sent</div>
+          <div class="usage-pct">{{ alerts_sent }} / {{ alerts_limit }}</div>
+        </div>
+        <div class="usage-bar"><div class="usage-fill{% if alerts_pct >= 90 %} warn{% endif %}" style="width:{{ alerts_pct }}%"></div></div>
+        <div class="usage-foot"><span>This cycle</span><span><b>{{ alerts_used_pct }}</b> used</span></div>
+      </div>
+      <div class="usage-card">
+        <div class="usage-head">
+          <div class="usage-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>API Calls</div>
+          <div class="usage-pct">{% if api_included %}{{ api_calls }} / {{ api_limit }}{% else %}—{% endif %}</div>
+        </div>
+        <div class="usage-bar"><div class="usage-fill{% if api_pct >= 90 %} warn{% endif %}" style="width:{{ api_pct }}%"></div></div>
+        <div class="usage-foot"><span>This cycle</span><span>{% if api_included %}<b>{{ api_pct }}%</b> used{% else %}<span style="color:var(--tx3)">Not included</span>{% endif %}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. CURRENT PLAN + change plan -->
+  <div class="section-card" id="choosePlanCard">
+    {% if pending_downgrade %}
+    <div style="background:#fff7ed;border:1.5px solid #fb923c;border-radius:10px;padding:13px 16px;display:flex;gap:14px;align-items:flex-start;margin-bottom:16px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2.2" stroke-linecap="round" width="18" height="18" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div style="flex:1;font-size:13px;color:#7c2d12;line-height:1.6;">
+        <strong>You're on {{ user_plan }}.</strong>
+        Your scheduled downgrade to <strong>{{ pending_downgrade.plan|title }}</strong> takes effect on <strong>{{ pending_downgrade.date }}</strong>.
+        Everything stays fully active until then — no cities or permits locked.
+        {% if city_count > pending_downgrade.city_limit %}
+        <br><span style="color:#9a3412;">&#9888; You have {{ city_count }} cities; {{ pending_downgrade.plan|title }} allows {{ pending_downgrade.city_limit }}. Reduce before {{ pending_downgrade.date }} to avoid a freeze.</span>
+        {% endif %}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;min-width:160px;">
+        <button onclick="lsApplyDowngrade('{{ pending_downgrade.plan }}','{{ pending_downgrade.date }}')" style="white-space:nowrap;padding:7px 13px;background:#ea580c;border:none;color:#fff;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;text-align:center;">Switch to {{ pending_downgrade.plan|title }} Now</button>
+        <button onclick="lsUndoDowngrade('{{ pending_downgrade.plan }}','{{ user_plan }}')" style="white-space:nowrap;padding:7px 13px;background:#fff;border:1.5px solid #fb923c;color:#7c2d12;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;text-align:center;">Stay on {{ user_plan }}</button>
+      </div>
+    </div>
+    {% endif %}
+    <div class="section-head" id="billPlans">
+      <div>
+        <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Choose Your Plan</div>
+        <div class="section-sub">Change, pause, or cancel anytime &nbsp;&middot;&nbsp; Not charged until trial ends</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        {% comment %}
+          Pause/Resume buttons removed — Whop does not support pause
+          for this account type, and the resume endpoint is permanently
+          401 on company-scoped API keys. The "Cancel Subscription"
+          section below is the only working off-ramp.
+        {% endcomment %}
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="bp-grid">
+
+        <!-- STARTER -->
+        <div class="bp-card {% if user_plan == 'Starter' %}is-current{% endif %}">
+          {% if user_plan == 'Starter' %}<div class="bp-cur-badge"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="10" height="10"><polyline points="2,6 5,9 10,3"/></svg>Current Plan</div>{% endif %}
+          <div>
+            <div class="bp-plan-name">Starter</div>
+            <div class="bp-trial-tag">{{ pricing.starter_trial_days }}-day free trial</div>
+          </div>
+          <div>
+            <div class="bp-price-row"><span class="bp-amount">${{ pricing.starter_monthly }}</span><span class="bp-period">/mo</span></div>
+          </div>
+          <div class="bp-divider"></div>
+          <ul class="bp-feats">
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span><strong>1 alert</strong> per day</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span><strong>1 state</strong> &mdash; change anytime</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Basic AI score (tier only)</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Email delivery</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>7-day permit history</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Trade-specific filtering + CSV export</span></li>
+          </ul>
+          {% if user_plan == 'Starter' %}<button class="bp-action disabled-plan" disabled>&#10003; Current Plan</button>
+          {% elif pending_downgrade.plan == 'starter' %}
+            <div style="font-size:11px;color:#9a3412;font-weight:600;margin-bottom:6px;text-align:center;">&#9200; Scheduled for {{ pending_downgrade.date }}</div>
+            <button class="bp-action outline" onclick="lsApplyDowngrade('starter','{{ pending_downgrade.date }}')" style="margin-bottom:6px;">Switch to Starter Now</button>
+            <button class="bp-action" onclick="lsUndoDowngrade('starter','{{ user_plan }}')" style="background:#f1f5f9;color:#475569;border:1.5px solid #cbd5e1;font-size:11px;padding:6px 10px;">Stay on {{ user_plan }}</button>
+          {% elif has_ls_sub %}<button class="bp-action outline" onclick="lsChangePlan('starter')">Downgrade to Starter</button>
+          {% else %}<button class="bp-action outline" onclick="lsOpenCheckout('starter')">Get Starter &rarr;</button>{% endif %}
+        </div>
+
+        <!-- PRO -->
+        <div class="bp-card featured {% if user_plan == 'Pro' %}is-current{% endif %}">
+          <div class="bp-pop">MOST POPULAR</div>
+          {% if user_plan == 'Pro' %}<div class="bp-cur-badge"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="10" height="10"><polyline points="2,6 5,9 10,3"/></svg>Current Plan</div>{% endif %}
+          <div>
+            <div class="bp-plan-name">Pro</div>
+            <div class="bp-trial-tag">{{ pricing.pro_trial_days }}-day free trial</div>
+          </div>
+          <div>
+            <div class="bp-price-row"><span class="bp-amount">${{ pricing.pro_monthly }}</span><span class="bp-period">/mo</span></div>
+          </div>
+          <div class="bp-divider"></div>
+          <ul class="bp-feats">
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span><strong>10 alerts</strong> per day</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Up to <strong>2 states</strong> &mdash; change anytime</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Full AI score (0&ndash;100)</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Email delivery + 90-day history</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Trade-specific filtering</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>CSV export</span></li>
+          </ul>
+          {% if user_plan == 'Pro' %}<button class="bp-action ghost active-plan" disabled>&#10003; Current Plan</button>
+          {% elif pending_downgrade.plan == 'pro' %}
+            <div style="font-size:11px;color:#9a3412;font-weight:600;margin-bottom:6px;text-align:center;">&#9200; Scheduled for {{ pending_downgrade.date }}</div>
+            <button class="bp-action ghost" onclick="lsApplyDowngrade('pro','{{ pending_downgrade.date }}')" style="margin-bottom:6px;">Switch to Pro Now</button>
+            <button class="bp-action" onclick="lsUndoDowngrade('pro','{{ user_plan }}')" style="background:#f1f5f9;color:#475569;border:1.5px solid #cbd5e1;font-size:11px;padding:6px 10px;">Stay on {{ user_plan }}</button>
+          {% elif has_ls_sub %}<button class="bp-action ghost" onclick="lsChangePlan('pro')">{% if user_plan == 'Agency' %}Downgrade{% else %}Upgrade{% endif %} to Pro</button>
+          {% else %}<button class="bp-action ghost" onclick="lsOpenCheckout('pro')">Upgrade to Pro &rarr;</button>{% endif %}
+        </div>
+
+        <!-- AGENCY -->
+        <div class="bp-card {% if user_plan == 'Agency' %}is-current{% endif %}">
+          {% if user_plan == 'Agency' %}<div class="bp-cur-badge"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="10" height="10"><polyline points="2,6 5,9 10,3"/></svg>Current Plan</div>{% endif %}
+          <div>
+            <div class="bp-plan-name">Agency</div>
+            <div class="bp-trial-tag">{{ pricing.agency_trial_days }}-day free trial</div>
+          </div>
+          <div>
+            <div class="bp-price-row"><span class="bp-amount">${{ pricing.agency_monthly }}</span><span class="bp-period">/mo</span></div>
+          </div>
+          <div class="bp-divider"></div>
+          <ul class="bp-feats">
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span><strong>Unlimited</strong> daily alerts</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Up to <strong>5 states</strong> &mdash; change anytime</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Full AI score + reasoning</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>Email alerts + REST API</span></li>
+            <li class="bp-feat"><span class="bp-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="2,6 5,9 10,3"/></svg></span><span>White-label export + priority support</span></li>
+          </ul>
+          {% if user_plan == 'Agency' %}<button class="bp-action disabled-plan" disabled>&#10003; Current Plan</button>
+          {% elif has_ls_sub %}<button class="bp-action primary" onclick="lsChangePlan('agency')">Upgrade to Agency &rarr;</button>
+          {% else %}<button class="bp-action primary" onclick="lsOpenCheckout('agency')">Upgrade to Agency &rarr;</button>{% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  {% comment %}
+    Payment Methods section removed — we migrated billing to Whop,
+    which handles card storage entirely on its own hosted checkout.
+    Our company-scoped API key cannot read the cardholder's saved
+    cards or generate an "update card" URL, so every UI here was
+    either misleading (Lemon-Squeezy copy, dead /billing/portal/ link)
+    or empty. To change a card the user simply re-checks-out via
+    "Choose Your Plan" above.
+  {% endcomment %}
+
+  <!-- CANCEL SUBSCRIPTION (only if active) -->
+  {% if has_ls_sub and not ls_info.cancelled %}
+  <div class="section-card" style="margin-bottom:16px;border-color:rgba(220,38,38,.15);">
+    <div class="section-head">
+      <div>
+        <div class="section-title" style="color:var(--re)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>Cancel Subscription</div>
+        <div class="section-sub">Your access continues until <b>{{ ls_info.renews_at }}</b> &mdash; no refunds for partial months</div>
+      </div>
+      <button class="btn danger sm" onclick="lsCancel()">Cancel Subscription</button>
+    </div>
+  </div>
+  {% elif has_ls_sub and ls_info.cancelled %}
+  {% comment %}
+    Cancelled-subscription notice — we do NOT show a "Reactivate"
+    button here because Whop does not expose an un-cancel endpoint to
+    company-scoped API keys (every v5 uncancel path returns 404, v2
+    returns 401). Instead, explain clearly when access ends and route
+    the user to "Choose Your Plan" so they can buy a fresh subscription
+    before that date.
+  {% endcomment %}
+  <div class="section-card" style="margin-bottom:16px;border-color:rgba(220,38,38,.18);background:#fef2f2;">
+    <div class="section-head" style="align-items:flex-start;">
+      <div style="flex:1;min-width:0;">
+        <div class="section-title" style="color:#dc2626">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Subscription Cancelled
+        </div>
+        <div class="section-sub" style="margin-top:8px;line-height:1.55;color:#7f1d1d;">
+          {% if ls_info.status == 'on_trial' and ls_info.trial_ends %}
+            Your free trial ends <b>{{ ls_info.trial_ends }}</b>. You'll keep full access until then — no charges.
+          {% else %}
+            You'll keep full access until <b>{{ ls_info.renews_at }}</b> (the end of your current billing period).
+          {% endif %}
+          <br>
+          After that, your account will be deactivated. To keep using Permitlify, choose a new plan below before that date.
+        </div>
+      </div>
+      <a href="#billPlans" class="btn primary sm" onclick="var el=document.getElementById('billPlans');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});return false;">Choose a Plan</a>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 4. BILLING ADDRESS & TAX -->
+  <div class="section-card">
+    <div class="section-head">
+      <div>
+        <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Billing Address &amp; Tax</div>
+        <div class="section-sub">Appears on receipts and invoices</div>
+      </div>
+      <button class="btn secondary sm" id="billAddressBtn" onclick="billEditAddress()">Edit</button>
+    </div>
+    <div class="section-body" id="billAddressSection">
+      <input type="hidden" id="billCsrfToken" value="{{ csrf_token }}">
+      <div class="field-grid">
+        <div class="field"><label>Company</label><input type="text" name="bill_company"   value="{{ bill_company|default:'' }}"   placeholder="Your company name"   readonly></div>
+        <div class="field"><label>Tax ID / EIN</label><input type="text" name="bill_tax_id"    value="{{ bill_tax_id|default:'' }}"    placeholder="12-3456789"          readonly></div>
+        <div class="field full"><label>Street</label><input type="text" name="bill_street"    value="{{ bill_street|default:'' }}"    placeholder="123 Main St"         readonly></div>
+        <div class="field"><label>City</label><input type="text" name="bill_city"      value="{{ bill_city|default:'' }}"      placeholder="Fort Worth"          readonly></div>
+        <div class="field"><label>State / ZIP</label><input type="text" name="bill_state_zip" value="{{ bill_state_zip|default:'' }}" placeholder="TX 76102"            readonly></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. INVOICE HISTORY -->
+  <div class="section-card">
+    <div class="section-head">
+      <div>
+        <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Invoice History</div>
+        <div class="section-sub">Receipts from Lemon Squeezy for expense reports and tax filing</div>
+      </div>
+      <button class="btn secondary sm" id="lsSyncBtn" onclick="lsSyncNow()" style="font-size:12px;gap:5px;display:inline-flex;align-items:center;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Sync
+      </button>
+    </div>
+    <div class="tw-scroll">
+      {% if ls_invoices %}
+      <table class="tbl">
+        <thead><tr><th>Invoice</th><th>Date</th><th>Amount</th><th>Status</th><th>Method</th><th style="text-align:right">Receipt</th></tr></thead>
+        <tbody>
+          {% for inv in ls_invoices %}
+          <tr>
+            <td class="rec-id">#{{ inv.number }}</td>
+            <td>{{ inv.date }}</td>
+            <td class="amt-cell">
+              {{ inv.amount }}
+              {% if inv.billing_reason %}
+                <span style="font-size:11px;color:var(--tx3);margin-left:6px;font-weight:500;background:var(--sur2);border-radius:4px;padding:2px 6px;">{{ inv.billing_reason }}</span>
+              {% endif %}
+            </td>
+            <td><span class="inv-status {% if inv.status == 'paid' %}paid{% elif inv.status == 'pending' %}upcoming{% else %}{{ inv.status }}{% endif %}">{{ inv.status|title }}</span></td>
+            <td>{{ inv.payment }}</td>
+            <td style="text-align:right">
+              {% if inv.invoice_id %}
+                <a href="/settings/invoices/{{ inv.invoice_id }}/pdf/" target="_blank" class="btn secondary sm">Invoice ↗</a>
+              {% else %}
+                <span style="color:var(--tx3);font-size:12px">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div style="padding:36px;text-align:center;">
+          <div style="font-size:14px;color:var(--tx2);margin-bottom:12px;">
+            {% if has_ls_sub %}
+              No invoices found yet — they appear here after each billing cycle.
+            {% else %}
+              No invoices yet. Subscribe to a plan to see your receipts here.
+            {% endif %}
+          </div>
+          {% if not has_ls_sub %}
+          <button class="btn primary sm" onclick="lsOpenCheckout('{{ user_plan|lower }}')">Subscribe Now &rarr;</button>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ALERTS -->
+<div id="tab-alerts" class="tab-panel">
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.268 21a2 2 0 003.464 0"/><path d="M3.262 15.326A1 1 0 004 17h16a1 1 0 00.74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 006 8c0 4.499-1.411 5.956-2.738 7.326"/></svg>Alert Preferences</div>
+    </div>
+    <div class="section-body">
+      <div id="alertSaveMsg" style="display:none;margin-bottom:14px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;font-size:13px;color:#15803d;font-weight:500;">&#10003; Preferences saved successfully.</div>
+      <div id="alertErrMsg"  style="display:none;margin-bottom:14px;padding:10px 14px;background:var(--rd);border:1px solid rgba(220,38,38,.18);border-radius:10px;font-size:13px;color:var(--re);font-weight:500;"></div>
+
+      <div class="toggle-row"><div class="toggle-info"><div class="t">Daily Email Digest</div><div class="s">One email every morning with the day's AI-scored permits for your plan. Included on every plan.</div></div><label class="sw"><input type="checkbox" id="alrt_daily_digest" {% if alert_prefs.daily_digest %}checked{% endif %}><div class="sw-track"></div><div class="sw-thumb"></div></label></div>
+
+      <div style="margin-top:18px;padding:16px;border:1px solid var(--bd);border-radius:12px;background:var(--bg2);">
+        <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:4px;">Delivery time</div>
+        <div style="font-size:12px;color:var(--tx3);margin-bottom:12px;">Pick the local clock time you want the digest to arrive each weekday.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <input type="time" id="alrt_digest_time" value="{{ digest_schedule.time }}" style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:var(--bg);color:var(--tx);">
+          <select id="alrt_digest_tz" style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:var(--bg);color:var(--tx);min-width:240px;">
+            {% for tz_id, tz_label in digest_timezones %}
+              <option value="{{ tz_id }}" {% if digest_schedule.tz == tz_id %}selected{% endif %}>{{ tz_label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row-btns"><button class="btn primary" id="alertSaveBtn" onclick="saveAlertPrefs()">Save Preferences</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- SECURITY -->
+<div id="tab-security" class="tab-panel">
+
+  <!-- Toast + Confirm reuse the billing ones (position:fixed, always in DOM) -->
+  <input type="hidden" id="secCsrfToken" value="{{ csrf_token }}">
+
+  <!-- 1. CHANGE PASSWORD -->
+  <div class="section-card" style="margin-bottom:16px">
+    <div class="section-head">
+      <div>
+        <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Change Password</div>
+        <div class="section-sub">Use a strong password of at least 8 characters</div>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="field-grid">
+        <div class="field full"><label>Current Password</label><input type="password" id="secCurPw" placeholder="Enter your current password" autocomplete="current-password"></div>
+        <div class="field"><label>New Password</label><input type="password" id="secNewPw" placeholder="At least 8 characters" autocomplete="new-password"></div>
+        <div class="field"><label>Confirm New Password</label><input type="password" id="secConPw" placeholder="Repeat new password" autocomplete="new-password"></div>
+      </div>
+      <div id="secPwError" style="display:none;margin-top:10px;padding:10px 14px;background:var(--rd);border:1px solid rgba(220,38,38,.18);border-radius:10px;font-size:13px;color:var(--re);font-weight:500;"></div>
+      <div class="row-btns"><button class="btn primary" id="secPwBtn" onclick="secChangePassword()">Update Password</button></div>
+    </div>
+  </div>
+
+  <!-- 2. TWO-FACTOR AUTHENTICATION -->
+  <div class="section-card" style="margin-bottom:16px" id="sec2faCard">
+    <div class="section-head">
+      <div>
+        <div class="section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Two-Factor Authentication
+          {% if totp_enabled %}<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(5,150,105,.1);color:#059669;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;margin-left:8px;vertical-align:middle;font-family:'JetBrains Mono',monospace;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg>ACTIVE</span>{% endif %}
+        </div>
+        <div class="section-sub">Protect your account with an authenticator app (Google Authenticator, Authy, 1Password…)</div>
+      </div>
+    </div>
+
+    {% if totp_enabled %}
+    <!-- ── ENABLED STATE ── -->
+    <div class="section-body" id="sec2faEnabledPanel">
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;background:rgba(5,150,105,.05);border:1px solid rgba(5,150,105,.18);border-radius:12px;margin-bottom:16px">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(5,150,105,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" width="20" height="20"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--tx)">Two-factor authentication is active</div>
+          <div style="font-size:12.5px;color:var(--tx2);margin-top:2px">Your account requires a 6-digit code from your authenticator app at each sign-in.</div>
+        </div>
+      </div>
+      <button class="btn secondary sm" onclick="sec2faShowDisable()">Disable 2FA</button>
+      <div id="sec2faDisablePanel" style="display:none;margin-top:16px;padding:16px;background:var(--sur2);border:1px solid var(--b1);border-radius:12px">
+        <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:10px">Confirm to disable 2FA</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input type="password" id="sec2faDisablePw" placeholder="Current password" style="padding:10px 13px;background:#fff;border:1.5px solid var(--b1);border-radius:10px;font-size:13.5px;color:var(--tx);outline:none">
+          <input type="text" id="sec2faDisableCode" placeholder="6-digit authenticator code" maxlength="7" inputmode="numeric"
+            style="padding:10px 13px;background:#fff;border:1.5px solid var(--b1);border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:var(--tx);outline:none;letter-spacing:3px;text-align:center"
+            oninput="this.value=this.value.replace(/[^0-9]/g,'').replace(/(.{3})/g,'$1 ').trim().slice(0,7)">
+          <div id="sec2faDisableErr" style="font-size:12.5px;color:var(--re);display:none"></div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn danger sm" id="sec2faDisableBtn" onclick="sec2faDoDisable()">Confirm Disable</button>
+            <button class="btn secondary sm" onclick="document.getElementById('sec2faDisablePanel').style.display='none'">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    <!-- ── DISABLED STATE ── -->
+    <div class="section-body" id="sec2faSetupOuter">
+      <div id="sec2faIntro">
+        <div style="font-size:13.5px;color:var(--tx2);line-height:1.7;margin-bottom:16px">
+          Use any TOTP authenticator app to generate a time-based code that's required at every sign-in.
+          Works with <strong>Google Authenticator</strong>, <strong>Authy</strong>, <strong>1Password</strong>, <strong>Bitwarden</strong>, and any standard TOTP app.
+        </div>
+        <button class="btn primary sm" id="sec2faStartBtn" onclick="sec2faStart()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14" style="margin-right:5px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Set up Two-Factor Authentication
+        </button>
+      </div>
+
+      <div id="sec2faSetupPanel" style="display:none">
+        <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;margin-top:4px">
+          <!-- QR Code -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+            <div id="sec2faQrWrap" style="background:#fff;border:1px solid var(--b1);border-radius:12px;padding:10px;width:148px;height:148px;display:flex;align-items:center;justify-content:center">
+              <div id="sec2faQrSpinner" style="color:var(--tx3);font-size:12px;text-align:center">Loading…</div>
+              <img id="sec2faQrImg" style="display:none;width:128px;height:128px;border-radius:4px">
+            </div>
+            <div style="font-size:11px;color:var(--tx3);font-family:'JetBrains Mono',monospace;text-align:center;line-height:1.5">Step 1<br>Scan with app</div>
+          </div>
+          <!-- Instructions + key + code -->
+          <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:13px;color:var(--tx2);line-height:1.6">
+              <strong>1.</strong> Open your authenticator app and scan the QR code.<br>
+              <strong>2.</strong> Or enter the manual key shown below.<br>
+              <strong>3.</strong> Enter the 6-digit code the app shows to verify.
+            </div>
+            <div style="background:var(--sur2);border:1px solid var(--b1);border-radius:10px;padding:10px 14px">
+              <div style="font-size:10px;color:var(--tx3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px">Manual setup key</div>
+              <div id="sec2faManualKey" style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--tx);font-weight:600;letter-spacing:2.5px;user-select:all">— — — —</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="sec2faCode" placeholder="000 000" maxlength="7" inputmode="numeric"
+                style="flex:1;padding:10px 13px;background:var(--sur2);border:1.5px solid var(--b1);border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;color:var(--tx);outline:none;letter-spacing:3px;text-align:center"
+                oninput="this.value=this.value.replace(/[^0-9]/g,'').replace(/(.{3})/g,'$1 ').trim().slice(0,7)"
+                onkeydown="if(event.key==='Enter')sec2faVerify()">
+              <button class="btn primary" id="sec2faVerifyBtn" onclick="sec2faVerify()">Verify &amp; Enable</button>
+            </div>
+            <div id="sec2faErr" style="font-size:12.5px;color:var(--re);display:none"></div>
+          </div>
+        </div>
+        <button class="btn secondary sm" style="margin-top:14px" onclick="sec2faCancel()">Cancel</button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 3. ACTIVE SESSIONS -->
+  <div class="section-card" style="margin-bottom:16px">
+    <div class="section-head">
+      <div>
+        <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Active Sessions <span style="font-size:12px;font-weight:500;color:var(--tx2);margin-left:6px">({{ session_count }})</span></div>
+        <div class="section-sub">Devices currently signed in to your account</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        {% if session_count > 1 %}<button class="btn danger sm" id="secRevokeAllBtn" onclick="secRevokeAll()">Revoke All Others</button>{% endif %}
+        <button class="btn danger sm" id="secSignOutEverywhereBtn" onclick="secSignOutEverywhere()" title="Sign out on this device AND every other device — you'll need to sign in again here.">Sign out of all devices</button>
+      </div>
+    </div>
+    <div class="section-body" style="padding:0" id="sessionsContainer">
+      {% if user_sessions %}
+        {% for sess in user_sessions %}
+        <div class="sec-session {% if sess.is_current %}current{% endif %}" id="sess-{{ sess.id }}">
+          <div class="sec-sess-ico">
+            {% if "iPhone" in sess.device or "iPad" in sess.device or "Android" in sess.device %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            {% else %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            {% endif %}
+          </div>
+          <div class="sec-sess-info">
+            <div class="t">{{ sess.device }}{% if sess.is_current %} &nbsp;<span class="sec-badge current-badge">Current</span>{% endif %}</div>
+            <div class="s">IP: {{ sess.ip|default:"—" }} &nbsp;&middot;&nbsp; {% if sess.is_current %}Active now{% else %}Last seen {{ sess.last_seen }}{% endif %}</div>
+          </div>
+          {% if sess.is_current %}
+          <div class="sec-sess-time">Now</div>
+          {% else %}
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="sec-sess-time">{{ sess.last_seen }}</div>
+            <button class="btn secondary sm" onclick="secRevokeSession({{ sess.id }}, '{{ sess.device|escapejs }}')">Revoke</button>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="padding:32px;text-align:center;color:var(--tx2);font-size:14px">
+          No active sessions found. <a href="{% url 'login' %}" style="color:var(--pd)">Sign in again</a> to see your sessions here.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 4. LOGIN HISTORY -->
+  <div class="section-card" style="margin-bottom:16px">
+    <div class="section-head" style="flex-wrap:wrap;gap:10px">
+      <div>
+        <div class="section-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Login History</div>
+        <div class="section-sub">Recent sign-in activity on your account</div>
+      </div>
+      {% if login_history %}
+      <button class="btn secondary sm" id="clearHistoryBtn" onclick="confirmClearHistory()" style="align-self:center;color:var(--re);border-color:var(--re);white-space:nowrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        Delete All History
+      </button>
+      {% endif %}
+    </div>
+    <div id="loginHistoryBody">
+    {% if login_history %}
+    <div class="tw-scroll">
+      <table class="tbl">
+        <thead><tr><th>Date &amp; Time</th><th>Device</th><th>IP Address</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for h in login_history %}
+          <tr>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx2);white-space:nowrap">{{ h.ts }}</td>
+            <td>{{ h.device }}</td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:11.5px">{{ h.ip|default:"—" }}</td>
+            <td><span class="inv-status {% if h.status == 'success' %}paid{% else %}failed{% endif %}">{% if h.status == 'success' %}Success{% else %}Failed{% endif %}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div id="loginHistoryEmpty" style="padding:32px;text-align:center;color:var(--tx2);font-size:14px">
+      No login history yet. Your sign-in events will appear here automatically.
+    </div>
+    {% endif %}
+    </div>
+  </div>
+
+  <!-- Confirm clear history modal -->
+  <div id="clearHistoryModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
+    <div style="background:var(--bg);border:1px solid var(--bo);border-radius:18px;padding:32px 28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.18)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div style="width:42px;height:42px;border-radius:50%;background:var(--rd);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--re)" stroke-width="2" stroke-linecap="round" style="width:20px;height:20px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--tx)">Delete All Login History?</div>
+          <div style="font-size:13px;color:var(--tx2);margin-top:2px">This action cannot be undone.</div>
+        </div>
+      </div>
+      <p style="font-size:13.5px;color:var(--tx2);margin:0 0 24px">All recorded sign-in events will be permanently deleted from your account. This only affects your history — your account and settings remain unchanged.</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn secondary sm" onclick="closeClearHistoryModal()">Cancel</button>
+        <button class="btn sm" id="clearHistoryConfirmBtn" onclick="doClearHistory()" style="background:var(--re);color:#fff;border-color:var(--re)">Yes, Delete All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. DANGER ZONE — hidden for admin accounts -->
+  {% if not is_admin %}
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-title" style="color:var(--re)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Danger Zone</div>
+    </div>
+    <div class="section-body">
+      <div class="danger-item">
+        <div class="danger-info"><div class="t">Pause Account</div><div class="s">Temporarily stop your subscription. Your data and settings are preserved.</div></div>
+        <button class="btn secondary sm" onclick="secDangerPause(this)">Pause Account</button>
+      </div>
+      <div class="danger-item">
+        <div class="danger-info"><div class="t">Delete All Data</div><div class="s">Permanently remove all your coverage cities and permit history. This cannot be undone.</div></div>
+        <button class="btn danger sm" onclick="secDangerDeleteData(this)">Delete Data</button>
+      </div>
+      <div class="danger-item">
+        <div class="danger-info"><div class="t">Cancel Subscription</div><div class="s">Cancel your plan. Full access continues until the end of your current billing period.</div></div>
+        <button class="btn danger sm" onclick="secDangerCancel(this)">Cancel Plan</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Toast + Confirm Dialog — always in DOM, outside all tab panels so position:fixed works on every tab -->
+<div id="billToast" class="bill-toast info">
+  <svg class="bt-icon" id="billToastIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"></svg>
+  <span id="billToastMsg"></span>
+</div>
+<div id="billConf" class="bill-conf" onclick="if(event.target===this)closeBillConf()">
+  <div class="bill-conf-box">
+    <div class="bill-conf-icon danger" id="billConfIcon">
+      <svg id="billConfSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="22" height="22"></svg>
+    </div>
+    <div class="bill-conf-title" id="billConfTitle"></div>
+    <div class="bill-conf-body" id="billConfBody"></div>
+    <div class="bill-conf-actions">
+      <button class="btn secondary sm" onclick="closeBillConf()">Cancel</button>
+      <button class="btn danger sm" id="billConfOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmClearHistory() {
+  var m = document.getElementById('clearHistoryModal');
+  m.style.display = 'flex';
+}
+function closeClearHistoryModal() {
+  document.getElementById('clearHistoryModal').style.display = 'none';
+}
+function doClearHistory() {
+  var btn = document.getElementById('clearHistoryConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+  fetch('{% url "clear_login_history" %}', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      closeClearHistoryModal();
+      if (d.ok) {
+        var body = document.getElementById('loginHistoryBody');
+        body.innerHTML = '<div style="padding:32px;text-align:center;color:var(--tx2);font-size:14px">No login history yet. Your sign-in events will appear here automatically.</div>';
+        var clearBtn = document.getElementById('clearHistoryBtn');
+        if (clearBtn) clearBtn.style.display = 'none';
+      }
+    })
+    .catch(function(){
+      btn.disabled = false;
+      btn.textContent = 'Yes, Delete All';
+      closeClearHistoryModal();
+    });
+}
+
+function saveAlertPrefs() {
+  var btn = document.getElementById('alertSaveBtn');
+  var ok  = document.getElementById('alertSaveMsg');
+  var err = document.getElementById('alertErrMsg');
+  ok.style.display = 'none';
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+  fd.append('daily_digest', document.getElementById('alrt_daily_digest').checked ? '1' : '0');
+  fd.append('digest_time',  document.getElementById('alrt_digest_time').value || '');
+  fd.append('digest_tz',    document.getElementById('alrt_digest_tz').value   || '');
+
+  fetch('{% url "save_alert_prefs" %}', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false;
+      btn.textContent = 'Save Preferences';
+      if (d.ok) {
+        ok.style.display = 'block';
+        setTimeout(function(){ ok.style.display = 'none'; }, 3500);
+      } else {
+        err.textContent = d.error || 'Failed to save. Please try again.';
+        err.style.display = 'block';
+      }
+    })
+    .catch(function(){
+      btn.disabled = false;
+      btn.textContent = 'Save Preferences';
+      err.textContent = 'Network error. Please try again.';
+      err.style.display = 'block';
+    });
+}
+
+window.goToBillingPlans = function goToBillingPlans(){
+  var tabBtn = document.querySelector('.stab[onclick*="billing"]');
+  if(typeof switchTab === 'function') switchTab('billing', tabBtn);
+  var planCard = document.getElementById('choosePlanCard');
+  if(planCard){
+    setTimeout(function(){
+      planCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      planCard.style.outline = '2px solid var(--pr)';
+      planCard.style.borderRadius = '14px';
+      setTimeout(function(){ planCard.style.outline = ''; planCard.style.borderRadius = ''; }, 2000);
+    }, 150);
+  }
+};
+
+var _VALID_TABS = ['coverage','billing','alerts','integrations','security'];
+
+function switchTab(name, el) {
+  if (_VALID_TABS.indexOf(name) === -1) name = 'coverage';
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.stab').forEach(function(b){ b.classList.remove('active'); });
+  var panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  if (el) el.classList.add('active');
+  /* Persist selected tab in the URL hash so reload restores it */
+  try { history.replaceState(null, '', window.location.pathname + '#' + name); } catch(e){}
+}
+
+/* On load, activate the tab named in the URL hash (e.g. /settings/#security) */
+(function() {
+  var hash = (window.location.hash || '').replace('#','').toLowerCase();
+  if (_VALID_TABS.indexOf(hash) !== -1) {
+    var panel = document.getElementById('tab-' + hash);
+    var btn   = document.querySelector('.stab[onclick*="\'' + hash + '\'"]');
+    if (panel) {
+      document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+      document.querySelectorAll('.stab').forEach(function(b){ b.classList.remove('active'); });
+      panel.classList.add('active');
+      if (btn) btn.classList.add('active');
+    }
+  }
+
+}());
+
+function tileClick(tile,e){
+  tile.classList.toggle('active');
+}
+
+/* ── State-based coverage (May-2026) ─────────────────── */
+function getCsrfToken(){
+  var el = document.getElementById('billCsrfToken');
+  if (el && el.value) return el.value;
+  var m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? m[1] : '';
+}
+var _csrf = getCsrfToken;  // legacy alias used by other settings JS
+function _coverageApi(url, payload){
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(function(r){ return r.json(); });
+}
+function addState(tile){
+  if (tile.classList.contains('disabled')) return;
+  tile.classList.add('disabled');
+  tile.style.opacity = '0.5';
+  var code = tile.dataset.code;
+  var name = tile.dataset.name || code;
+  _coverageApi('/settings/cities/add/', { state: code })
+    .then(function(d){
+      if (!d.ok) {
+        tile.classList.remove('disabled');
+        tile.style.opacity = '';
+        if (d.upgrade_required) {
+          showBillToast(d.error || 'Upgrade your plan to add more states.', 'warn');
+          setTimeout(function(){ goToBillingPlans(); }, 1400);
+        } else {
+          showBillToast(d.error || 'Could not add state.', d.duplicate ? 'warn' : 'error');
+        }
+        return;
+      }
+      showBillToast(name + ' added to your coverage.', 'success');
+      setTimeout(function(){ window.location.reload(); }, 700);
+    })
+    .catch(function(){
+      tile.classList.remove('disabled');
+      tile.style.opacity = '';
+      showBillToast('Network error — state not saved.', 'error');
+    });
+}
+function removeState(btn, e){
+  e.stopPropagation();
+  var tile = btn.closest('.city-tile');
+  if (!tile) return;
+  var code = tile.dataset.entry;
+  var name = tile.querySelector('.ct-name').textContent.trim();
+  _coverageApi('/settings/cities/remove/', { state: code })
+    .then(function(d){
+      if (!d.ok) { showBillToast('Could not remove state.', 'error'); return; }
+      if (d.unfrozen)      showBillToast('State removed — your account is now fully restored!', 'success');
+      else if (d.frozen)   showBillToast('State removed. Remove more to unlock your account.', 'warn');
+      else                 showBillToast(name + ' removed from your coverage.', 'info');
+      setTimeout(function(){ window.location.reload(); }, 700);
+    })
+    .catch(function(){ showBillToast('Network error — state not removed.', 'error'); });
+}
+
+/* Legacy stubs — kept to avoid console errors if cached HTML calls them. */
+function openChangeCityModal(){return;}
+function openCityModal(){return;}
+function openAddCityFreeModal(){return;}
+function closeChangeCityModal(){return;}
+function closeAddCityFreeModal(){return;}
+function saveChangedCity(){return;}
+function saveAddedCity(){return;}
+function removeCity(btn,e){ removeState(btn,e); }
+function deleteSelectedCities(){return;}
+
+var cityLimit = {{ city_limit }};
+var USER_PLAN  = '{{ user_plan }}';
+function getCityCount(){
+  var grid = document.querySelector('.city-grid');
+  return grid ? grid.querySelectorAll('.city-tile').length : 0;
+}
+function updateCityUI(){ /* no-op — server-rendered grid reloads after each change */ }
+
+/* Kept as a no-op constant so ``lsChangePlan`` price-lookup stays valid. */
+var _billPeriod = 'monthly';
+
+/* ── Billing UI helpers ─────────────────────────────────── */
+var _billToastTimer = null;
+function showBillToast(msg, type) {
+  var toast = document.getElementById('billToast');
+  if (!toast) return;
+  var iconEl = document.getElementById('billToastIcon');
+  toast.className = 'bill-toast ' + (type || 'info');
+  document.getElementById('billToastMsg').textContent = msg;
+  var icons = {
+    success: '<polyline points="20 6 9 17 4 12"/>',
+    error:   '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+    info:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+    warn:    '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
+  };
+  iconEl.innerHTML = icons[type] || icons.info;
+  clearTimeout(_billToastTimer);
+  toast.classList.add('show');
+  _billToastTimer = setTimeout(function () { toast.classList.remove('show'); }, 3200);
+}
+
+function openBillConf(iconType, svgPath, title, body, okLabel, okClass, okCb) {
+  var conf = document.getElementById('billConf');
+  var icon = document.getElementById('billConfIcon');
+  icon.className = 'bill-conf-icon ' + iconType;
+  document.getElementById('billConfSvg').innerHTML = svgPath;
+  document.getElementById('billConfTitle').textContent = title;
+  document.getElementById('billConfBody').textContent = body;
+  var ok = document.getElementById('billConfOk');
+  ok.className = 'btn ' + okClass + ' sm';
+  ok.textContent = okLabel;
+  ok.onclick = function () { closeBillConf(); if (okCb) okCb(); };
+  conf.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeBillConf() {
+  document.getElementById('billConf').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function lsChangePlan(plan) {
+  /* All plan changes — upgrade, downgrade, or period switch — follow
+     the same flow: cancel current Whop subscription, then send the
+     user to checkout for the new plan. We surface this clearly in a
+     single confirmation so there are no surprises. */
+  var monthlyPrice = {
+    starter: '${{ pricing.starter_monthly }}/mo',
+    pro:     '${{ pricing.pro_monthly }}/mo',
+    agency:  '${{ pricing.agency_monthly }}/mo'
+  };
+  var newPrice  = monthlyPrice[plan];
+  var planTitle = plan.charAt(0).toUpperCase() + plan.slice(1);
+  var curTitle  = USER_PLAN;
+
+  var RANK = {starter: 0, pro: 1, agency: 2};
+  var cur      = USER_PLAN.toLowerCase().trim();
+  var curRank  = (RANK.hasOwnProperty(cur)  ? RANK[cur]  : 0);
+  var planRank = (RANK.hasOwnProperty(plan) ? RANK[plan] : 0);
+  var isDowngrade = planRank < curRank;
+  var isUpgrade   = planRank > curRank;
+
+  var planCityLimits = {starter: 1, pro: 5, agency: 15};
+  var newCityLimit   = planCityLimits[plan] || 1;
+  var currentCities  = getCityCount();
+
+  /* Build the modal body: clear, professional, no surprises. */
+  var lines = [];
+  lines.push(
+    'Switching plans is a two-step move:\n' +
+    '  1.  We cancel your current ' + curTitle + ' subscription right now.\n' +
+    '  2.  We open the ' + planTitle + ' checkout (' + newPrice + '). ' +
+         'Your ' + planTitle + ' plan starts the moment payment goes through.'
+  );
+  if (isDowngrade) {
+    lines.push(
+      'Heads up: any unused time on ' + curTitle + ' is forfeited. ' +
+      'There are no refunds for partial periods.'
+    );
+  }
+  if (currentCities > newCityLimit) {
+    lines.push(
+      'You currently track ' + currentCities + ' cities. ' +
+      planTitle + ' includes ' + newCityLimit + ' — extras stay on your ' +
+      'account but will be frozen until you remove them.'
+    );
+  }
+  lines.push('This action can\u2019t be undone.');
+
+  var iconType  = isDowngrade ? 'danger' : 'info';
+  var iconSvg   = isDowngrade
+    ? '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
+    : '<polyline points="20 6 9 17 4 12"/>';
+  var verb      = isUpgrade ? 'Upgrade to ' : (isDowngrade ? 'Downgrade to ' : 'Switch to ');
+  var okLabel   = 'Cancel ' + curTitle + ' & Continue';
+  var okClass   = isDowngrade ? 'danger' : 'primary';
+
+  openBillConf(
+    iconType, iconSvg,
+    verb + planTitle + '?',
+    lines.join('\n\n'),
+    okLabel, okClass,
+    function () {
+      fetch('/billing/change-plan/', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+        body:    JSON.stringify({plan: plan, period: _billPeriod})
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.ok && d.checkout_url) {
+          /* Old plan is now cancelled in our DB. Send the user to
+             checkout in the same tab — opening _blank would risk a
+             popup blocker AND leave a "ghost cancelled" view of
+             /settings/ open in the original tab. */
+          showBillToast(
+            curTitle + ' subscription cancelled. Loading ' + planTitle + ' checkout\u2026',
+            'info'
+          );
+          setTimeout(function () { window.location.href = d.checkout_url; }, 700);
+        } else {
+          showBillToast(d.error || 'Could not start the plan change.', 'error');
+        }
+      }).catch(function () { showBillToast('Request failed.', 'error'); });
+    }
+  );
+}
+
+/* ── Switch to the scheduled plan immediately ──────────────── */
+function lsApplyDowngrade(plan, date) {
+  var planTitle = plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : plan;
+  var planCityLimits = {starter: 1, pro: 5, agency: 15};
+  var newLimit = planCityLimits[plan] || 1;
+  var currentCities = getCityCount();
+  var body = 'Your plan switches to ' + planTitle + ' right now instead of waiting until ' + date + '. This is immediate and charged at the ' + planTitle + ' rate going forward.';
+  if (currentCities > newLimit) {
+    body += ' You have ' + currentCities + ' cities but ' + planTitle + ' allows ' + newLimit + ' — excess cities will be frozen until you remove them.';
+  }
+  openBillConf(
+    'danger',
+    '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    'Switch to ' + planTitle + ' now?',
+    body,
+    'Yes, Switch to ' + planTitle + ' Now', 'danger',
+    function () {
+      fetch('/billing/apply-downgrade/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if (d.ok) {
+          if (d.frozen) {
+            showBillToast('Switched to ' + planTitle + '! You have ' + d.city_count + ' cities but ' + d.city_limit + ' allowed — remove ' + d.excess + ' to unlock.', 'warn');
+            setTimeout(function(){ window.location.href = '/settings/?r=' + Date.now() + '#coverage'; }, 2200);
+          } else {
+            showBillToast('Switched to ' + planTitle + ' successfully.', 'success');
+            setTimeout(function(){ window.location.href = '/settings/?r=' + Date.now() + '#billing'; }, 1500);
+          }
+        } else {
+          showBillToast(d.error || 'Could not switch plan.', 'error');
+        }
+      }).catch(function(){ showBillToast('Request failed.', 'error'); });
+    }
+  );
+}
+
+/* ── Cancel the scheduled downgrade — stay on current plan ─── */
+function lsUndoDowngrade(pendingPlan, currentPlan) {
+  var pendingTitle = pendingPlan ? pendingPlan.charAt(0).toUpperCase() + pendingPlan.slice(1) : pendingPlan;
+  var currentTitle = currentPlan || USER_PLAN;
+  openBillConf(
+    'info',
+    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+    'Stay on ' + currentTitle + '?',
+    'This cancels the scheduled switch to ' + pendingTitle + '. You remain on ' + currentTitle + ' and continue to be billed at the ' + currentTitle + ' rate — nothing else changes.',
+    'Yes, Stay on ' + currentTitle, 'primary',
+    function () {
+      fetch('/billing/cancel-downgrade/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}
+      }).then(function(r){ return r.json(); }).then(function(d){
+        if (d.ok) {
+          showBillToast("Downgrade cancelled — you're staying on " + currentTitle + '.', 'success');
+          setTimeout(function(){ window.location.href = '/settings/?r=' + Date.now() + '#billing'; }, 1600);
+        } else {
+          showBillToast(d.error || 'Could not cancel the scheduled downgrade.', 'error');
+        }
+      }).catch(function(){ showBillToast('Request failed.', 'error'); });
+    }
+  );
+}
+
+function lsCancel() {
+  openBillConf(
+    'danger',
+    '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    'Cancel your subscription?',
+    'Your access continues until the end of your current billing period. After that, your account will be deactivated and you will need to choose a new plan to keep using Permitlify.',
+    'Yes, Cancel', 'danger',
+    function () {
+      fetch('/billing/cancel/', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()}
+      }).then(function(r){return r.json();}).then(function(d){
+        if (d.ok) { showBillToast(d.msg || 'Subscription cancelled.','warn'); setTimeout(function(){window.location.reload();},1800); }
+        else { showBillToast(d.error || 'Could not cancel subscription.','error'); }
+      }).catch(function(){showBillToast('Request failed.','error');});
+    }
+  );
+}
+
+/* lsResume() removed — Whop does not expose an un-cancel endpoint to
+   our company-scoped API key. Cancelled subscriptions now show a
+   "Choose a Plan" call-to-action that scrolls to the plans grid so
+   the user can buy a fresh subscription before access ends. */
+
+function lsPause() {
+  openBillConf(
+    'danger',
+    '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    'Pause your plan?',
+    'Your alerts stop immediately. You will not be billed during the pause. Resume anytime from this page.',
+    'Yes, Pause Plan', 'danger',
+    function () {
+      fetch('/billing/pause/', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRFToken':getCsrfToken()}
+      }).then(function(r){return r.json();}).then(function(d){
+        if (d.ok) { showBillToast(d.msg || 'Plan paused.','warn'); setTimeout(function(){window.location.reload();},1500); }
+        else { showBillToast(d.error || 'Could not pause subscription.','error'); }
+      }).catch(function(){showBillToast('Request failed.','error');});
+    }
+  );
+}
+
+function billPause() { lsPause(); }
+
+function lsOpenCheckout(plan) {
+  showBillToast('Checking your account\u2026', 'info');
+  fetch('/billing/checkout/?plan=' + encodeURIComponent(plan) + '&period=' + encodeURIComponent(_billPeriod), {
+    credentials: 'same-origin'
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.ok && d.url) {
+      var win = window.open(d.url, '_blank');
+      if (!win) {
+        showBillToast('Pop-up blocked \u2014 please allow pop-ups and try again.', 'error');
+      }
+    } else if (d.has_sub) {
+      // Already has a subscription — reload so the UI reflects the saved plan
+      showBillToast('You already have an active subscription. Refreshing your billing info\u2026', 'info');
+      setTimeout(function(){ window.location.href = '/settings/?r=' + Date.now() + '#billing'; }, 1800);
+    } else {
+      showBillToast(d.error || 'Could not create checkout.', 'error');
+    }
+  }).catch(function(){ showBillToast('Request failed.', 'error'); });
+}
+
+function lsSyncNow() {
+  var btn = document.getElementById('lsSyncBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
+  fetch('/billing/sync/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()}
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.ok) {
+      showBillToast(d.msg || 'Subscription synced!', 'success');
+      setTimeout(function(){ window.location.reload(); }, 1400);
+    } else {
+      showBillToast(d.error || 'Could not sync subscription.', 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Sync'; }
+    }
+  }).catch(function(){
+    showBillToast('Request failed.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Sync'; }
+  });
+}
+
+function billAddCard() {
+  showBillToast('Card management is handled through your Stripe billing portal.', 'info');
+}
+
+function billMakeDefault(btn) {
+  var row = btn.closest('.pm-row');
+  document.querySelectorAll('.pm-default').forEach(function (b) { b.remove(); });
+  var badge = document.createElement('span');
+  badge.className = 'pm-default';
+  badge.textContent = 'DEFAULT';
+  row.querySelector('.pm-info').after(badge);
+  btn.remove();
+  showBillToast('Default payment method updated.', 'success');
+}
+
+function billEditCard(label) {
+  showBillToast('Edit ' + label + ' via your Stripe billing portal.', 'info');
+}
+
+function billDeleteCard(btn, label) {
+  openBillConf(
+    'danger',
+    '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
+    'Remove ' + label + '?',
+    'This card will be permanently removed from your account. Ensure another payment method is set as default before removing.',
+    'Remove Card', 'danger',
+    function () {
+      var row = btn.closest('.pm-row');
+      if (row) { row.style.opacity = '0.35'; row.style.pointerEvents = 'none'; }
+      showBillToast(label + ' removed from your account.', 'success');
+    }
+  );
+}
+
+var _BILL_ADDR_URL   = '{% url "save_billing_address" %}';
+var _BILL_EXPORT_URL = '{% url "export_invoices_csv" %}';
+var _BILL_PDF_BASE   = '/settings/invoices/';
+
+function billEditAddress() {
+  var section = document.getElementById('billAddressSection');
+  var btn     = document.getElementById('billAddressBtn');
+  if (!section || !btn) return;
+  var fields  = section.querySelectorAll('input[name]');
+  var editing = btn.textContent.trim() === 'Save';
+
+  if (!editing) {
+    fields.forEach(function (f) { f.removeAttribute('readonly'); });
+    btn.textContent = 'Save';
+    btn.className   = 'btn primary sm';
+    fields[0].focus();
+  } else {
+    btn.disabled = true;
+    btn.textContent = 'Saving\u2026';
+    var csrf   = document.getElementById('billCsrfToken').value;
+    var body   = new URLSearchParams();
+    fields.forEach(function (f) { body.append(f.name, f.value.trim()); });
+
+    fetch(_BILL_ADDR_URL, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      fields.forEach(function (f) { f.setAttribute('readonly', ''); });
+      btn.textContent = 'Edit';
+      btn.className   = 'btn secondary sm';
+      btn.disabled    = false;
+      if (d.ok) {
+        showBillToast('Billing address saved.', 'success');
+      } else {
+        showBillToast('Save failed \u2014 please try again.', 'error');
+      }
+    })
+    .catch(function () {
+      btn.textContent = 'Save';
+      btn.className   = 'btn primary sm';
+      btn.disabled    = false;
+      showBillToast('Network error \u2014 please try again.', 'error');
+    });
+  }
+}
+
+function billExportAll() {
+  showBillToast('Downloading invoice CSV\u2026', 'info');
+  window.location.href = _BILL_EXPORT_URL;
+}
+
+function billPreviewInvoice(id) {
+  window.open(_BILL_PDF_BASE + id + '/pdf/', '_blank');
+}
+
+function billDownloadPDF(id) {
+  window.open(_BILL_PDF_BASE + id + '/pdf/', '_blank');
+}
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') closeBillConf();
+});
+
+/* ── Security: Change Password ─────────────────────────── */
+var _SEC_PW_URL     = '{% url "security_change_password" %}';
+var _SEC_ACTION_URL = '{% url "security_account_action" %}';
+
+function secChangePassword() {
+  var curPw = document.getElementById('secCurPw').value.trim();
+  var newPw = document.getElementById('secNewPw').value;
+  var conPw = document.getElementById('secConPw').value;
+  var errEl = document.getElementById('secPwError');
+  var btn   = document.getElementById('secPwBtn');
+
+  errEl.style.display = 'none';
+
+  if (!curPw) { secPwErr('Please enter your current password.'); return; }
+  if (!newPw)  { secPwErr('Please enter a new password.'); return; }
+  if (newPw.length < 8) { secPwErr('New password must be at least 8 characters.'); return; }
+  if (newPw !== conPw)  { secPwErr('New passwords do not match.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Updating\u2026';
+
+  var csrf = document.getElementById('secCsrfToken').value;
+  var body = new URLSearchParams({
+    current_password: curPw,
+    new_password:     newPw,
+    confirm_password: conPw
+  });
+
+  fetch(_SEC_PW_URL, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString()
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    btn.disabled = false;
+    btn.textContent = 'Update Password';
+    if (d.ok) {
+      document.getElementById('secCurPw').value = '';
+      document.getElementById('secNewPw').value = '';
+      document.getElementById('secConPw').value = '';
+      showBillToast('Password updated successfully.', 'success');
+    } else {
+      secPwErr(d.error || 'Something went wrong. Please try again.');
+    }
+  })
+  .catch(function(){
+    btn.disabled = false;
+    btn.textContent = 'Update Password';
+    secPwErr('Network error \u2014 please try again.');
+  });
+}
+
+function secPwErr(msg) {
+  var el = document.getElementById('secPwError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+/* ── Security: 2FA ────────────────────────────────────── */
+function sec2faStart() {
+  var intro  = document.getElementById('sec2faIntro');
+  var panel  = document.getElementById('sec2faSetupPanel');
+  var qrImg  = document.getElementById('sec2faQrImg');
+  var spin   = document.getElementById('sec2faQrSpinner');
+  var keyEl  = document.getElementById('sec2faManualKey');
+  intro.style.display  = 'none';
+  panel.style.display  = 'block';
+  qrImg.style.display  = 'none';
+  spin.style.display   = 'block';
+  keyEl.textContent    = '— — — —';
+  fetch('/settings/security/totp-setup/', {headers: {'X-CSRFToken': getCsrfToken()}})
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d.ok) { showBillToast('Could not generate QR code.', 'danger'); return; }
+      qrImg.src        = d.qr;
+      qrImg.onload     = function() { spin.style.display = 'none'; qrImg.style.display = 'block'; };
+      keyEl.textContent = d.formatted;
+    })
+    .catch(function() { showBillToast('Network error.', 'danger'); });
+}
+
+function sec2faCancel() {
+  document.getElementById('sec2faIntro').style.display   = 'block';
+  document.getElementById('sec2faSetupPanel').style.display = 'none';
+  document.getElementById('sec2faErr').style.display = 'none';
+  document.getElementById('sec2faCode').value = '';
+}
+
+function sec2faVerify() {
+  var code = document.getElementById('sec2faCode').value.replace(/\s/g, '');
+  var errEl = document.getElementById('sec2faErr');
+  errEl.style.display = 'none';
+  if (code.length !== 6) {
+    errEl.textContent = 'Please enter a valid 6-digit code.';
+    errEl.style.display = 'block';
+    return;
+  }
+  var btn = document.getElementById('sec2faVerifyBtn');
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  fetch('/settings/security/totp-verify/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+    body: JSON.stringify({code: code})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    btn.disabled = false; btn.textContent = 'Verify & Enable';
+    if (d.ok) {
+      showBillToast('2FA enabled — your account is now protected.', 'success');
+      setTimeout(function(){ location.reload(); }, 900);
+    } else {
+      errEl.textContent = d.error || 'Incorrect code.';
+      errEl.style.display = 'block';
+      document.getElementById('sec2faCode').value = '';
+      document.getElementById('sec2faCode').focus();
+    }
+  })
+  .catch(function() { btn.disabled = false; btn.textContent = 'Verify & Enable'; showBillToast('Network error.', 'danger'); });
+}
+
+function sec2faShowDisable() {
+  var p = document.getElementById('sec2faDisablePanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function sec2faDoDisable() {
+  var pw   = document.getElementById('sec2faDisablePw').value;
+  var code = document.getElementById('sec2faDisableCode').value.replace(/\s/g, '');
+  var err  = document.getElementById('sec2faDisableErr');
+  err.style.display = 'none';
+  if (!pw) { err.textContent = 'Password is required.'; err.style.display = 'block'; return; }
+  if (code.length !== 6) { err.textContent = 'Authenticator code is required.'; err.style.display = 'block'; return; }
+  var btn = document.getElementById('sec2faDisableBtn');
+  btn.disabled = true; btn.textContent = 'Disabling…';
+  fetch('/settings/security/totp-disable/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken()},
+    body: JSON.stringify({password: pw, code: code})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    btn.disabled = false; btn.textContent = 'Confirm Disable';
+    if (d.ok) {
+      showBillToast('2FA has been disabled.', 'success');
+      setTimeout(function(){ location.reload(); }, 900);
+    } else {
+      err.textContent = d.error || 'Could not disable 2FA.';
+      err.style.display = 'block';
+    }
+  })
+  .catch(function() { btn.disabled = false; btn.textContent = 'Confirm Disable'; showBillToast('Network error.', 'danger'); });
+}
+
+/* ── Security: Sessions ───────────────────────────────── */
+function _secCheckRevokeAllBtn() {
+  var remaining = document.querySelectorAll('.sec-session:not(.current)');
+  var btn = document.getElementById('secRevokeAllBtn');
+  if (!btn) return;
+  if (remaining.length === 0) {
+    btn.disabled = true;
+    btn.textContent = 'All Revoked';
+    btn.classList.remove('danger');
+    btn.classList.add('secondary');
+  }
+}
+
+function _removeSessionRow(rowId) {
+  var row = document.getElementById(rowId);
+  if (!row) return;
+  /* Snapshot height so CSS transition has a concrete start value */
+  var h = row.getBoundingClientRect().height;
+  row.style.overflow   = 'hidden';
+  row.style.maxHeight  = h + 'px';
+  row.style.transition = 'opacity .22s ease, max-height .32s ease .18s, padding .32s ease .18s';
+  /* rAF pair ensures the browser commits the start state before we change it */
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      row.style.opacity    = '0';
+      row.style.maxHeight  = '0';
+      row.style.paddingTop = '0';
+      row.style.paddingBottom = '0';
+      setTimeout(function() {
+        if (row.parentNode) row.parentNode.removeChild(row);
+        _secCheckRevokeAllBtn();
+      }, 360);
+    });
+  });
+}
+
+/* Inline confirmation pill → real API revoke */
+function secRevokeSession(sessionId, label) {
+  var row = document.getElementById('sess-' + sessionId);
+  if (!row) return;
+  var origBtn = row.querySelector('button');
+  if (!origBtn || origBtn.dataset.confirming) return;
+  origBtn.dataset.confirming = '1';
+
+  var origHTML = origBtn.innerHTML;
+  origBtn.innerHTML = 'Confirm? &nbsp;<span style="opacity:.6;font-size:11px;">(click again)</span>';
+  origBtn.classList.add('danger');
+  origBtn.classList.remove('secondary');
+
+  function doRevoke(e) {
+    e.stopPropagation();
+    cleanup();
+    origBtn.disabled = true;
+    origBtn.textContent = 'Revoking…';
+    fetch('/settings/security/revoke-session/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': _csrf()},
+      body: JSON.stringify({session_id: sessionId})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        _removeSessionRow('sess-' + sessionId);
+        showBillToast(label + ' session revoked.', 'success');
+      } else {
+        origBtn.disabled = false;
+        origBtn.innerHTML = origHTML;
+        showBillToast(d.error || 'Could not revoke session.', 'danger');
+      }
+    })
+    .catch(function() {
+      origBtn.disabled = false;
+      origBtn.innerHTML = origHTML;
+      showBillToast('Network error. Please try again.', 'danger');
+    });
+  }
+  function doCancel() {
+    cleanup();
+    origBtn.innerHTML = origHTML;
+    origBtn.classList.remove('danger');
+    origBtn.classList.add('secondary');
+  }
+  function cleanup() {
+    origBtn.removeEventListener('click', doRevoke);
+    document.removeEventListener('click', doCancel);
+    delete origBtn.dataset.confirming;
+  }
+
+  origBtn.addEventListener('click', doRevoke);
+  setTimeout(function() { document.addEventListener('click', doCancel); }, 50);
+  setTimeout(doCancel, 4000);
+}
+
+function secRevokeAll() {
+  openBillConf(
+    'danger',
+    '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    'Revoke all other sessions?',
+    'All devices except this one will be signed out immediately.',
+    'Revoke All', 'danger',
+    function () {
+      fetch('/settings/security/revoke-all-sessions/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': _csrf()},
+        body: JSON.stringify({})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          var rows = document.querySelectorAll('.sec-session:not(.current)');
+          rows.forEach(function(r){ _removeSessionRow(r.id); });
+          showBillToast('All other sessions revoked (' + (d.revoked || 0) + ').', 'success');
+          var btn = document.getElementById('secRevokeAllBtn');
+          if (btn) btn.style.display = 'none';
+        } else {
+          showBillToast('Could not revoke sessions.', 'danger');
+        }
+      })
+      .catch(function() { showBillToast('Network error. Please try again.', 'danger'); });
+    }
+  );
+}
+
+function secSignOutEverywhere() {
+  openBillConf(
+    'danger',
+    '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    'Sign out of every device?',
+    'You\'ll be signed out here AND on every other browser, phone, or computer using your account. You\'ll need to sign in again to continue.',
+    'Sign Out Everywhere', 'danger',
+    function () {
+      fetch('/settings/security/sign-out-everywhere/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': _csrf()},
+        body: JSON.stringify({})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d && d.ok) {
+          // Server has already flushed our session — just navigate to
+          // the login page with the success banner. Use replace() so
+          // the back button doesn't bring the user to a broken,
+          // session-less settings page.
+          window.location.replace('/login/?signed_out=everywhere');
+        } else {
+          showBillToast('Could not sign out of all devices. Please try again.', 'danger');
+        }
+      })
+      .catch(function() { showBillToast('Network error. Please try again.', 'danger'); });
+    }
+  );
+}
+
+/* ── Security: Danger Zone ────────────────────────────── */
+function _secAction(action, title, body, okLabel, successMsg, triggerBtn) {
+  openBillConf(
+    'danger',
+    '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+    title, body, okLabel, 'danger',
+    function () {
+      var csrf = document.getElementById('secCsrfToken').value;
+      if (triggerBtn) { triggerBtn.disabled = true; triggerBtn.textContent = 'Done'; }
+      fetch(_SEC_ACTION_URL, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'action=' + encodeURIComponent(action)
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        showBillToast(d.msg || successMsg, d.ok ? 'warn' : 'error');
+      })
+      .catch(function(){
+        if (triggerBtn) { triggerBtn.disabled = false; triggerBtn.textContent = okLabel.replace('Yes, ',''); }
+        showBillToast('Network error \u2014 please try again.', 'error');
+      });
+    }
+  );
+}
+
+function secDangerPause(btn) {
+  _secAction('pause',
+    'Pause your account?',
+    'All alerts stop immediately. You will not be billed while paused. Your data is preserved and you can resume anytime.',
+    'Yes, Pause Account',
+    'Account paused successfully.',
+    btn
+  );
+}
+
+function secDangerDeleteData(btn) {
+  _secAction('delete_data',
+    'Delete all your data?',
+    'This permanently removes all your coverage cities and permit history. This action CANNOT be undone.',
+    'Yes, Delete Everything',
+    'All data deleted.',
+    btn
+  );
+}
+
+function secDangerCancel(btn) {
+  _secAction('cancel',
+    'Cancel your subscription?',
+    'Your plan will be cancelled at the end of the current billing period. You keep full access until then.',
+    'Yes, Cancel Plan',
+    'Subscription cancellation requested.',
+    btn
+  );
+}
+</script>
+{% endblock %}

@@ -1,0 +1,282 @@
+{% comment %}
+  Shared base layout for every transactional Permitlify email.
+
+  Mirrors the dashboard agency-plan banner: gradient hero card with a
+  soft white "bubble" glow, a faint dot pattern overlay, glass-morphism
+  icon box, optional pill tag, optional pill-button or content card,
+  then a clean white body card and a small footer.
+
+  Children pick a gradient theme by setting `{% block hero_class %}`:
+
+    hero--security  (default — blue → teal, sign-in / reset / 2fa)
+    hero--billing   (emerald → blue → purple, payment receipts)
+    hero--support   (blue → indigo → violet, ticket replies)
+    hero--welcome   (purple → blue → amber — pure agency-banner colors)
+    hero--alert     (amber → red — login-alert / security warning)
+
+  Email-client compatibility:
+    * Outer layout is <table> for Outlook desktop.
+    * Each .hero gets a solid bg color inline as Outlook fallback,
+      then an explicit linear-gradient inline style for clients that
+      ignore <style> blocks (Gmail clipped HTML, some webmail).
+    * Bubble glow + dot pattern are positioned <div>s, drop cleanly
+      in Outlook (transparent divs, no broken image references).
+    * No external assets, no @import, no remote fonts, no images that
+      need a CDN — everything inlines so spam filters stay happy.
+{% endcomment %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>{% block title %}Permitlify{% endblock %}</title>
+<style>
+  /* ── reset for email clients ─────────────────────────────────── */
+  body, table, td, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+  table, td { mso-table-lspace:0; mso-table-rspace:0; }
+  img { -ms-interpolation-mode:bicubic; border:0; height:auto; line-height:100%; outline:none; text-decoration:none; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; background:#f0f4f8; font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; color:#0f172a; }
+  a { color:#1d4ed8; text-decoration:none; }
+
+  /* ── hero card with gradient + bubbles ───────────────────────── */
+  .hero {
+    position:relative;
+    overflow:hidden;
+    border-radius:18px;
+    padding:42px 32px 36px;
+    text-align:center;
+    color:#ffffff;
+    box-shadow:0 12px 32px -8px rgba(15,23,42,.28);
+  }
+  .hero--security { background:#1d4ed8; background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 38%,#059669 110%); }
+  .hero--billing  { background:#059669; background:linear-gradient(135deg,#059669 0%,#1d4ed8 55%,#7c3aed 110%); }
+  .hero--support  { background:#1d4ed8; background:linear-gradient(135deg,#1d4ed8 0%,#4338ca 50%,#7c3aed 110%); }
+  .hero--welcome  { background:#7c3aed; background:linear-gradient(135deg,#7c3aed 0%,#1d4ed8 50%,#f59e0b 130%); }
+  .hero--alert    { background:#b45309; background:linear-gradient(135deg,#b45309 0%,#dc2626 60%,#7c3aed 130%); }
+
+  .hero-glow   { position:absolute; right:-90px; bottom:-130px; width:360px; height:360px; border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,.34) 0%, rgba(255,255,255,0) 70%); pointer-events:none; }
+  .hero-glow-2 { position:absolute; left:-70px; top:-110px;  width:300px; height:300px; border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%); pointer-events:none; }
+  .hero-pattern {
+    position:absolute; inset:0;
+    background-image:
+      radial-gradient(circle at 18% 22%, rgba(255,255,255,.18) 1.4px, transparent 1.6px),
+      radial-gradient(circle at 76% 70%, rgba(255,255,255,.14) 1.4px, transparent 1.6px),
+      radial-gradient(circle at 42% 88%, rgba(255,255,255,.10) 1.4px, transparent 1.6px),
+      radial-gradient(circle at 88% 18%, rgba(255,255,255,.12) 1.4px, transparent 1.6px);
+    background-size: 140px 140px, 180px 180px, 220px 220px, 160px 160px;
+    pointer-events:none; opacity:.85;
+  }
+  .hero-content { position:relative; z-index:2; }
+
+  /* glass-morphism icon */
+  .hero-icon {
+    width:64px; height:64px; margin:0 auto 22px;
+    border-radius:18px;
+    background:rgba(255,255,255,.16);
+    border:1.5px solid rgba(255,255,255,.30);
+    line-height:64px; text-align:center;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.30), 0 8px 22px rgba(15,23,42,.22);
+  }
+
+  /* tag pill above title */
+  .hero-tag {
+    display:inline-block;
+    font-size:10.5px; font-weight:800; letter-spacing:1.8px;
+    color:rgba(255,255,255,.92);
+    background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.28);
+    padding:5px 13px; border-radius:999px;
+    margin-bottom:14px; text-transform:uppercase;
+  }
+
+  .hero-title {
+    font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    font-size:28px; font-weight:800;
+    color:#ffffff; line-height:1.2;
+    margin:0 0 10px; letter-spacing:-.5px;
+  }
+  .hero-sub {
+    font-size:14.5px; line-height:1.55;
+    color:rgba(255,255,255,.88);
+    margin:0 auto 26px; max-width:440px;
+  }
+
+  /* generic glass card living inside the hero (used by code email
+     and payment-receipt summary tile) */
+  .glass-card {
+    background:rgba(255,255,255,.13);
+    border:1.5px solid rgba(255,255,255,.28);
+    border-radius:16px;
+    padding:18px 18px 16px;
+    backdrop-filter:blur(6px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.18);
+    color:#ffffff;
+  }
+  .glass-meta {
+    margin-top:14px;
+    font-size:12px; font-weight:600; letter-spacing:.5px;
+    color:rgba(255,255,255,.85);
+    text-transform:uppercase;
+  }
+  .glass-meta .dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#10b981; box-shadow:0 0 0 2px rgba(16,185,129,.35); margin-right:6px; vertical-align:1px; }
+
+  /* big bold CTA button used by reset / welcome / payment / support */
+  .cta {
+    display:inline-block;
+    background:#ffffff;
+    color:#1d4ed8 !important;
+    font-size:15.5px; font-weight:800;
+    text-decoration:none;
+    padding:15px 32px;
+    border-radius:12px;
+    letter-spacing:.2px;
+    box-shadow:0 10px 24px rgba(15,23,42,.22), inset 0 1px 0 #fff;
+  }
+
+  /* ── body card under hero ────────────────────────────────────── */
+  .body-card {
+    background:#ffffff;
+    border:1px solid rgba(15,23,42,.07);
+    border-radius:14px;
+    padding:28px 32px;
+    margin-top:18px;
+    color:#334155;
+    font-size:14.5px; line-height:1.65;
+    box-shadow:0 1px 3px rgba(15,23,42,.04);
+  }
+  .body-card p { margin:0 0 14px; }
+  .body-card strong { color:#0f172a; font-weight:700; }
+  .body-card .raw {
+    margin-top:10px; padding:12px 14px;
+    background:#f8fafc; border:1px solid rgba(15,23,42,.06);
+    border-radius:10px;
+    font-family:'SF Mono','Menlo','Consolas','Courier New',monospace;
+    font-size:12.5px; color:#1d4ed8; word-break:break-all; line-height:1.55;
+  }
+  .body-card .hint {
+    margin-top:18px; padding:14px 16px;
+    background:#f8fafc; border:1px solid rgba(15,23,42,.06);
+    border-radius:10px;
+    font-size:13px; color:#64748b; line-height:1.6;
+  }
+  .body-card .hint strong { color:#0f172a; }
+
+  /* receipt-row helpers used by payment_success */
+  .recipt-row {
+    display:table; width:100%;
+    padding:11px 0; border-bottom:1px solid #eef1f5;
+    font-size:13.5px;
+  }
+  .recipt-row:last-child { border-bottom:none; }
+  .recipt-row .l { display:table-cell; color:#64748b; font-weight:600; letter-spacing:.2px; }
+  .recipt-row .r { display:table-cell; text-align:right; color:#0f172a; font-weight:700; }
+
+  /* metadata grid used by login-alert (device / ip / when) */
+  .meta-grid {
+    width:100%; border-collapse:separate; border-spacing:0;
+    margin-top:6px; border:1px solid rgba(15,23,42,.07); border-radius:10px;
+    overflow:hidden;
+  }
+  .meta-grid td { padding:11px 14px; font-size:13.5px; vertical-align:top; }
+  .meta-grid td.k { color:#64748b; font-weight:600; width:34%; background:#f8fafc; border-right:1px solid rgba(15,23,42,.06); }
+  .meta-grid td.v { color:#0f172a; font-weight:600; word-break:break-word; }
+  .meta-grid tr + tr td { border-top:1px solid rgba(15,23,42,.06); }
+
+  /* quote block used by support_reply (agent's snippet) */
+  .quote {
+    margin:14px 0 0; padding:14px 16px;
+    background:#f8fafc; border-left:3px solid #1d4ed8;
+    border-radius:6px;
+    color:#334155; font-size:14px; line-height:1.6;
+    white-space:pre-wrap;
+  }
+
+  /* status pill used by support_status */
+  .pill {
+    display:inline-block; padding:3px 10px; border-radius:999px;
+    font-size:11.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
+  }
+  .pill--open        { background:#dbeafe; color:#1d4ed8; }
+  .pill--in_progress { background:#fef3c7; color:#92400e; }
+  .pill--resolved    { background:#d1fae5; color:#065f46; }
+  .pill--closed      { background:#e2e8f0; color:#475569; }
+
+  /* ── footer ──────────────────────────────────────────────────── */
+  .footer {
+    padding:24px 12px 6px;
+    text-align:center;
+    font-size:12px; color:#94a3b8; line-height:1.6;
+  }
+  .footer a { color:#64748b; }
+  .footer .brand { font-weight:700; color:#475569; letter-spacing:.2px; }
+
+  /* ── mobile tweaks ───────────────────────────────────────────── */
+  @media only screen and (max-width:480px) {
+    .hero { padding:36px 22px 30px !important; border-radius:14px !important; }
+    .hero-title { font-size:23px !important; }
+    .hero-sub { font-size:13.5px !important; }
+    .hero-icon { width:56px !important; height:56px !important; line-height:56px !important; border-radius:14px !important; }
+    .body-card { padding:22px 20px !important; border-radius:12px !important; font-size:14px !important; }
+    .cta { font-size:14.5px !important; padding:13px 26px !important; }
+    .meta-grid td.k { width:42% !important; }
+  }
+</style>
+</head>
+<body>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f4f8;">
+  <tr>
+    <td align="center" style="padding:28px 14px;">
+      {# preheader — first 90-ish chars in inbox preview, hidden in body #}
+      <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#f0f4f8;">
+        {% block preheader %}{% endblock %}
+      </div>
+
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+        <tr>
+          <td>
+            <div class="hero {% block hero_class %}hero--security{% endblock %}"
+                 style="{% block hero_inline_bg %}background:#1d4ed8;background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 38%,#059669 110%);{% endblock %}">
+              <div class="hero-glow"></div>
+              <div class="hero-glow-2"></div>
+              <div class="hero-pattern"></div>
+
+              <div class="hero-content">
+                <div class="hero-icon">
+                  {% block hero_icon %}{% endblock %}
+                </div>
+
+                {% block hero_tag %}{% endblock %}
+
+                <h1 class="hero-title">{% block hero_title %}{% endblock %}</h1>
+                <p class="hero-sub">{% block hero_sub %}{% endblock %}</p>
+
+                {% block hero_extra %}{% endblock %}
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td>
+            <div class="body-card">
+              {% block body %}{% endblock %}
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td>
+            <div class="footer">
+              © {{ year }} <span class="brand">Permitlify</span> · <a href="https://permitlify.com">permitlify.com</a><br>
+              {% block footer_note %}You're receiving this email because of activity on your Permitlify account.{% endblock %}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

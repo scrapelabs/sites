@@ -1,0 +1,192 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Blog AI Settings{% endblock %}
+{% block page_title %}Blog AI Settings{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; Firecrawl scraping + DO Inference rewriting{% endblock %}
+
+{% block extra_head %}
+<style>
+.bs-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+@media(max-width:1100px){.bs-grid{grid-template-columns:1fr;}}
+.bs-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.bs-head{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(29,78,216,.04),rgba(5,150,105,.04));}
+.bs-ico{width:38px;height:38px;border-radius:11px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:var(--sh-grad);font-size:18px;}
+.bs-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14.5px;color:var(--text);}
+.bs-sub{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;}
+.bs-pill{margin-left:auto;font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',monospace;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;gap:6px;}
+.bs-pill.live{background:rgba(22,163,74,.12);color:#15803d;border:1px solid rgba(22,163,74,.25);}
+.bs-pill.off{background:rgba(220,38,38,.08);color:#b91c1c;border:1px solid rgba(220,38,38,.2);}
+.bs-pill.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#16a34a;}
+.bs-pill.off::before{content:'';width:6px;height:6px;border-radius:50%;background:#b91c1c;}
+
+.bs-body{padding:18px 22px;}
+.bs-field{margin-bottom:14px;}
+.bs-field:last-of-type{margin-bottom:0;}
+.bs-label{display:block;font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:5px;letter-spacing:.02em;}
+.bs-label span{font-weight:400;color:var(--muted);margin-left:4px;}
+.bs-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--text);background:#fff;outline:none;transition:border .15s,box-shadow .15s;box-sizing:border-box;}
+.bs-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+
+.bs-foot{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--bg);border-top:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+.bs-save{padding:9px 22px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px;box-shadow:var(--sh-grad);transition:opacity .18s,transform .18s;}
+.bs-save:hover{opacity:.92;transform:translateY(-1px);}
+.bs-save:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+.bs-save svg{width:13px;height:13px;}
+.bs-clear{padding:8px 14px;background:transparent;color:#b91c1c;border:1px solid rgba(220,38,38,.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;}
+.bs-clear:hover{background:#fef2f2;border-color:#dc2626;}
+.bs-result{font-size:12px;display:flex;align-items:center;gap:6px;opacity:0;transition:opacity .25s;}
+.bs-result.show{opacity:1;}
+.bs-result.ok{color:#16a34a;}
+.bs-result.err{color:#dc2626;}
+.bs-help{margin-top:14px;padding:12px 14px;background:var(--bg);border:1px dashed var(--border);border-radius:9px;font-size:11.5px;color:var(--muted);line-height:1.65;}
+.bs-help strong{color:var(--text);}
+.bs-help a{color:var(--blue);text-decoration:none;font-weight:600;}
+.bs-help a:hover{text-decoration:underline;}
+.bs-help code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+#toastBs{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;font-size:12.5px;font-weight:500;padding:11px 18px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;font-family:'DM Sans',sans-serif;}
+#toastBs.ok{background:#16a34a;}
+#toastBs.err{background:#dc2626;}
+#toastBs.show{opacity:1;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="toastBs"></div>
+
+<div class="bs-grid">
+  {# ── Firecrawl ── #}
+  <div class="bs-card">
+    <div class="bs-head">
+      <div class="bs-ico">🔥</div>
+      <div style="flex:1;min-width:0;">
+        <div class="bs-title">Firecrawl</div>
+        <div class="bs-sub">Scrapes any URL into clean markdown for the rewrite step.</div>
+      </div>
+      <span class="bs-pill {% if has_firecrawl %}live{% else %}off{% endif %}" id="bs-pill-fc">
+        {% if has_firecrawl %}Configured{% else %}Not set{% endif %}
+      </span>
+    </div>
+    <div class="bs-body">
+      <div class="bs-field">
+        <label class="bs-label" for="bs-fc-key">Firecrawl API Key <span>(starts with <code>fc-</code>)</span></label>
+        <input type="password" class="bs-input" id="bs-fc-key" autocomplete="off" spellcheck="false"
+               placeholder="{% if has_firecrawl %}•••••••• key already saved — paste new key to replace{% else %}fc-xxxxxxxxxxxxxxxxxxxxxxxx{% endif %}">
+      </div>
+      <div class="bs-help">
+        Get a key at <a href="https://www.firecrawl.dev/app" target="_blank" rel="noopener">firecrawl.dev/app</a>. Free plan covers 500 scrapes/month — plenty for the blog.
+      </div>
+    </div>
+    <div class="bs-foot">
+      <div class="bs-result" id="bs-res-fc"></div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        {% if has_firecrawl %}<button class="bs-clear" type="button" onclick="clearKey('clear_firecrawl')">Clear key</button>{% endif %}
+        <button class="bs-save" type="button" onclick="saveFirecrawl()" id="bs-save-fc">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save Firecrawl key
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# ── DO Inference rewrite model ── #}
+  <div class="bs-card">
+    <div class="bs-head">
+      <div class="bs-ico">🤖</div>
+      <div style="flex:1;min-width:0;">
+        <div class="bs-title">AI rewriting (DO Inference)</div>
+        <div class="bs-sub">Rewrites scraped articles into Permitlify-voice blog posts.</div>
+      </div>
+      <span class="bs-pill {% if has_inference %}live{% else %}off{% endif %}" id="bs-pill-rw">
+        {% if has_inference %}Configured{% else %}Key not set{% endif %}
+      </span>
+    </div>
+    <div class="bs-body">
+      <div class="bs-field">
+        <label class="bs-label" for="bs-rw-model">Rewrite model <span>(default <code>{{ default_rewrite_model }}</code>)</span></label>
+        <input type="text" class="bs-input" id="bs-rw-model" autocomplete="off" spellcheck="false"
+               value="{{ rewrite_model }}" placeholder="{{ default_rewrite_model }}">
+      </div>
+      <div class="bs-help">
+        Uses DigitalOcean Serverless Inference — the same endpoint the scrapers use. The
+        <strong>DO Inference API key is shared</strong> and managed in
+        <a href="/admin-panel/scraper-settings/">Scraper Settings</a>{% if not has_inference %} (currently <strong>not set</strong> — rewriting will fail until you add it){% endif %}.
+        Enter any model id from the DO catalogue, e.g. <code>openai-gpt-5-nano</code>.
+      </div>
+    </div>
+    <div class="bs-foot">
+      <div class="bs-result" id="bs-res-rw"></div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="bs-save" type="button" onclick="saveRewrite()" id="bs-save-rw">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save rewrite model
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const csrf = document.cookie.split('; ').find(r=>r.startsWith('csrftoken='))?.split('=')[1] || '';
+const toast = (msg, kind='ok') => {
+  const t = document.getElementById('toastBs');
+  t.textContent = msg; t.className = ''; t.classList.add('show', kind);
+  setTimeout(()=>t.classList.remove('show'), 2400);
+};
+async function postSection(form) {
+  const r = await fetch('/admin-panel/blog-settings/', {
+    method:'POST',
+    headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':csrf},
+    body: form,
+  });
+  return r.json();
+}
+function showResult(id, ok, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = 'bs-result show ' + (ok?'ok':'err');
+  setTimeout(()=>el.classList.remove('show'), 2400);
+}
+async function saveFirecrawl(){
+  const key = document.getElementById('bs-fc-key').value.trim();
+  if (!key) { showResult('bs-res-fc', false, 'Paste a key first.'); return; }
+  const btn = document.getElementById('bs-save-fc'); btn.disabled = true;
+  const fd = new FormData(); fd.append('section','firecrawl'); fd.append('firecrawl_api_key', key);
+  try {
+    const r = await postSection(fd);
+    if (r.ok) {
+      document.getElementById('bs-pill-fc').className = 'bs-pill live';
+      document.getElementById('bs-pill-fc').textContent = 'Configured';
+      document.getElementById('bs-fc-key').value = '';
+      document.getElementById('bs-fc-key').placeholder = '•••••••• key already saved — paste new key to replace';
+      showResult('bs-res-fc', true, '✓ Saved');
+      toast('Firecrawl key saved', 'ok');
+    } else {
+      showResult('bs-res-fc', false, r.error || 'Save failed');
+    }
+  } catch(e){ showResult('bs-res-fc', false, 'Network error'); }
+  finally { btn.disabled = false; }
+}
+async function saveRewrite(){
+  const model = document.getElementById('bs-rw-model').value.trim();
+  if (!model) { showResult('bs-res-rw', false, 'Enter a model id first.'); return; }
+  const btn = document.getElementById('bs-save-rw'); btn.disabled = true;
+  const fd = new FormData(); fd.append('section','rewrite');
+  fd.append('blog_rewrite_model', model);
+  try {
+    const r = await postSection(fd);
+    if (r.ok) {
+      showResult('bs-res-rw', true, '✓ Saved');
+      toast('Rewrite model saved', 'ok');
+    } else {
+      showResult('bs-res-rw', false, r.error || 'Save failed');
+    }
+  } catch(e){ showResult('bs-res-rw', false, 'Network error'); }
+  finally { btn.disabled = false; }
+}
+async function clearKey(section){
+  if (!confirm('Clear the saved key?')) return;
+  const fd = new FormData(); fd.append('section', section);
+  const r = await postSection(fd);
+  if (r.ok) { toast('Cleared. Refreshing…', 'ok'); setTimeout(()=>location.reload(), 600); }
+  else { toast(r.error || 'Failed', 'err'); }
+}
+</script>
+{% endblock %}

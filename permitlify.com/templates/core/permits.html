@@ -1,0 +1,565 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}Permit History — Permitlify{% endblock %}
+{% block nav_permits %}active{% endblock %}
+
+{% block extra_css %}
+/* Page-specific CSS only — th.sortable, .pf-* filter panel,
+   sticky .tbl thead, .tw-scroll polish, .tier-tabs, and the
+   DataTables theme overrides all live in base.html so /permits
+   and /dashboard stay in sync.
+
+   The one /permits-only tweak: keep the per-row score ring
+   centered inside its cell (overrides the flex default). */
+.tbl td .sr{margin:0 auto;}
+
+/* Export button next to the tier tabs — heavier than the
+   default .exp-btn in base.html (34px tall, 14px svg) so it
+   visually pairs with the .tier-tabs .tab buttons. */
+.th-row .exp-btn{
+  height:34px;padding:0 14px;
+  border:1.5px solid var(--b2);border-radius:9px;
+  background:#fff;color:var(--tx2);
+  font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:600;
+  cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  transition:all .15s;text-decoration:none;
+}
+.th-row .exp-btn svg{width:14px;height:14px;}
+.th-row .exp-btn:hover{border-color:var(--pr);color:var(--pr);background:#f8fafc;}
+{% endblock %}
+
+{% block content %}
+{% include "core/_locked_banner.html" %}
+<div class="page-title">Permit History</div>
+<div class="page-desc">Showing permits across your covered cities &middot; <span id="pageDate"></span></div>
+
+{% if cities_frozen %}
+<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:14px;padding:40px 30px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:16px;margin-bottom:20px;">
+  <div style="width:56px;height:56px;background:#fee2e2;border-radius:16px;display:flex;align-items:center;justify-content:center;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" width="28" height="28"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+  </div>
+  <div>
+    <div style="font-weight:800;font-size:17px;color:#991b1b;margin-bottom:6px;">Permit history is paused</div>
+    <div style="font-size:13px;color:#b91c1c;line-height:1.6;max-width:480px;">
+      Your {{ user_plan }} plan allows <strong>{{ city_limit }} city</strong>. You have <strong>{{ city_count }}</strong> active.
+      Remove <strong>{{ city_excess }}</strong> excess city{{ city_excess|pluralize }} to restore access to permit history and daily email alerts.
+    </div>
+  </div>
+  <a href="/settings/#coverage" style="padding:10px 22px;background:#dc2626;color:#fff;border-radius:9px;font-size:13px;font-weight:700;text-decoration:none;">
+    Fix City Coverage →
+  </a>
+</div>
+{% else %}
+{% if history_days %}
+<div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:11px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;font-size:13px;color:#1e40af;">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span>Your <strong>{{ user_plan }}</strong> plan shows the last <strong>{{ history_days }} days</strong> of permit history. {% if user_plan == 'Pro' %}<a href="/settings/#billing" style="color:#1d4ed8;font-weight:600;">Upgrade to Agency</a> for the full archive.{% else %}<a href="/settings/#billing" style="color:#1d4ed8;font-weight:600;">Upgrade to Pro</a> for 90 days, or Agency for the full archive.{% endif %}</span>
+</div>
+{% endif %}
+<!-- ── Filter Panel ─────────────────────────────────────── -->
+<div class="pf-panel">
+  <div class="pf-row">
+    <div class="pf-group">
+      <label class="pf-label">State</label>
+      <select id="pfState" class="pf-sel">
+        <option value="">All States</option>
+        {% for st in plan_states %}<option value="{{ st }}">{{ st }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="pf-group">
+      <label class="pf-label">City</label>
+      <select id="pfCity" class="pf-sel">
+        <option value="">All Cities</option>
+      </select>
+    </div>
+    <div class="pf-group">
+      <label class="pf-label">Permit Type</label>
+      {% if can_filter_trade %}
+      <select id="pfType" class="pf-sel">
+        <option value="">All Types</option>
+        <option value="roofing">Roofing</option>
+        <option value="hvac">HVAC</option>
+        <option value="plumbing">Plumbing</option>
+        <option value="electrical">Electrical</option>
+        <option value="solar">Solar</option>
+        <option value="civil">Civil / Construction</option>
+      </select>
+      {% else %}
+      <div style="height:37px;border:1.5px solid var(--b2);border-radius:10px;padding:0 11px;font-size:13px;color:#94a3b8;background:#f8fafc;display:flex;align-items:center;gap:6px;cursor:default;" title="Upgrade to Pro to filter by trade type">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Pro+
+      </div>
+      {% endif %}
+    </div>
+    <div class="pf-group">
+      <label class="pf-label">Status</label>
+      <select id="pfStatus" class="pf-sel">
+        <option value="">All Statuses</option>
+        <option value="approved">Approved</option>
+        <option value="issued">Issued</option>
+        <option value="pending">Pending</option>
+        <option value="review">In Review</option>
+        <option value="open">Open</option>
+        <option value="expired">Expired</option>
+        <option value="unknown">Unknown</option>
+      </select>
+    </div>
+    <div class="pf-group" style="min-width:80px;max-width:88px;">
+      <label class="pf-label">Min Score</label>
+      <input id="pfScoreMin" class="pf-inp" type="number" min="0" max="100" placeholder="0">
+    </div>
+    <div class="pf-group" style="min-width:80px;max-width:88px;">
+      <label class="pf-label">Max Score</label>
+      <input id="pfScoreMax" class="pf-inp" type="number" min="0" max="100" placeholder="100">
+    </div>
+    <div class="pf-divider"></div>
+    <div class="pf-group pf-grow" style="min-width:160px;">
+      <label class="pf-label">Owner Name</label>
+      <input id="pfOwner" class="pf-inp" type="text" placeholder="Search owner…">
+    </div>
+  </div>
+  <div class="pf-row">
+    <div class="pf-group pf-grow">
+      <label class="pf-label">Phone</label>
+      <input id="pfPhone" class="pf-inp" type="text" placeholder="(817)…">
+    </div>
+    <div class="pf-group pf-grow">
+      <label class="pf-label">Email</label>
+      <input id="pfEmail" class="pf-inp" type="text" placeholder="@domain…">
+    </div>
+    <div class="pf-group pf-grow">
+      <label class="pf-label">Issued After</label>
+      <input id="pfIssuedAfter" class="pf-inp" type="date">
+    </div>
+    <div class="pf-group pf-grow">
+      <label class="pf-label">Expires Before</label>
+      <input id="pfExpiresBefore" class="pf-inp" type="date">
+    </div>
+    <div class="pf-group pf-grow">
+      <label class="pf-label">Record # / Keyword</label>
+      <input id="pfKeyword" class="pf-inp" type="text" placeholder="PW26-… or keyword">
+    </div>
+    <button class="pf-clear" onclick="clearFilters()">✕ Clear All</button>
+  </div>
+</div>
+
+<!-- ── Score tier + count + export ─────────────────────── -->
+<div class="th-row">
+  <div class="filters" id="tierFilters">
+    <button class="fb active" data-tier="all"  onclick="setTier('all',this)">All</button>
+    <button class="fb"        data-tier="hot"  onclick="setTier('hot',this)">&#11088; Hot 80+</button>
+    <button class="fb"        data-tier="warm" onclick="setTier('warm',this)">&#127777; Warm 60–79</button>
+    <button class="fb"        data-tier="cool" onclick="setTier('cool',this)">&#10052; Cool &lt;60</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="pcount" id="pinfo"></span>
+    {% if can_export_csv %}
+    <button class="exp-btn" onclick="exportCsv()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </button>
+    {% else %}
+    <a href="/billing/upgrade/" class="exp-btn" style="opacity:.55;text-decoration:none;display:inline-flex;align-items:center;gap:6px;" title="Upgrade to Pro to export CSV">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Export CSV (Pro+)
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="tw">
+  <div class="tw-scroll">
+    <table class="tbl permits-tbl" id="permitsTable" style="width:100%;">
+      <thead>
+        <tr>
+          <th>Record #</th>
+          <th>City / State</th>
+          <th>Permit Type</th>
+          <th>Status</th>
+          <th>Issued</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>Owner / Contractor</th>
+          <th>Score</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="emptyState" style="display:none;text-align:center;padding:48px 24px;color:var(--tx3);">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="margin-bottom:12px;opacity:.4"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div style="font-size:15px;font-weight:600;color:var(--tx2);margin-bottom:6px;">No permits match your filters</div>
+    <div style="font-size:13px;">Try adjusting your search criteria or <a href="#" onclick="clearFilters();return false;" style="color:var(--pr)">clear all filters</a>.</div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if not cities_frozen %}
+<!-- DataTables core (no jQuery DOM-mutating styles) — themed via overrides above -->
+<link rel="stylesheet" href="/lib/grid.min.css?v=3">
+<script src="/lib/core.min.js?v=3"></script>
+<script src="/lib/grid.min.js?v=3"></script>
+<script>
+var PLAN_CITIES = {{ plan_cities_json|safe }};
+var _activeTier = 'all';
+
+document.getElementById('pageDate').textContent = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+/* ── Date formatter ─────────────────────────────────────
+ * Matches /dashboard/ exactly ("May 4, 2026") so the same
+ * permit row reads identically across both pages. Was
+ * MM-DD-YYYY ("05-04-2026") which only diverged from the
+ * dashboard. CSV export also flows through this helper
+ * (see exportCsv below) so the export now matches too. */
+function fmtDate(iso){
+  if(!iso) return '';
+  var d=new Date(iso+'T00:00:00');
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+/* ── Score colour ──────────────────────────────────────── */
+function sc(s){return s>=90?'#16a34a':s>=75?'#1d4ed8':s>=60?'#d97706':'#dc2626';}
+
+/* ── Status badge ──────────────────────────────────────── */
+function sb(s){var k=(s||'').toLowerCase();var m={approved:'<span class="sb_ st-approved">Approved</span>',pending:'<span class="sb_ st-pending">Pending</span>',review:'<span class="sb_ st-review">In Review</span>',expired:'<span class="sb_ st-expired">Expired</span>',issued:'<span class="sb_ st-issued">Issued</span>',open:'<span class="sb_ st-open">Open</span>',unknown:'<span class="sb_ st-unknown">Unknown</span>'};if(m[k])return m[k];if(!s)return '<span class="sb_ st-unknown">Unknown</span>';var label=esc(s.charAt(0).toUpperCase()+s.slice(1));return '<span class="sb_ st-other">'+label+'</span>';}
+
+/* ── HTML-escape user-supplied strings before injecting ── */
+function esc(s){
+  if(s==null) return '';
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+/* ── Read all panel filters into the AJAX param dict ──── */
+function readFilters(d){
+  var pfType = document.getElementById('pfType');
+  d.f_state          = document.getElementById('pfState').value;
+  d.f_city           = document.getElementById('pfCity').value;
+  d.f_type           = (pfType && pfType.tagName === 'SELECT') ? pfType.value : '';
+  d.f_status         = document.getElementById('pfStatus').value;
+  d.f_score_min      = document.getElementById('pfScoreMin').value;
+  d.f_score_max      = document.getElementById('pfScoreMax').value;
+  d.f_owner          = document.getElementById('pfOwner').value;
+  d.f_phone          = document.getElementById('pfPhone').value;
+  d.f_email          = document.getElementById('pfEmail').value;
+  d.f_issued_after   = document.getElementById('pfIssuedAfter').value;
+  d.f_expires_before = document.getElementById('pfExpiresBefore').value;
+  d.f_keyword        = document.getElementById('pfKeyword').value;
+  d.f_tier           = _activeTier;
+  return d;
+}
+
+/* ── DataTables init ──────────────────────────────────── */
+var permitsTable = jQuery('#permitsTable').DataTable({
+  serverSide: true,
+  processing: true,
+  searching:  false, /* we have our own filter panel */
+  /* Page-size menu. Server now allows up to 25 000 in one shot (used
+     by the CSV-export button); the in-table menu stays at the
+     smaller increments so the table itself stays snappy. */
+  lengthMenu: [[25,50,100,250,500],[25,50,100,250,500]],
+  pageLength: 25,
+  order:      [[8,'desc']],  /* score column (col 8 of 10), descending. Description column was removed — the full scope-of-work text only appears in the row-detail modal now. */
+  dom:        'rt<"dt-foot"lip>',
+  ajax: {
+    url: '/permits/data/',
+    data: function(d){ return readFilters(d); },
+    dataSrc: function(json){
+      /* Update the count chip + show/hide empty state */
+      var pi = document.getElementById('pinfo');
+      var tv = json && json.trial_view_limit;
+      if (pi) {
+        if (tv && tv.capped) {
+          pi.innerHTML = '<b>' + tv.cap + '</b> of <b>' + tv.total_filtered.toLocaleString() +
+                         '</b> permits <span style="color:var(--tx3);font-weight:400">(trial preview)</span>';
+        } else {
+          pi.innerHTML = '<b>' + json.recordsFiltered + '</b> of ' + json.recordsTotal + ' permits';
+        }
+      }
+      /* Trial preview banner — sits above the table, shows the
+       * hidden count + upgrade CTA. Mounted lazily so non-trial
+       * users never see the element. */
+      var bn = document.getElementById('trialPreviewBanner');
+      if (tv && tv.capped) {
+        if (!bn) {
+          bn = document.createElement('div');
+          bn.id = 'trialPreviewBanner';
+          bn.className = 'trial-cap-banner';
+          var tw = document.querySelector('.tw');
+          if (tw && tw.parentNode) tw.parentNode.insertBefore(bn, tw);
+        }
+        var hidden = Math.max(0, tv.total_filtered - tv.cap);
+        bn.style.display = '';
+        bn.innerHTML =
+          '<div class="tcb-msg"><b>Trial preview:</b> showing the top ' + tv.cap +
+          ' of ' + tv.total_filtered.toLocaleString() + ' permits matching your filters. ' +
+          '<b>' + hidden.toLocaleString() + '</b> more are waiting for you.</div>' +
+          '<a class="tcb-cta" href="/billing/upgrade/">Upgrade to see all &rarr;</a>';
+      } else if (bn) {
+        bn.style.display = 'none';
+      }
+      var emptyEl = document.getElementById('emptyState');
+      var twEl    = document.querySelector('.tw .tw-scroll');
+      if (json.recordsFiltered === 0) {
+        if (emptyEl) emptyEl.style.display = 'block';
+      } else {
+        if (emptyEl) emptyEl.style.display = 'none';
+      }
+      return json.data;
+    },
+  },
+  columns: [
+    {data:'id', render:function(d){ return '<span class="rec">'+esc(d)+'</span>'; }},
+    {data:null, render:function(p){
+      return '<div style="font-size:12.5px;font-weight:600;color:var(--tx)">'+esc(p.city)+'</div>'+
+             '<div style="font-size:11px;color:var(--tx3);font-family:\'JetBrains Mono\',monospace">'+esc(p.state)+'</div>';
+    }},
+    {data:'type', render:function(d){
+      return '<div class="pt">'+esc(d)+'</div>';
+    }},
+    /* Description column intentionally omitted from the table view —
+       the full scope-of-work text is only shown in the row-detail
+       modal (click anywhere on the row) to keep the table compact
+       and scannable. */
+    {data:'status', render:function(d){ return sb(d); }},
+    {data:'issuedIso', render:function(d){
+      return '<span style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px">'+esc(fmtDate(d))+'</span>';
+    }},
+    {data:'phone', render:function(d){
+      return '<span style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px">'+esc(d)+'</span>';
+    }},
+    {data:'email', render:function(d){
+      return '<a href="mailto:'+esc(d)+'" onclick="event.stopPropagation()" style="color:var(--pr);font-size:11.5px;font-family:\'JetBrains Mono\',monospace;text-decoration:none">'+esc(d)+'</a>';
+    }},
+    {data:null, render:function(p){
+      // Owner / Contractor column — single name with a coloured type
+      // pill so the user can tell at a glance which party is shown.
+      // Owner takes priority when both exist (most rows have only one).
+      // Falls back to a dim em-dash when neither is present (~5% of
+      // rows on Accela pages with no Applicant block at all).
+      var name = (p.lead || p.owner || '').trim();
+      var t    = (p.lead_type || '').toLowerCase();
+      var pill = '';
+      if (t === 'owner') {
+        pill = '<span style="display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;padding:1px 6px;border-radius:9px;background:#e7f5ee;color:#1f7a4d;margin-left:6px;vertical-align:1px">Owner</span>';
+      } else if (t === 'contractor') {
+        pill = '<span style="display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;padding:1px 6px;border-radius:9px;background:#eef2ff;color:#3b46c4;margin-left:6px;vertical-align:1px">Contractor</span>';
+      }
+      var nameHtml = name
+        ? '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(name)+'</span>'+pill
+        : '<span style="color:var(--tx3)">—</span>';
+      return '<div style="max-width:200px"><div style="font-size:12.5px;font-weight:600;color:var(--tx);display:flex;align-items:center;overflow:hidden">'+nameHtml+'</div>'+
+             '<div style="font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.address || '')+'</div></div>';
+    }},
+    {data:null, render:function(p){
+      /* Derive the ring score from the 12-factor model so the
+       * table cell matches the per-factor breakdown the user
+       * sees when they open the AI profile modal. */
+      if (typeof computeOverallScore === 'function') computeOverallScore(p);
+      var c = sc(p.score);
+      return '<div class="sr" style="border-color:'+c+'"><span class="sn" style="color:'+c+'">'+esc(p.score)+'</span><span class="sg" style="color:'+c+'">'+esc(p.grade)+'</span></div>';
+    }},
+    {data:null, orderable:false, render:function(p){
+      var phoneDigits = (p.phone||'').replace(/\D/g,'');
+      return '<div class="ar" onclick="event.stopPropagation()">'+
+        '<a class="ab call" href="tel:'+esc(phoneDigits)+'" title="Call"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 12 19.79 19.79 0 01.12 3.38 2 2 0 012.1 1.21L5.07 1a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.08 8.9a16 16 0 006 6l1.26-1.26a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 15.92z"/></svg></a>'+
+        '<a class="ab" href="mailto:'+esc(p.email)+'" title="Email"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></a>'+
+      '</div>';
+    }},
+  ],
+  rowCallback: function(row, data){
+    row.style.cursor = 'pointer';
+    row.title = 'Click to view AI profile';
+    row.onclick = function(){
+      if (typeof openProfile === 'function') openProfile(data);
+    };
+  },
+});
+
+/* ── Debounced reload helper for text/date filter inputs ─ */
+var _reloadTimer = null;
+function reloadSoon(){
+  if (_reloadTimer) clearTimeout(_reloadTimer);
+  _reloadTimer = setTimeout(function(){ permitsTable.ajax.reload(); }, 220);
+}
+function reloadNow(){ permitsTable.ajax.reload(); }
+
+/* ── State → city cascade ──────────────────────────────── */
+function onPfState(){
+  var st     = document.getElementById('pfState').value;
+  var cityEl = document.getElementById('pfCity');
+  var prev   = cityEl.value;
+  cityEl.innerHTML = '<option value="">All Cities</option>';
+  PLAN_CITIES.forEach(function(c){
+    if(!st || c.state === st){
+      var o = document.createElement('option');
+      o.value = c.name; o.textContent = c.name;
+      if (c.name === prev) o.selected = true;
+      cityEl.appendChild(o);
+    }
+  });
+  reloadNow();
+}
+
+/* ── Wire up filter inputs ─────────────────────────────── */
+document.getElementById('pfState' ).addEventListener('change', onPfState);
+document.getElementById('pfCity'  ).addEventListener('change', reloadNow);
+var _pfType = document.getElementById('pfType');
+if (_pfType && _pfType.tagName === 'SELECT') _pfType.addEventListener('change', reloadNow);
+document.getElementById('pfStatus').addEventListener('change', reloadNow);
+['pfScoreMin','pfScoreMax','pfOwner','pfPhone','pfEmail','pfKeyword'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', reloadSoon);
+});
+['pfIssuedAfter','pfExpiresBefore'].forEach(function(id){
+  document.getElementById(id).addEventListener('change', reloadNow);
+});
+
+/* ── Score tier buttons ────────────────────────────────── */
+function setTier(tier, btn){
+  _activeTier = tier;
+  document.querySelectorAll('#tierFilters .fb').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  reloadNow();
+}
+
+/* ── Clear all filters ─────────────────────────────────── */
+function clearFilters(){
+  ['pfState','pfCity','pfType','pfStatus'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el && el.tagName === 'SELECT') el.value = '';
+  });
+  ['pfScoreMin','pfScoreMax','pfOwner','pfPhone','pfEmail','pfIssuedAfter','pfExpiresBefore','pfKeyword'].forEach(function(id){
+    document.getElementById(id).value = '';
+  });
+  _activeTier = 'all';
+  document.querySelectorAll('#tierFilters .fb').forEach(function(b){ b.classList.remove('active'); });
+  var allBtn = document.querySelector('#tierFilters .fb[data-tier="all"]');
+  if (allBtn) allBtn.classList.add('active');
+  onPfState();
+}
+
+/* ── Export CSV ─────────────────────────────────────────
+ *  Pulls the entire filtered set in one request (server cap
+ *  25 000 rows — matches ``_FETCH_CAP`` in
+ *  ``core/db.py::query_permits_for_dashboard``). Above ~10 000
+ *  filtered rows we warn the user before starting; if the set
+ *  exceeds the 25 000 cap we tell them to tighten their filters
+ *  to grab the rest. The progress button + try/finally restore
+ *  prevent the user double-clicking and queuing two big fetches. */
+var CSV_EXPORT_CAP   = 25000;  /* must match server _FETCH_CAP */
+var CSV_WARN_AT      = 10000;  /* show a "this may take a moment" warning above this size */
+function exportCsv(){
+  var btn = document.querySelector('.exp-btn');
+  if (btn && btn.dataset.busy === '1') return;
+  /* Use the current count chip ("X of Y permits") to decide whether
+   * to warn / cap-warn before kicking off the download — saves a
+   * round-trip on the (common) small-result case. */
+  var filtered = 0;
+  try {
+    var ci = permitsTable.page.info();
+    filtered = (ci && ci.recordsDisplay) || 0;
+  } catch (e) { filtered = 0; }
+  if (filtered > CSV_EXPORT_CAP) {
+    if (!confirm('Your current filters match ' + filtered.toLocaleString() +
+        ' permits, but CSV downloads are capped at ' + CSV_EXPORT_CAP.toLocaleString() +
+        ' rows per export. Apply tighter filters (date range, city, score range, ' +
+        'or status) to grab the rest in additional batches.\n\n' +
+        'Continue and download the first ' + CSV_EXPORT_CAP.toLocaleString() + ' rows?')) {
+      return;
+    }
+  } else if (filtered > CSV_WARN_AT) {
+    if (!confirm('You are about to download ' + filtered.toLocaleString() +
+        ' permits as CSV. The export will take 10-30 seconds and produce a ~' +
+        Math.round(filtered/1000) + ' MB file. Continue?')) {
+      return;
+    }
+  }
+  if (btn) { btn.dataset.busy = '1'; btn.dataset._label = btn.textContent; btn.textContent = 'Preparing CSV…'; }
+
+  var url = new URL('/permits/data/', window.location.origin);
+  var d = readFilters({});
+  Object.keys(d).forEach(function(k){
+    if (d[k] !== '' && d[k] != null) url.searchParams.set(k, d[k]);
+  });
+  url.searchParams.set('start', '0');
+  url.searchParams.set('length', String(CSV_EXPORT_CAP));
+  /* Explicit export flag — the backend gates the trial 20/day CSV
+   * bucket on this param, NOT on `length > 500`, so normal
+   * dashboard/table page loads (which can request 2000 rows) don't
+   * silently consume the user's daily export allowance. */
+  url.searchParams.set('export', '1');
+  url.searchParams.set('order[0][column]', '8');  /* score column (col 8 of 10) */
+  url.searchParams.set('order[0][dir]',    'desc');
+  fetch(url.toString(), {credentials:'same-origin'})
+    .then(function(r){ return r.json(); })
+    .then(function(json){
+      /* Trial CSV daily cap (server-side gate). When the user is on
+       * their Whop free trial, the backend clamps each export to the
+       * remaining slice of a 25-row/day bucket and returns a
+       * ``trial_export_limit`` block describing the cap. If they're
+       * already out, we hard-stop (no empty CSV) and point them at
+       * /billing/upgrade/. Otherwise we still produce the (capped)
+       * CSV and surface a friendly "X of 25 today — upgrade for
+       * unlimited" notice. */
+      var tlim = json && json.trial_export_limit;
+      if (tlim) {
+        if ((tlim.rows_returned || 0) === 0) {
+          alert("You've used all " + tlim.cap + " of your free-trial CSV " +
+                "downloads for today. Your daily bucket resets at midnight, " +
+                "or upgrade now for unlimited exports.\n\n" +
+                "Tip: paid plans have no daily row cap.");
+          window.location.href = '/billing/upgrade/';
+          return;
+        }
+        // Soft notice — we still hand them the (capped) file.
+        setTimeout(function(){
+          alert('Trial export: this file contains ' + tlim.rows_returned +
+                ' rows (your daily cap is ' + tlim.cap + ', and you have ' +
+                tlim.remaining_after + ' left today). Upgrade any time for ' +
+                'unlimited exports.');
+        }, 50);
+      }
+      var rows = [['Record #','City','State','Type','Status','Issued','Expires','Project Value','Phone','Email','Owner','Project','Score','Grade']];
+      (json.data || []).forEach(function(p){
+        /* Server already populated p.score / p.grade with the
+         * derived 12-factor composite (see core/permit_score.py),
+         * but we still call computeOverallScore for forward-compat
+         * in case the JS factor list ever diverges from the
+         * Python port — it's idempotent when they agree. */
+        if (typeof computeOverallScore === 'function') computeOverallScore(p);
+        rows.push([p.id,p.city,p.state,p.type,p.status,fmtDate(p.issuedIso),fmtDate(p.expiresIso),(p.value||''),p.phone,p.email,p.owner,p.project,p.score,p.grade]);
+      });
+      var csv = rows.map(function(r){
+        return r.map(function(v){ return '"' + (String(v == null ? '' : v).replace(/"/g,'""')) + '"'; }).join(',');
+      }).join('\n');
+      /* data: URIs choke browsers around 2 MB. Use a Blob URL so a
+       * 25 000-row dump (~6-8 MB) actually saves. */
+      var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      var href = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = href;
+      a.download = 'permits_export.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(href); }, 1000);
+    })
+    .catch(function(err){
+      alert('CSV export failed: ' + (err && err.message ? err.message : err) +
+            '\n\nTry tightening your filters and exporting again.');
+    })
+    .finally(function(){
+      if (btn) { btn.dataset.busy = ''; btn.textContent = btn.dataset._label || 'Export CSV'; }
+    });
+}
+
+/* ── Init: populate city dropdown for current state ─── */
+onPfState();
+
+/* ── Reload when restored from bfcache so PLAN_CITIES is always fresh ── */
+window.addEventListener('pageshow', function(e){ if(e.persisted){ window.location.reload(); } });
+</script>
+{% endif %}{% endblock %}

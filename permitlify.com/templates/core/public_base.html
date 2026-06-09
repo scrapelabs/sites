@@ -1,0 +1,370 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#1d4ed8">
+{# ── SEO ────────────────────────────────────────────────────────────────── #}
+{# Per-page overrides: each public template can override any of these blocks. #}
+{# We DON'T nest/repeat blocks (Django forbids that), so og_title and #}
+{# twitter_title default to a sensible value but can be tuned per page. #}
+{# `site_origin` is provided by core/context_processors.site_origin and #}
+{# locks SEO output to the production domain (env SITE_ORIGIN) when set, #}
+{# so a forged Host header can't poison the canonical / sitemap URLs. #}
+<title>{% block title %}Daily Permit Leads for Contractors{% endblock %} — Permitlify</title>
+<meta name="description" content="{% block meta_description %}Permitlify delivers daily building permit leads scored by AI to roofing, HVAC, plumbing, and electrical contractors across 248+ US cities. Be first to call.{% endblock %}">
+<meta name="keywords" content="{% block meta_keywords %}building permit leads, contractor leads, roofing leads, HVAC leads, plumbing leads, electrical leads, AI lead scoring, permit data, construction leads{% endblock %}">
+<meta name="robots" content="{% block meta_robots %}index,follow,max-image-preview:large{% endblock %}">
+<meta name="author" content="Permitlify">
+<link rel="canonical" href="{% block canonical %}{{ site_origin }}{{ request.path }}{% endblock %}">
+{# Open Graph #}
+<meta property="og:site_name" content="Permitlify">
+<meta property="og:type" content="{% block og_type %}website{% endblock %}">
+<meta property="og:title" content="{% block og_title %}Permitlify — Daily Permit Leads for Contractors{% endblock %}">
+<meta property="og:description" content="{% block og_description %}Daily building permit leads scored by AI for roofing, HVAC, plumbing, and electrical contractors. Be first to call across 248+ US cities.{% endblock %}">
+<meta property="og:url" content="{% block og_url %}{{ site_origin }}{{ request.path }}{% endblock %}">
+{# OG image goes through {% static %} so the long WhiteNoise max-age is safe #}
+{# — when ad-desktop.png changes its hashed filename changes too, busting any #}
+{# stale Facebook/Twitter scrape cache automatically. #}
+<meta property="og:image" content="{% block og_image %}{{ site_origin }}{% static 'ad-desktop.png' %}{% endblock %}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+{# Twitter card #}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{% block twitter_title %}Permitlify — Daily Permit Leads for Contractors{% endblock %}">
+<meta name="twitter:description" content="{% block twitter_description %}Daily building permit leads scored by AI for roofing, HVAC, plumbing, and electrical contractors. Be first to call across 248+ US cities.{% endblock %}">
+<meta name="twitter:image" content="{% block twitter_image %}{{ site_origin }}{% static 'ad-desktop.png' %}{% endblock %}">
+{% block extra_meta %}{% endblock %}
+{# Async font loading: paint with system fallback first, swap to web font #}
+{# when ready. The `media="print"` + `onload` swap trick removes fonts #}
+{# from the render-blocking critical path (Lighthouse "render blocking #}
+{# requests"). The <noscript> fallback covers users without JS. Shared #}
+{# by all marketing pages that extend this template (blog, pricing, #}
+{# careers, etc.). #}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all';this.onload=null;">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bl:#1d4ed8;--bl2:#3b82f6;--bl3:#1e3a8a;
+  --ac:#059669;--ac2:#10b981;--ac3:#047857;
+  --grad:linear-gradient(135deg,#1d4ed8 0%,#059669 100%);
+  --tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;
+  --bg:#ffffff;--bg2:#f8fafc;--bg3:#f0f4f8;
+  --b1:rgba(0,0,0,.07);--b2:rgba(0,0,0,.12);
+  --pd:rgba(29,78,216,.09);--ad:rgba(5,150,105,.09);
+  --sh:0 1px 4px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --sh2:0 4px 20px rgba(0,0,0,.08);
+  --sh3:0 12px 40px rgba(0,0,0,.12);
+  --sh-bl:0 6px 20px rgba(29,78,216,.28);
+}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);-webkit-font-smoothing:antialiased;}
+h1,h2,h3,h4,h5{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;}
+a{color:inherit;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--b1);box-shadow:var(--sh);}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;gap:8px;}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;}
+.pl-logo-text{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:21px;line-height:1;letter-spacing:-0.5px;}
+.pl-logo-text .pl-permit{color:#1C2F74;}
+.pl-logo-text .pl-lify{color:#49C85B;}
+.nav-links-pub{display:flex;align-items:center;gap:4px;margin-left:24px;}
+@media(max-width:860px){.nav-links-pub{display:none;}}
+.nav-a{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;color:var(--tx2);text-decoration:none;padding:8px 12px;border-radius:8px;transition:all .18s;}
+.nav-a:hover,.nav-a.active{background:var(--bg3);color:var(--tx);}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto;}
+.btn-ghost{font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:600;color:var(--tx2);background:none;border:none;cursor:pointer;padding:8px 14px;border-radius:8px;text-decoration:none;transition:all .18s;display:inline-flex;align-items:center;gap:6px;}
+.btn-ghost:hover{background:var(--bg3);color:var(--tx);}
+.btn-primary{font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:700;color:#fff;background:var(--grad);border:none;cursor:pointer;padding:9px 20px;border-radius:10px;text-decoration:none;transition:all .2s;box-shadow:var(--sh-bl);display:inline-flex;align-items:center;}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px);}
+/* HAMBURGER */
+.pub-mob-btn{display:none;background:none;border:none;cursor:pointer;padding:8px;border-radius:8px;color:var(--tx2);margin-left:4px;flex-shrink:0;}
+.pub-mob-btn:hover{background:var(--bg3);}
+.pub-mob-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;}
+@media(max-width:860px){
+  .pub-mob-btn{display:flex;align-items:center;justify-content:center;}
+  .nav-right .btn-primary{font-size:12px;padding:8px 12px;}
+  .nav-right .btn-ghost{display:none;}
+}
+.pub-mob-menu{display:none;position:absolute;top:64px;left:0;right:0;background:#fff;border-bottom:1px solid var(--b1);box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:99;padding:12px 20px 20px;}
+.pub-mob-menu.open{display:block;}
+.pub-mob-menu a.pub-mob-link{display:block;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;color:var(--tx2);text-decoration:none;padding:11px 12px;border-radius:8px;transition:all .18s;}
+.pub-mob-menu a.pub-mob-link:hover,.pub-mob-menu a.pub-mob-link.active{background:var(--bg3);color:var(--tx);}
+.pub-mob-menu .pub-mob-divider{height:1px;background:var(--b1);margin:10px 0;}
+.pub-mob-menu .pub-mob-ctas{display:flex;gap:10px;margin-top:4px;}
+.pub-mob-menu .pub-mob-ctas a{flex:1;text-align:center;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;padding:11px 16px;border-radius:10px;text-decoration:none;transition:all .2s;}
+.pub-mob-menu .pub-mob-ctas .mob-login{background:var(--bg3);color:var(--tx2);border:1px solid var(--b2);}
+.pub-mob-menu .pub-mob-ctas .mob-signup{background:var(--grad);color:#fff;box-shadow:var(--sh-bl);}
+@media(max-width:480px){.cta-strip{padding:36px 20px;}}
+@media(max-width:480px){.page-hero{padding:36px 20px 32px;}}
+
+/* PAGE HERO */
+.page-hero{background:var(--bg2);border-bottom:1px solid var(--b1);padding:52px 24px 48px;position:relative;overflow:hidden;}
+.page-hero::before{content:'';position:absolute;top:-100px;right:-100px;width:500px;height:500px;background:radial-gradient(circle,rgba(29,78,216,.06) 0%,transparent 65%);pointer-events:none;}
+.page-hero-inner{max-width:800px;margin:0 auto;position:relative;z-index:1;}
+.page-breadcrumb{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.page-breadcrumb a{color:var(--tx3);text-decoration:none;}
+.page-breadcrumb a:hover{color:var(--bl);}
+.page-breadcrumb span{color:var(--tx3);}
+.page-hero h1{font-size:clamp(28px,4vw,46px);font-weight:800;color:var(--tx);letter-spacing:-1.5px;line-height:1.1;margin-bottom:14px;}
+.page-hero .lead{font-size:17px;color:var(--tx2);line-height:1.7;max-width:620px;}
+
+/* CONTENT */
+.content-wrap{max-width:860px;margin:0 auto;padding:56px 24px 80px;}
+.content-wide{max-width:1100px;margin:0 auto;padding:56px 24px 80px;}
+
+/* PROSE */
+.prose h2{font-size:22px;font-weight:800;color:var(--tx);letter-spacing:-.5px;margin:36px 0 12px;}
+.prose h3{font-size:18px;font-weight:700;color:var(--tx);margin:28px 0 10px;}
+.prose p{font-size:15.5px;color:var(--tx2);line-height:1.8;margin-bottom:16px;}
+.prose ul,.prose ol{padding-left:22px;margin-bottom:16px;}
+.prose li{font-size:15.5px;color:var(--tx2);line-height:1.8;margin-bottom:6px;}
+.prose a{color:var(--bl);text-decoration:underline;}
+.prose strong{color:var(--tx);font-weight:600;}
+.prose .callout{background:var(--pd);border-left:3px solid var(--bl);border-radius:8px;padding:14px 18px;margin:20px 0;}
+.prose .callout p{margin:0;color:var(--bl3);}
+
+/* SECTION LABEL */
+.sec-label{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--bl);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.sec-label::before{content:'';width:18px;height:2px;background:var(--grad);border-radius:2px;display:block;}
+
+/* CARDS */
+.card-grid{display:grid;gap:20px;}
+.card-grid.cols-2{grid-template-columns:1fr 1fr;}
+.card-grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
+@media(max-width:720px){.card-grid.cols-2,.card-grid.cols-3{grid-template-columns:1fr;}}
+.card{background:#fff;border:1px solid var(--b1);border-radius:16px;padding:28px;box-shadow:var(--sh);transition:box-shadow .2s;}
+.card:hover{box-shadow:var(--sh2);}
+.card-ico{width:48px;height:48px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.card-ico svg{width:24px;height:24px;fill:none;stroke-width:2;stroke-linecap:round;}
+.card-ico.blue{background:var(--pd);}
+.card-ico.blue svg{stroke:var(--bl);}
+.card-ico.green{background:var(--ad);}
+.card-ico.green svg{stroke:var(--ac);}
+.card h3{font-size:16px;font-weight:700;color:var(--tx);margin-bottom:8px;}
+.card p{font-size:14px;color:var(--tx2);line-height:1.7;}
+
+/* STEPS */
+.steps{display:flex;flex-direction:column;gap:32px;}
+.step{display:flex;gap:20px;align-items:flex-start;}
+.step-num{width:40px;height:40px;border-radius:12px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:var(--sh-bl);}
+.step-body h3{font-size:17px;font-weight:700;color:var(--tx);margin-bottom:7px;}
+.step-body p{font-size:15px;color:var(--tx2);line-height:1.7;}
+
+/* STAT ROW */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin:40px 0;}
+@media(max-width:680px){.stat-row{grid-template-columns:1fr 1fr;}}
+.stat-box{background:var(--bg3);border:1px solid var(--b1);border-radius:14px;padding:20px;text-align:center;}
+.stat-box .num{font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.stat-box .lbl{font-size:12px;color:var(--tx3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.7px;margin-top:4px;}
+
+/* CTA STRIP */
+.cta-strip{background:var(--grad);border-radius:20px;padding:48px 40px;text-align:center;margin:56px 0 0;}
+.cta-strip h2{font-size:28px;color:#fff;letter-spacing:-.5px;margin-bottom:12px;}
+.cta-strip p{font-size:15px;color:rgba(255,255,255,.85);max-width:480px;margin:0 auto 28px;}
+.cta-strip .btn-white{background:#fff;color:var(--bl);font-family:'DM Sans',sans-serif;font-size:14.5px;font-weight:700;padding:12px 28px;border-radius:11px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:all .2s;}
+.cta-strip .btn-white:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.15);}
+
+/* FOOTER */
+footer{background:var(--bg3);border-top:1px solid var(--b1);padding:56px 24px 32px;}
+.footer-inner{max-width:1100px;margin:0 auto;}
+.footer-top{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px;}
+@media(max-width:768px){.footer-top{grid-template-columns:1fr 1fr;}}
+@media(max-width:480px){.footer-top{grid-template-columns:1fr;}}
+.footer-brand .name{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:var(--tx);margin-bottom:8px;}
+.footer-brand .name span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.footer-brand p{font-size:14px;color:var(--tx3);line-height:1.7;max-width:280px;}
+.footer-col h4{font-size:12px;font-weight:600;color:var(--tx);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;font-family:'JetBrains Mono',monospace;}
+.footer-col a{display:block;font-size:14px;color:var(--tx3);text-decoration:none;margin-bottom:10px;transition:color .18s;}
+.footer-col a:hover{color:var(--bl);}
+.footer-bottom{display:flex;align-items:center;justify-content:space-between;padding-top:28px;border-top:1px solid var(--b1);flex-wrap:wrap;gap:12px;}
+.footer-copy{font-size:12.5px;color:var(--tx3);}
+.footer-copy a{color:var(--tx3);text-decoration:none;}
+.footer-copy a:hover{color:var(--bl);}
+.footer-socials{display:flex;gap:10px;}
+.fsocial{width:32px;height:32px;border-radius:8px;background:#fff;border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--tx3);transition:all .18s;}
+.fsocial:hover{border-color:var(--bl);color:var(--bl);}
+.fsocial svg{width:15px;height:15px;}
+
+{% block extra_css %}{% endblock %}
+[x-cloak]{display:none!important;}
+</style>
+
+{# Marketing pixels / analytics. Admin-controlled — see #}
+{# /admin-panel/marketing/analytics/. Renders nothing until an ID is set. #}
+{% include 'core/_analytics_head.html' %}
+
+<!-- htmx 2.x + Alpine 3.x — small (29KB total), deferred so no render-block -->
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+</head>
+<body>
+{% include 'core/_analytics_body.html' %}
+<script>
+/* ── UTM capture (first-touch attribution) ─────────────────────
+   Stamps a 30-day cookie with utm_source/medium/campaign/term/content
+   the FIRST time a visitor lands with any of those params. Read on
+   form submit by signup.html (hidden inputs) so the user record gets
+   tagged with the channel that brought them in — even if they click
+   around for an hour before signing up. Idempotent / safe to re-run. */
+(function () {
+  try {
+    var qs = new URLSearchParams(window.location.search);
+    var keys = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','gclid','fbclid'];
+    var found = {};
+    keys.forEach(function (k) { var v = qs.get(k); if (v) found[k] = v; });
+    if (Object.keys(found).length) {
+      var existing = {};
+      try { existing = JSON.parse(decodeURIComponent(
+        (document.cookie.match(/(?:^|; )pl_utm=([^;]+)/) || [])[1] || '%7B%7D')) || {}; } catch (e) {}
+      // First-touch: only overwrite if cookie is empty.
+      if (!existing.utm_source && !existing.gclid && !existing.fbclid) {
+        var d = new Date(); d.setTime(d.getTime() + 30 * 24 * 3600 * 1000);
+        document.cookie = 'pl_utm=' + encodeURIComponent(JSON.stringify(found))
+          + ';expires=' + d.toUTCString() + ';path=/;samesite=lax';
+      }
+    }
+  } catch (e) { /* never break the page over a tracker */ }
+})();
+</script>
+<a href="#main-content" class="skip-to-main" style="position:absolute;left:-9999px;top:0;z-index:9999;background:#1d4ed8;color:#fff;padding:10px 16px;border-radius:0 0 8px 0;font-weight:600;text-decoration:none" onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">Skip to main content</a>
+
+<nav x-data="{ open: false }" @keydown.escape.window="open = false">
+  <div class="nav-inner">
+    <a class="nav-logo" href="{% url 'index' %}" aria-label="Permitlify home">
+      <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" height="34" viewBox="0 0 512 512" fill="none" style="width:auto;display:block;flex-shrink:0">
+        <defs>
+          <linearGradient id="gBGpb" x1="128" y1="90" x2="350" y2="360" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#4DB8FF"/><stop offset="0.55" stop-color="#2B8CFF"/><stop offset="1" stop-color="#63D95C"/>
+          </linearGradient>
+          <linearGradient id="gDSpb" x1="40" y1="160" x2="230" y2="360" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#27B8D8"/><stop offset="1" stop-color="#77E34E"/>
+          </linearGradient>
+          <linearGradient id="gNpb" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#1F347E"/><stop offset="1" stop-color="#162A6A"/>
+          </linearGradient>
+          <filter id="lSpb" x="-20%" y="-20%" width="140%" height="160%">
+            <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#16306b" flood-opacity="0.14"/>
+          </filter>
+        </defs>
+        <g transform="translate(44,58)" filter="url(#lSpb)">
+          <rect x="0" y="82" width="172" height="232" rx="26" fill="url(#gDSpb)" opacity="0.96"/>
+          <path d="M52 24H238C252.359 24 264 35.641 264 50V250L204 314H52C37.641 314 26 302.359 26 288V50C26 35.641 37.641 24 52 24Z" fill="white"/>
+          <path d="M52 24H238C252.359 24 264 35.641 264 50V250L204 314H52C37.641 314 26 302.359 26 288V50C26 35.641 37.641 24 52 24Z" stroke="#BFD2F7" stroke-width="12"/>
+          <path d="M264 250L204 314L148 314L214 242C226 229 245 236 264 250Z" fill="url(#gNpb)"/>
+          <path d="M84 106L110 132L155 85" stroke="#39C38B" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="86" y="170" width="76" height="12" rx="6" fill="#CFD9F2"/>
+          <rect x="86" y="208" width="92" height="12" rx="6" fill="#CFD9F2"/>
+          <rect x="86" y="246" width="70" height="12" rx="6" fill="#CFD9F2"/>
+          <g transform="translate(112,48)">
+            <path d="M148 8C82 8 28 61 28 127C28 212 128 298 140 313C144 319 153 319 157 313C169 298 268 215 268 127C268 61 214 8 148 8Z" fill="url(#gBGpb)"/>
+            <circle cx="149" cy="125" r="54" fill="white"/>
+            <path d="M148 8C82 8 28 61 28 127C28 212 128 298 140 313C144 319 153 319 157 313C168 300 235 229 258 158C225 142 194 134 161 135C132 136 103 146 77 165C84 201 111 240 148 276C183 234 216 198 241 157C225 118 192 89 152 82C150 57 149 33 148 8Z" fill="#1B77E8" fill-opacity="0.35"/>
+            <path d="M259 153C234 133 202 123 166 125C138 127 109 136 82 154C95 211 146 259 184 293C208 269 247 223 265 169C262 163 261 158 259 153Z" fill="#9EE75A" fill-opacity="0.55"/>
+          </g>
+        </g>
+      </svg>
+      <span class="pl-logo-text"><span class="pl-permit">Permit</span><span class="pl-lify">lify</span></span>
+    </a>
+    <div class="nav-links-pub">
+      <a class="nav-a" href="{% url 'index' %}">Home</a>
+      <a class="nav-a {% block nav_pricing %}{% endblock %}" href="{% url 'pricing' %}">Pricing</a>
+      <a class="nav-a {% block nav_blog %}{% endblock %}" href="{% url 'blog' %}">Blog</a>
+    </div>
+    <div class="nav-right">
+      {% if user_logged_in %}
+        <a class="btn-ghost" href="{% url 'dashboard' %}">Dashboard</a>
+      {% else %}
+        <a class="btn-ghost" href="{% url 'login' %}">Log In</a>
+        <a class="btn-primary" href="{% url 'signup' %}">Get Started Free</a>
+      {% endif %}
+    </div>
+    {% comment %}
+      @click.stop: the .pub-mob-menu below uses @click.outside="open = false",
+      a document-level listener. Since this hamburger sits OUTSIDE that
+      menu, the same tap that opens the menu would bubble up and the
+      outside-handler would immediately close it again.
+    {% endcomment %}
+    <button class="pub-mob-btn" aria-label="Menu" :aria-expanded="open" @click.stop="open = !open">
+      <svg aria-hidden="true" x-show="!open" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <svg aria-hidden="true" x-show="open" x-cloak viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</nav>
+<div class="pub-mob-menu" :class="{open: open}" @click.outside="open = false">
+  <a class="pub-mob-link" href="{% url 'index' %}">Home</a>
+  <a class="pub-mob-link {% block mob_nav_pricing %}{% endblock %}" href="{% url 'pricing' %}">Pricing</a>
+  <a class="pub-mob-link {% block mob_nav_blog %}{% endblock %}" href="{% url 'blog' %}">Blog</a>
+  <div class="pub-mob-divider"></div>
+  <div class="pub-mob-ctas">
+    {% if user_logged_in %}
+      <a class="mob-login" href="{% url 'dashboard' %}" style="grid-column:1/-1;">Dashboard</a>
+    {% else %}
+      <a class="mob-login" href="{% url 'login' %}">Log In</a>
+      <a class="mob-signup" href="{% url 'signup' %}">Get Started Free</a>
+    {% endif %}
+  </div>
+</div>
+
+
+<main id="main-content" tabindex="-1">
+{% block content %}{% endblock %}
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="name">Permit<span>lify</span></div>
+        <p>Daily permit lead alerts scored by AI. Built for roofing, HVAC, plumbing, and electrical contractors across the US.</p>
+        <div style="margin-top:18px;display:flex;gap:8px;">
+          <a class="fsocial" href="https://www.facebook.com/profile.php?id=61573295867251" target="_blank" rel="noopener" title="Facebook" style="background:#1877F2;border-color:#1877F2;">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15" fill="white"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.791-4.697 4.533-4.697 1.313 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.884v2.27h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
+          </a>
+          <a class="fsocial" href="#"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
+          <a class="fsocial" href="#"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg></a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+        <a href="{% url 'permits' %}">All Permits</a>
+        <a href="{% url 'pricing' %}">Pricing</a>
+        <a href="{% url 'api_docs' %}">API &amp; Developers</a>
+        <a href="{% url 'signup' %}">Start Free Trial</a>
+      </div>
+      <div class="footer-col">
+        <h4>About</h4>
+        <a href="{% url 'blog' %}">Blog</a>
+        <a href="{% url 'careers' %}">Careers</a>
+        <a href="{% url 'press' %}">Press Kit</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="{% url 'contact' %}">Contact Us</a>
+        <a href="{% url 'support' %}">Support</a>
+        <a href="{% url 'privacy' %}">Privacy Policy</a>
+        <a href="{% url 'terms' %}">Terms of Service</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">&copy; 2026 Permitlify.com &nbsp;&middot;&nbsp; <a href="{% url 'privacy' %}">Privacy</a> &nbsp;&middot;&nbsp; <a href="{% url 'terms' %}">Terms</a></div>
+      <div class="footer-socials">
+        <a class="fsocial" href="https://www.facebook.com/profile.php?id=61573295867251" target="_blank" rel="noopener" title="Facebook" style="background:#1877F2;border-color:#1877F2;">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15" fill="white"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.791-4.697 4.533-4.697 1.313 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.884v2.27h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
+        </a>
+        <a class="fsocial" href="#"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
+        <a class="fsocial" href="#"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg></a>
+      </div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

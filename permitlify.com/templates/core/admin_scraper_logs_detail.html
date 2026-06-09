@@ -1,0 +1,311 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Scraper Logs · {{ scraper.name|default:scraper.agency_code }}{% endblock %}
+{% block page_title %}{{ scraper.name|default:scraper.agency_code|default:"Scraper" }} · Run logs{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; {{ total_runs }} run{{ total_runs|pluralize }} loaded{% if truncated %} (latest {{ run_limit }} only — older runs hidden){% endif %} · select rows to bulk-delete{% endblock %}
+
+{% block extra_head %}
+<style>
+.sld-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.sld-back{padding:7px 12px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;color:var(--text);text-decoration:none;display:inline-flex;align-items:center;gap:5px;font-family:inherit;}
+.sld-back:hover{background:var(--bg);}
+
+.sld-flash{margin:0 0 14px;padding:11px 14px;border-radius:9px;background:#dcfce7;border:1px solid #bbf7d0;color:#166534;font-size:12.5px;font-weight:600;font-family:inherit;display:flex;align-items:center;gap:8px;}
+
+.sld-bar{display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:11px 11px 0 0;border-bottom:none;padding:11px 16px;flex-wrap:wrap;gap:10px;}
+.sld-bar-left{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);font-family:inherit;}
+.sld-bar-left b{color:var(--text);font-weight:700;}
+.sld-bar-right{display:flex;align-items:center;gap:8px;}
+.sld-cb{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:600;cursor:pointer;font-family:inherit;}
+.sld-cb input{margin:0;cursor:pointer;}
+.sld-btn{padding:7px 13px;border:1px solid var(--border);background:#fff;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text);font-family:inherit;display:inline-flex;align-items:center;gap:5px;}
+.sld-btn:hover{background:var(--bg);}
+.sld-btn.danger{background:#fee2e2;color:#b91c1c;border-color:#fecaca;}
+.sld-btn.danger:hover{background:#fecaca;}
+.sld-btn:disabled{opacity:.4;cursor:not-allowed;background:#fff;color:var(--muted);}
+.sld-btn:disabled:hover{background:#fff;}
+
+.sld-table{background:var(--card);border:1px solid var(--border);border-radius:0 0 14px 14px;overflow:hidden;}
+.sld-row{display:grid;grid-template-columns:32px 80px 0.9fr 0.7fr 1.1fr 0.9fr 0.9fr 1fr;gap:12px;padding:11px 16px;align-items:center;border-bottom:1px solid var(--border);font-size:12px;}
+.sld-row:last-child{border-bottom:none;}
+.sld-row.head{background:var(--bg);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+.sld-row input[type=checkbox]{cursor:pointer;margin:0;}
+.sld-row.is-checked{background:rgba(59,130,246,.04);}
+.sld-rid{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text);}
+.sld-num{font-family:'JetBrains Mono',monospace;color:var(--muted);font-size:11.5px;}
+.sld-when{color:var(--muted);font-size:11.5px;}
+.sld-mode{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.sld-step{color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sld-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:18px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:'JetBrains Mono',monospace;}
+.sld-pill.success{background:rgba(22,163,74,.12);color:#15803d;}
+.sld-pill.failed {background:rgba(220,38,38,.12);color:#b91c1c;}
+.sld-pill.partial{background:rgba(234,88,12,.12);color:#9a3412;}
+.sld-pill.queued, .sld-pill.running{background:rgba(59,130,246,.12);color:#1d4ed8;}
+.sld-pill.idle  {background:rgba(100,116,139,.12);color:#475569;}
+.sld-acts{display:flex;gap:5px;justify-content:flex-end;}
+.sld-acts a, .sld-acts button{padding:4px 9px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;background:#fff;color:var(--text);font-family:inherit;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:3px;}
+.sld-acts a:hover, .sld-acts button:hover{background:var(--bg);}
+
+.sld-empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:13px;}
+
+/* Confirm modal — same chrome as the rest of the admin */
+.sld-mask{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:200;}
+.sld-mask.show{display:flex;}
+.sld-modal{background:#fff;border-radius:13px;padding:22px 24px;width:480px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.sld-modal h3{margin:0 0 8px;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:var(--text);}
+.sld-modal p{margin:0 0 14px;font-size:12.5px;color:var(--muted);line-height:1.55;}
+.sld-modal .opts{margin:0 0 16px;font-size:12.5px;color:var(--text);display:flex;align-items:center;gap:8px;font-weight:600;}
+.sld-modal .acts{display:flex;gap:8px;justify-content:flex-end;}
+
+/* Run-log modal — dark terminal-style log viewer (mirrors the one
+   that used to live on the scraper detail page). */
+.rl-mask{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:300;padding:24px;}
+.rl-mask.show{display:flex;}
+.rl-modal{background:#fff;border-radius:14px;max-width:780px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.rl-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.rl-head h3{margin:0;font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;color:var(--text);}
+.rl-meta{font-size:11.5px;color:var(--muted);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+.rl-body{padding:14px 20px;overflow:auto;flex:1;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.6;background:#0f172a;color:#e2e8f0;}
+.rl-body .ll{padding:1px 0;white-space:pre-wrap;word-break:break-word;}
+.rl-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+.rl-foot button{padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:12.5px;font-family:inherit;}
+.rl-close{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:var(--muted);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sld-toolbar">
+  <a class="sld-back" href="/admin-panel/scraper-logs/">← All scrapers</a>
+  <a class="sld-back" href="/admin-panel/scrapers/{{ scraper.id }}/">⚙ Scraper detail</a>
+</div>
+
+{% if request.GET.msg %}
+<div class="sld-flash" id="sldFlash">✓ {{ request.GET.msg }}</div>
+{% endif %}
+
+<form id="sldForm" method="post" action="/admin-panel/scraper-logs/{{ scraper.id }}/bulk-delete/">
+  {% csrf_token %}
+
+  <div class="sld-bar">
+    <div class="sld-bar-left">
+      <span><b id="sldSelected">0</b> selected of <b>{{ total_runs }}</b></span>
+    </div>
+    <div class="sld-bar-right">
+      <label class="sld-cb"><input type="checkbox" id="sldDelPermits" name="delete_permits"> also delete permits this run created</label>
+      <button type="button" class="sld-btn danger" id="sldBulkBtn" disabled onclick="openConfirm()">🗑 Bulk delete</button>
+    </div>
+  </div>
+
+  <div class="sld-table">
+    <div class="sld-row head">
+      <div><input type="checkbox" id="sldAll" onclick="toggleAll(this)"></div>
+      <div>Run #</div>
+      <div>When</div>
+      <div>Mode</div>
+      <div>Status / step</div>
+      <div>Targets</div>
+      <div>Permits</div>
+      <div style="text-align:right;">Actions</div>
+    </div>
+    {% for r in runs %}
+    <div class="sld-row" data-row data-rid="{{ r.id }}" data-busy="{{ r.is_busy|yesno:'1,0' }}">
+      <div>
+        {% if r.is_busy %}
+          <input type="checkbox" disabled title="Run is {{ r.status }} — cancel it first">
+        {% else %}
+          <input type="checkbox" name="run_ids" value="{{ r.id }}" onchange="onRowToggle(this)">
+        {% endif %}
+      </div>
+      <div class="sld-rid">#{{ r.id }}</div>
+      <div class="sld-when">{{ r.created_human }}</div>
+      <div class="sld-mode">{{ r.mode|default:"—" }}</div>
+      <div>
+        <span class="sld-pill {{ r.status|default:'idle' }}">{{ r.status|default:"—" }}</span>
+        <div class="sld-step" title="{{ r.current_step }}">{{ r.current_step|default:"—" }}</div>
+      </div>
+      <div class="sld-num">{{ r.processed }} / {{ r.total_targets }} · ✓ {{ r.succeeded }} · ✗ {{ r.failed }}</div>
+      <div class="sld-num">{{ r.permits_count }}</div>
+      <div class="sld-acts">
+        {% if r.is_busy %}
+          <button type="button" onclick="openRunLog({{ r.id }})" title="Run is in flight — open the live step log">📜 Log</button>
+        {% else %}
+          <button type="button" onclick="openRunLog({{ r.id }})" title="View step log + permits this run produced">📜 Log</button>
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="sld-empty">No runs recorded for this scraper yet.</div>
+    {% endfor %}
+  </div>
+</form>
+
+<!-- Run-log modal — fetched from /admin-panel/scrapers/<sid>/runs/<rid>/log/.
+     Same JSON contract that the now-removed Recent runs side-panel used. -->
+<div class="rl-mask" id="rlMask">
+  <div class="rl-modal">
+    <div class="rl-head">
+      <div>
+        <h3 id="rlTitle">Run log</h3>
+        <div class="rl-meta" id="rlMeta">Loading…</div>
+      </div>
+      <button type="button" class="rl-close" onclick="closeRunLog()">×</button>
+    </div>
+    <div class="rl-body" id="rlBody">Loading…</div>
+    <div class="rl-foot">
+      <button type="button" onclick="closeRunLog()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm modal — single source of truth for both the "with permits" cascade and the run-only delete. -->
+<div class="sld-mask" id="sldConfirmMask">
+  <div class="sld-modal">
+    <h3 id="sldConfirmTitle">Delete N runs?</h3>
+    <p id="sldConfirmBody">This will permanently delete the selected scraper-run rows.</p>
+    <div class="opts" id="sldConfirmCascade" style="display:none;">⚠ Will also cascade-delete <b id="sldConfirmPermitCount">0</b> permit rows linked to those runs.</div>
+    <div class="acts">
+      <button type="button" class="sld-btn"        onclick="closeConfirm()">Cancel</button>
+      <button type="button" class="sld-btn danger" onclick="submitDelete()">Yes, delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Auto-fade the flash banner so it doesn't sit there forever.
+  var f = document.getElementById('sldFlash');
+  if (f) setTimeout(function(){ f.style.transition = 'opacity .4s'; f.style.opacity = '0'; setTimeout(function(){ f.remove(); }, 500); }, 4500);
+})();
+
+function rowCheckboxes(){
+  return Array.from(document.querySelectorAll('input[name="run_ids"]'));
+}
+
+function selectedRows(){
+  return rowCheckboxes().filter(function(cb){ return cb.checked; });
+}
+
+function refreshSelectedCount(){
+  var n = selectedRows().length;
+  document.getElementById('sldSelected').textContent = n;
+  document.getElementById('sldBulkBtn').disabled = (n === 0);
+}
+
+function toggleAll(master){
+  rowCheckboxes().forEach(function(cb){
+    if (cb.disabled) return;
+    cb.checked = master.checked;
+    cb.closest('[data-row]').classList.toggle('is-checked', cb.checked);
+  });
+  refreshSelectedCount();
+}
+
+function onRowToggle(cb){
+  cb.closest('[data-row]').classList.toggle('is-checked', cb.checked);
+  // Keep the master checkbox honest: tick it iff every selectable row is ticked.
+  var all = rowCheckboxes().filter(function(c){ return !c.disabled; });
+  var checked = all.filter(function(c){ return c.checked; });
+  document.getElementById('sldAll').checked = (all.length > 0 && checked.length === all.length);
+  refreshSelectedCount();
+}
+
+// Pre-compute permits-per-run so the confirm modal can show an honest
+// cascade preview when "also delete permits" is ticked. Map<rid, count>.
+var PERMITS_PER_RUN = {
+  {% for r in runs %}{{ r.id }}: {{ r.permits_count }}{% if not forloop.last %}, {% endif %}{% endfor %}
+};
+
+function openConfirm(){
+  var rows = selectedRows();
+  if (!rows.length) return;
+  var cascade = document.getElementById('sldDelPermits').checked;
+  var totalPermits = rows.reduce(function(acc, cb){
+    return acc + (PERMITS_PER_RUN[parseInt(cb.value, 10)] || 0);
+  }, 0);
+  document.getElementById('sldConfirmTitle').textContent =
+    'Delete ' + rows.length + ' run' + (rows.length === 1 ? '' : 's') + '?';
+  document.getElementById('sldConfirmBody').textContent =
+    'This will permanently delete ' + rows.length + ' scraper_runs row' +
+    (rows.length === 1 ? '' : 's') + '. This cannot be undone.';
+  var c = document.getElementById('sldConfirmCascade');
+  if (cascade && totalPermits > 0){
+    c.style.display = '';
+    document.getElementById('sldConfirmPermitCount').textContent = totalPermits.toLocaleString();
+  } else {
+    c.style.display = 'none';
+  }
+  document.getElementById('sldConfirmMask').classList.add('show');
+}
+
+function closeConfirm(){
+  document.getElementById('sldConfirmMask').classList.remove('show');
+}
+
+function submitDelete(){
+  // Hand off to the form; the server redirects back here with ?msg=
+  // and the auto-fading flash banner shows the result.
+  document.getElementById('sldForm').submit();
+}
+
+// Close modal on Esc / outside click for parity with the other admin modals.
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape'){ closeConfirm(); closeRunLog(); }
+});
+document.getElementById('sldConfirmMask').addEventListener('click', function(e){
+  if (e.target === this) closeConfirm();
+});
+document.getElementById('rlMask').addEventListener('click', function(e){
+  if (e.target === this) closeRunLog();
+});
+
+// Run-log modal — XHR-fetches the existing JSON endpoint and renders
+// step_log lines in a dark terminal panel. Same code path the old
+// "Recent runs" sidebar used; we just moved the call site here.
+var SID = {{ scraper.id }};
+function openRunLog(rid){
+  var mask  = document.getElementById('rlMask');
+  var title = document.getElementById('rlTitle');
+  var meta  = document.getElementById('rlMeta');
+  var body  = document.getElementById('rlBody');
+  title.textContent = 'Run #' + rid;
+  meta.textContent  = 'Loading…';
+  body.innerHTML    = '<div style="color:#94a3b8">Loading log…</div>';
+  mask.classList.add('show');
+  fetch('/admin-panel/scrapers/' + SID + '/runs/' + rid + '/log/', {
+    credentials: 'same-origin',
+    headers: { 'Accept': 'application/json' },
+  })
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (j.error){
+        body.innerHTML = '<div style="color:#fca5a5">Error: ' + j.error + '</div>';
+        meta.textContent = '';
+        return;
+      }
+      var status = j.status || '—';
+      var mode   = j.mode || '—';
+      var proc   = (j.processed || 0) + ' / ' + (j.total_targets || 0);
+      var succ   = '✓ ' + (j.succeeded || 0) + ' · ✗ ' + (j.failed || 0);
+      var pcount = (j.permits_count || 0) + ' permits from this run';
+      meta.textContent = mode + ' · ' + status + ' · ' + proc + ' · ' + succ + ' · ' + pcount;
+      var log = Array.isArray(j.step_log) ? j.step_log : [];
+      if (!log.length){
+        body.innerHTML = '<div style="color:#94a3b8">No step_log entries recorded.</div>';
+        return;
+      }
+      body.innerHTML = log.map(function(line){
+        var t = (typeof line === 'string') ? line : JSON.stringify(line);
+        var esc = t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return '<div class="ll">' + esc + '</div>';
+      }).join('');
+      body.scrollTop = body.scrollHeight;
+    })
+    .catch(function(err){
+      body.innerHTML = '<div style="color:#fca5a5">Network error: ' + err + '</div>';
+      meta.textContent = '';
+    });
+}
+function closeRunLog(){
+  document.getElementById('rlMask').classList.remove('show');
+}
+</script>
+{% endblock %}

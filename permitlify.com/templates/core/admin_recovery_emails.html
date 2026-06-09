@@ -1,0 +1,167 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Recovery Emails{% endblock %}
+{% block page_title %}Recovery Emails{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; Re-engage signups who didn't start trial or cancelled mid-flow{% endblock %}
+
+{% block extra_head %}
+<style>
+.re-notice{background:#fffbeb;border:1px solid #fde68a;border-radius:11px;padding:13px 16px;margin-bottom:20px;font-size:12px;color:#78350f;line-height:1.6;}
+.re-notice strong{color:#92400e;}
+.re-notice code{font-family:'JetBrains Mono',monospace;background:#fef3c7;padding:1px 5px;border-radius:4px;}
+.re-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;}
+@media(max-width:1100px){.re-grid{grid-template-columns:1fr;}}
+.re-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;}
+.re-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.re-num{width:30px;height:30px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex-shrink:0;}
+.re-head h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13.5px;color:var(--text);margin:0;}
+.re-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.re-body{padding:14px 18px;flex:1;}
+.re-fld{margin-bottom:12px;}
+.re-lbl{display:block;font-size:11px;font-weight:600;color:var(--text);margin-bottom:5px;letter-spacing:.02em;}
+.re-inp{width:100%;padding:7px 11px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);background:#fff;outline:none;box-sizing:border-box;}
+.re-inp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+textarea.re-inp{min-height:140px;line-height:1.5;font-family:'JetBrains Mono',monospace;font-size:11.5px;}
+.re-foot{padding:12px 18px;border-top:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.re-on{display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;}
+.re-flash{margin:0 0 16px;padding:11px 16px;border-radius:10px;font-size:12.5px;border:1px solid;}
+.re-flash.ok{background:#ecfdf5;border-color:#bbf7d0;color:#065f46;}
+.re-flash.err{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+.re-actions{margin-top:20px;display:flex;align-items:center;gap:14px;padding:14px 20px;background:var(--card);border:1px solid var(--border);border-radius:14px;}
+.re-btn{padding:8px 18px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:var(--sh-grad);}
+.re-tag{display:inline-block;font-size:9.5px;font-weight:700;font-family:'JetBrains Mono',monospace;padding:2px 6px;border-radius:4px;background:var(--bg);color:var(--muted);letter-spacing:.04em;}
+.re-q-card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-top:22px;overflow:hidden;}
+.re-q-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.re-q-head h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin:0;}
+.re-tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.re-tbl th,.re-tbl td{text-align:left;padding:8px 14px;border-bottom:1px solid var(--border);}
+.re-tbl th{background:var(--bg);font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;}
+.re-tbl tr:last-child td{border-bottom:0;}
+.re-status{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;letter-spacing:.04em;text-transform:uppercase;}
+.re-status.pending{background:rgba(245,158,11,.15);color:#b45309;}
+.re-status.sent{background:rgba(22,163,74,.12);color:#16a34a;}
+.re-status.skipped{background:rgba(100,116,139,.15);color:#64748b;}
+.re-status.failed{background:rgba(220,38,38,.12);color:#dc2626;}
+.re-empty{padding:30px;text-align:center;color:var(--muted);font-size:12.5px;}
+.re-stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:20px;}
+.re-stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px;}
+.re-stat .n{font-size:22px;font-weight:800;color:var(--text);font-family:'JetBrains Mono',monospace;line-height:1.1;}
+.re-stat .l{font-size:10.5px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;}
+.re-prev-btn{padding:5px 12px;background:#fff;color:var(--blue);border:1px solid var(--border);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}
+.re-prev-btn:hover{background:var(--bg);border-color:var(--blue);}
+</style>
+{% endblock %}
+
+{% block content %}
+{% if msg %}<div class="re-flash ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="re-flash err">{{ err }}</div>{% endif %}
+
+<div class="re-notice">
+  <strong>How it works.</strong> Whenever a user signs up but doesn't reach onboarding step 3 within an hour, three follow-up emails get queued (T+1h, T+24h, T+72h). Same for users who start a trial and cancel before billing. The queue below shows what's scheduled. Run <code>python manage.py recovery_emails_tick</code> on a cron (recommended: every 15 minutes) to actually dispatch them — or wire it into your existing cron entrypoint.
+</div>
+
+<div class="re-stat-row">
+  <div class="re-stat"><div class="n">{{ stats.queued }}</div><div class="l">Queued</div></div>
+  <div class="re-stat"><div class="n">{{ stats.sent_7d }}</div><div class="l">Sent · last 7d</div></div>
+  <div class="re-stat"><div class="n">{{ stats.failed_7d }}</div><div class="l">Failed · last 7d</div></div>
+  <div class="re-stat"><div class="n">{{ stats.recovered }}</div><div class="l">Recovered (became paid)</div></div>
+</div>
+
+<form method="post">{% csrf_token %}
+  <input type="hidden" name="action" value="save_templates">
+  <div class="re-grid">
+    {% for tpl in templates %}
+    <div class="re-card">
+      <div class="re-head">
+        <div class="re-num">{{ tpl.step }}</div>
+        <div>
+          <h3>{{ tpl.label }}</h3>
+          <div class="re-meta">Fires {{ tpl.delay_label }} after trigger</div>
+        </div>
+      </div>
+      <div class="re-body">
+        <div class="re-fld">
+          <label class="re-lbl">Delay (hours after trigger)</label>
+          <input class="re-inp" type="number" min="0" step="1" name="step{{ tpl.step }}_delay_hours" value="{{ tpl.delay_hours }}">
+        </div>
+        <div class="re-fld">
+          <label class="re-lbl">Subject</label>
+          <input class="re-inp" type="text" name="step{{ tpl.step }}_subject" value="{{ tpl.subject }}">
+        </div>
+        <div class="re-fld">
+          <label class="re-lbl">Body <span style="color:var(--muted);font-weight:400;font-size:10px;">HTML allowed · variables: {% verbatim %}{{name}} {{email}} {{trial_link}}{% endverbatim %}</span></label>
+          <textarea class="re-inp" name="step{{ tpl.step }}_body">{{ tpl.body }}</textarea>
+        </div>
+      </div>
+      <div class="re-foot">
+        <label class="re-on">
+          <input type="checkbox" name="step{{ tpl.step }}_enabled" value="1" {% if tpl.enabled %}checked{% endif %}>
+          Enabled
+        </label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button type="button" class="re-prev-btn" onclick="recoveryPreview({{ tpl.step }})">Preview email ↗</button>
+          <span class="re-tag">STEP {{ tpl.step }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="re-actions">
+    <button type="submit" class="re-btn">Save all templates</button>
+    <span style="font-size:11.5px;color:var(--muted);">Changes apply to newly-queued emails only — already-queued items keep their snapshot.</span>
+  </div>
+</form>
+
+<div class="re-q-card">
+  <div class="re-q-head">
+    <h3>Recent queue activity ({{ recent|length }})</h3>
+    <span style="font-size:11px;color:var(--muted);">Most recent 50</span>
+  </div>
+  {% if recent %}
+  <table class="re-tbl">
+    <thead><tr>
+      <th>ID</th><th>User</th><th>Trigger</th><th>Step</th><th>Fire at</th><th>Sent at</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+      {% for r in recent %}
+      <tr>
+        <td style="font-family:'JetBrains Mono',monospace;color:var(--muted);">{{ r.id }}</td>
+        <td>{{ r.email }}</td>
+        <td><span class="re-tag">{{ r.trigger }}</span></td>
+        <td>#{{ r.step }}</td>
+        <td>{{ r.fire_at_label }}</td>
+        <td>{{ r.sent_at_label|default:"—" }}</td>
+        <td><span class="re-status {{ r.status }}">{{ r.status }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <div class="re-empty">No queued or sent emails yet. The first row will appear here within a few minutes of someone abandoning signup.</div>
+  {% endif %}
+</div>
+
+<script>
+function recoveryPreview(step){
+  const subj = document.querySelector('[name="step'+step+'_subject"]').value;
+  const body = document.querySelector('[name="step'+step+'_body"]').value;
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const fd = new FormData();
+  fd.append('subject', subj);
+  fd.append('body', body);
+  fd.append('csrfmiddlewaretoken', csrf);
+  // Open the new tab synchronously so popup blockers don't fire,
+  // then stream the rendered HTML into it once the fetch resolves.
+  const w = window.open('', '_blank');
+  if (w) { w.document.write('<p style="font-family:sans-serif;padding:24px;color:#64748b">Rendering preview…</p>'); }
+  fetch('/admin-panel/marketing/recovery-emails/preview/', {method:'POST', body:fd, credentials:'same-origin'})
+    .then(function(r){ return r.text(); })
+    .then(function(html){
+      if (!w) { alert('Pop-up blocked — allow pop-ups for this site to preview emails.'); return; }
+      w.document.open(); w.document.write(html); w.document.close();
+    })
+    .catch(function(e){
+      if (w) w.document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px;color:#dc2626">Preview failed: ' + e + '</p>';
+    });
+}
+</script>
+{% endblock %}

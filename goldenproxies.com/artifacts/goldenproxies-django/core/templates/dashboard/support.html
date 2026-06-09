@@ -1,0 +1,145 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Support — GoldenProxies{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-4xl mx-auto space-y-5">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-serif font-bold text-gray-900">Support Tickets</h1>
+      <p class="text-gray-500 text-sm mt-0.5">{{ my_tickets|length }} ticket{{ my_tickets|length|pluralize }}</p>
+    </div>
+    <button onclick="toggleForm()" id="new-ticket-btn"
+      class="gold-btn px-5 py-2.5 rounded-xl text-sm shadow-md flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      New Ticket
+    </button>
+  </div>
+
+  <!-- New Ticket Form (collapsible) -->
+  <div id="new-ticket-form" class="hidden">
+    <div class="glass-card rounded-2xl p-6 shadow-md border-[#D4AF37]/20">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="font-semibold text-gray-900 text-sm uppercase tracking-wider">New Ticket</h2>
+        <button onclick="toggleForm()" class="text-gray-400 hover:text-gray-600 transition-colors text-lg leading-none">✕</button>
+      </div>
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Subject</label>
+            {{ form.subject }}
+            {% if form.subject.errors %}<p class="text-xs text-red-500 mt-1">{{ form.subject.errors.0 }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Priority</label>
+            {{ form.priority }}
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Message</label>
+          {{ form.body }}
+          {% if form.body.errors %}<p class="text-xs text-red-500 mt-1">{{ form.body.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-1">
+          <button type="button" onclick="toggleForm()" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+          <button type="submit" class="gold-btn px-6 py-2.5 rounded-xl text-sm shadow-md">Submit Ticket</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Ticket list -->
+  {% if my_tickets %}
+  <div class="glass-card rounded-2xl shadow-md overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-[#D4AF37]/10 bg-[#D4AF37]/3">
+          <th class="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-5 py-3 w-28">Priority</th>
+          <th class="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 py-3">Subject</th>
+          <th class="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 py-3 w-24">Status</th>
+          <th class="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 py-3 w-28">Date</th>
+          <th class="text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider px-5 py-3 w-24">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-[#D4AF37]/8">
+        {% for t in my_tickets %}
+        <tr class="hover:bg-[#D4AF37]/4 transition-colors cursor-pointer group" onclick="window.location='/dashboard/support/{{ t.pk }}/'">
+          <td class="px-5 py-3">
+            <span class="inline-flex items-center gap-1.5 text-xs font-semibold
+              {% if t.priority == 'critical' %}text-red-700
+              {% elif t.priority == 'high' %}text-orange-700
+              {% elif t.priority == 'low' %}text-green-700
+              {% else %}text-yellow-700{% endif %}">
+              <span class="w-2 h-2 rounded-full flex-shrink-0
+                {% if t.priority == 'critical' %}bg-red-500
+                {% elif t.priority == 'high' %}bg-orange-500
+                {% elif t.priority == 'low' %}bg-green-500
+                {% else %}bg-yellow-500{% endif %}"></span>
+              {{ t.get_priority_display }}
+            </span>
+          </td>
+          <td class="px-3 py-3">
+            <div class="font-semibold text-gray-900 group-hover:text-[#D4AF37] transition-colors truncate max-w-xs">{{ t.subject }}</div>
+            <div class="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{{ t.body|truncatechars:60 }}</div>
+          </td>
+          <td class="px-3 py-3">
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full border
+              {% if t.status == 'open' %}bg-[#D4AF37]/10 text-[#B8941F] border-[#D4AF37]/20
+              {% elif t.status == 'replied' %}bg-green-50 text-green-700 border-green-200
+              {% else %}bg-gray-100 text-gray-500 border-gray-200{% endif %}">
+              {% if t.status == 'open' %}<span class="inline-block w-1.5 h-1.5 rounded-full bg-[#D4AF37] mr-1 align-middle"></span>{% endif %}
+              {{ t.status|capfirst }}
+            </span>
+          </td>
+          <td class="px-3 py-3 text-xs text-gray-400">{{ t.created_at|date:"M d, Y" }}</td>
+          <td class="px-5 py-3">
+            <div class="flex items-center justify-end gap-1.5" onclick="event.stopPropagation()">
+              <a href="/dashboard/support/{{ t.pk }}/"
+                class="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all" title="View">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </a>
+              <a href="/dashboard/support/{{ t.pk }}/edit/"
+                class="glass-btn w-7 h-7 rounded-lg flex items-center justify-center transition-all" title="Edit">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </a>
+              <form method="post" action="/dashboard/support/{{ t.pk }}/delete/" onsubmit="return confirm('Delete this ticket?')">
+                {% csrf_token %}
+                <button type="submit"
+                  class="glass-btn-danger w-7 h-7 rounded-lg flex items-center justify-center transition-all" title="Delete">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="glass-card rounded-2xl p-16 shadow-md text-center">
+    <div class="text-5xl opacity-20 mb-4">🎫</div>
+    <p class="text-gray-500 font-semibold">No tickets yet</p>
+    <p class="text-gray-400 text-sm mt-1">Click "New Ticket" to get started</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleForm() {
+  const form = document.getElementById('new-ticket-form');
+  const btn = document.getElementById('new-ticket-btn');
+  const hidden = form.classList.contains('hidden');
+  form.classList.toggle('hidden', !hidden);
+  if (hidden) {
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    form.querySelector('input,select,textarea')?.focus();
+  }
+}
+// If form has errors, auto-open
+{% if form.errors %}toggleForm();{% endif %}
+</script>
+{% endblock %}

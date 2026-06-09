@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}GoldenProxies — The Gold Standard in Data Extraction{% endblock %}
+{% block content %}
+
+<!-- ═══════════ HERO ═══════════ -->
+<section class="relative min-h-[92vh] flex items-center justify-center overflow-hidden px-4">
+  <!-- Layered gradient backdrop -->
+  <div class="absolute inset-0 bg-gradient-to-br from-[#FDFBF4] via-[#FBF6E4] to-[#F5EDD0] opacity-80"></div>
+  <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,236,150,0.25),transparent_60%)]"></div>
+
+  <!-- Floating ambient orbs -->
+  <div class="orb orb-gold w-[420px] h-[420px] -top-20 -left-20" style="animation-delay: 0s"></div>
+  <div class="orb orb-warm w-[520px] h-[520px] top-1/3 -right-32" style="animation-delay: -6s"></div>
+  <div class="orb orb-gold w-[360px] h-[360px] -bottom-24 left-1/3" style="animation-delay: -12s; opacity: 0.4"></div>
+
+  <!-- Drifting sparkles -->
+  <div class="sparkle-drift text-2xl top-[14%] left-[8%]" style="animation-delay: 0s">✦</div>
+  <div class="sparkle-drift text-4xl top-[22%] right-[12%]" style="animation-delay: -3s">✦</div>
+  <div class="sparkle-drift text-xl top-[60%] left-[18%]" style="animation-delay: -6s">✧</div>
+  <div class="sparkle-drift text-3xl bottom-[18%] right-[22%]" style="animation-delay: -9s">✦</div>
+  <div class="sparkle-drift text-lg top-[40%] left-[42%]" style="animation-delay: -2s">✧</div>
+  <div class="sparkle-drift text-2xl bottom-[28%] left-[10%]" style="animation-delay: -5s">✦</div>
+
+  <div class="relative text-center max-w-4xl mx-auto">
+    <!-- Eyebrow badge -->
+    <div class="inline-flex items-center gap-2 px-5 py-2 rounded-full glass-card text-xs font-semibold text-[#A07818] uppercase tracking-[0.18em] mb-8"
+         style="box-shadow: 0 4px 24px rgba(212,175,55,0.18), 0 0 0 1px rgba(212,175,55,0.20), inset 0 1px 0 rgba(255,255,255,0.80);">
+      <span class="relative flex w-2 h-2">
+        <span class="absolute inline-flex w-full h-full rounded-full bg-[#D4AF37] opacity-75 animate-ping"></span>
+        <span class="relative inline-flex w-2 h-2 rounded-full bg-[#D4AF37]"></span>
+      </span>
+      Premium Proxy Network
+      <span class="text-[#D4AF37]/60">✦</span>
+    </div>
+
+    <!-- Headline with shimmering gold -->
+    <h1 class="font-serif text-4xl sm:text-5xl lg:text-7xl font-bold text-gray-900 leading-[1.05] mb-6 tracking-tight">
+      The Gold Standard in<br/>
+      <span class="text-gold-shimmer relative inline-block">
+        Data Extraction
+        <svg class="absolute -bottom-2 left-0 w-full h-3 text-[#D4AF37]/40" viewBox="0 0 200 12" preserveAspectRatio="none" fill="none">
+          <path d="M2 8 Q50 2, 100 6 T 198 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+    </h1>
+
+    <p class="text-gray-600 text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+      Elite residential and datacenter proxies built for professionals.<br class="hidden sm:block"/>
+      Unmatched uptime, zero blocks, and absolute exclusivity.
+    </p>
+
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+      <a href="/pricing/" class="gold-btn glow-btn inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl text-base">
+        ✦ Explore Premium Plans
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+      </a>
+      <a href="/contact/" class="glass-btn px-8 py-3.5 rounded-2xl text-base">
+        Contact Sales
+      </a>
+    </div>
+
+    <!-- Trust microcopy -->
+    <div class="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-gray-500">
+      <span class="flex items-center gap-1.5"><span class="text-green-500">●</span> 99.9% Uptime SLA</span>
+      <span class="text-gray-300">·</span>
+      <span class="flex items-center gap-1.5">🛡️ Enterprise-grade security</span>
+      <span class="text-gray-300">·</span>
+      <span class="flex items-center gap-1.5">⚡ &lt;0.3s avg latency</span>
+    </div>
+  </div>
+
+  <!-- Scroll cue -->
+  <div class="absolute bottom-6 left-1/2 -translate-x-1/2 text-[#D4AF37]/50 animate-bounce">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+  </div>
+</section>
+
+<!-- ═══════════ STATS BAR ═══════════ -->
+<section class="py-10 px-4 -mt-12 relative z-10">
+  <div class="max-w-5xl mx-auto glass-card glow-card rounded-3xl px-8 py-7"
+       style="box-shadow: 0 24px 64px -12px rgba(212,175,55,0.18), 0 8px 24px rgba(212,175,55,0.08), inset 0 1px 0 rgba(255,255,255,0.80);">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-x divide-[#D4AF37]/10">
+      <div class="px-2">
+        <div class="text-3xl sm:text-4xl font-serif font-bold text-gold-shimmer">99.9%</div>
+        <div class="text-[10px] text-gray-500 mt-1.5 font-bold uppercase tracking-[0.18em]">Uptime SLA</div>
+      </div>
+      <div class="px-2">
+        <div class="text-3xl sm:text-4xl font-serif font-bold text-gold-shimmer">195+</div>
+        <div class="text-[10px] text-gray-500 mt-1.5 font-bold uppercase tracking-[0.18em]">Countries</div>
+      </div>
+      <div class="px-2">
+        <div class="text-3xl sm:text-4xl font-serif font-bold text-gold-shimmer">10M+</div>
+        <div class="text-[10px] text-gray-500 mt-1.5 font-bold uppercase tracking-[0.18em]">IPs Available</div>
+      </div>
+      <div class="px-2">
+        <div class="text-3xl sm:text-4xl font-serif font-bold text-gold-shimmer">&lt;0.3s</div>
+        <div class="text-[10px] text-gray-500 mt-1.5 font-bold uppercase tracking-[0.18em]">Avg Latency</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ PROXY TYPES ═══════════ -->
+<section class="py-20 px-4 relative">
+  <div class="max-w-6xl mx-auto relative">
+    <div class="text-center mb-14">
+      <span class="inline-block text-[10px] font-bold text-[#D4AF37] uppercase tracking-[0.22em] mb-3">— Our Network —</span>
+      <h2 class="font-serif text-4xl sm:text-5xl font-bold text-gray-900 mb-3">Three Proxy Types. <span class="text-gold-shimmer">One Platform.</span></h2>
+      <p class="text-gray-500 text-base max-w-xl mx-auto">Choose the right proxy type for your use case — all backed by our premium infrastructure.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+      <div class="glass-card glow-card rounded-3xl p-8 hover:-translate-y-1.5 transition-transform duration-400 group">
+        <div class="icon-halo w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FFE9A3] via-[#E8C84A] to-[#B8941F] flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-[#D4AF37]/30">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/></svg>
+        </div>
+        <h3 class="font-serif text-2xl font-bold text-gray-900 mb-2 group-hover:text-[#A07818] transition-colors">Residential</h3>
+        <p class="text-gray-500 text-sm leading-relaxed mb-5">Real ISP-assigned IPs from 195+ countries. Ideal for web scraping, account management, and price monitoring.</p>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="px-2.5 py-1 rounded-full bg-[#D4AF37]/10 text-[#A07818] font-bold uppercase tracking-wider">195+ countries</span>
+          <span class="px-2.5 py-1 rounded-full bg-[#D4AF37]/10 text-[#A07818] font-bold uppercase tracking-wider">Rotating</span>
+        </div>
+      </div>
+
+      <div class="glass-card glow-card rounded-3xl p-8 hover:-translate-y-1.5 transition-transform duration-400 group relative"
+           style="background: linear-gradient(135deg, rgba(255,250,225,0.55), rgba(255,236,150,0.18));">
+        <span class="absolute top-4 right-4 text-[10px] font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-[#D4AF37] to-[#B8941F] text-white uppercase tracking-wider shadow-md shadow-[#D4AF37]/30">★ Most Popular</span>
+        <div class="icon-halo w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FFE9A3] via-[#E8C84A] to-[#B8941F] flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-[#D4AF37]/40">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <h3 class="font-serif text-2xl font-bold text-gray-900 mb-2 group-hover:text-[#A07818] transition-colors">Datacenter</h3>
+        <p class="text-gray-500 text-sm leading-relaxed mb-5">Ultra-fast dedicated datacenter IPs with sub-100ms response times. Perfect for speed-critical automation.</p>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="px-2.5 py-1 rounded-full bg-[#D4AF37]/15 text-[#A07818] font-bold uppercase tracking-wider">60+ locations</span>
+          <span class="px-2.5 py-1 rounded-full bg-[#D4AF37]/15 text-[#A07818] font-bold uppercase tracking-wider">Dedicated</span>
+        </div>
+      </div>
+
+      <div class="glass-card glow-card rounded-3xl p-8 hover:-translate-y-1.5 transition-transform duration-400 group">
+        <div class="icon-halo w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FFE9A3] via-[#E8C84A] to-[#B8941F] flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg shadow-[#D4AF37]/30">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <h3 class="font-serif text-2xl font-bold text-gray-900 mb-2 group-hover:text-[#A07818] transition-colors">IPv6</h3>
+        <p class="text-gray-500 text-sm leading-relaxed mb-5">Millions of unique IPv6 addresses at the lowest cost per IP. Scale without limits for bulk operations.</p>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="px-2.5 py-1 rounded-full bg-[#D4AF37]/10 text-[#A07818] font-bold uppercase tracking-wider">80+ countries</span>
+          <span class="px-2.5 py-1 rounded-full bg-[#D4AF37]/10 text-[#A07818] font-bold uppercase tracking-wider">Millions of IPs</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ FEATURES ═══════════ -->
+<section class="py-20 px-4 relative overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-br from-[#D4AF37]/8 via-transparent to-[#D4AF37]/4"></div>
+  <div class="orb orb-warm w-[500px] h-[500px] -left-32 top-1/4" style="opacity: 0.25"></div>
+  <div class="orb orb-gold w-[420px] h-[420px] -right-20 bottom-0" style="opacity: 0.25; animation-delay: -8s"></div>
+
+  <div class="max-w-6xl mx-auto relative">
+    <div class="text-center mb-14">
+      <span class="inline-block text-[10px] font-bold text-[#D4AF37] uppercase tracking-[0.22em] mb-3">— The Difference —</span>
+      <h2 class="font-serif text-4xl sm:text-5xl font-bold text-gray-900 mb-3">Why Professionals <span class="text-gold-shimmer">Choose Us</span></h2>
+      <p class="text-gray-500 text-base max-w-xl mx-auto">Built from the ground up for serious data operations. No gimmicks, just performance.</p>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {% for f in "123456"|make_list %}
+      {% if f == "1" %}{% with icon="🛡️" t="Zero Blocks Guarantee" d="Our advanced rotation engine ensures continuous access even on the most protected targets." %}{% include "_feature_card.html" %}{% endwith %}
+      {% elif f == "2" %}{% with icon="⚡" t="Blazing Fast Speeds" d="Sub-100ms response on datacenter proxies, 99.9% uptime backed by an SLA." %}{% include "_feature_card.html" %}{% endwith %}
+      {% elif f == "3" %}{% with icon="🌍" t="195+ Countries" d="Target any geography with precise city and ASN targeting on residential plans." %}{% include "_feature_card.html" %}{% endwith %}
+      {% elif f == "4" %}{% with icon="🔄" t="Smart Rotation" d="Auto-rotate on every request, or use sticky sessions up to 30 minutes." %}{% include "_feature_card.html" %}{% endwith %}
+      {% elif f == "5" %}{% with icon="📊" t="Live Analytics" d="Real-time bandwidth, success rate, and geo-distribution dashboards." %}{% include "_feature_card.html" %}{% endwith %}
+      {% elif f == "6" %}{% with icon="💬" t="24/7 Expert Support" d="Dedicated account managers and priority support for Business+ plans." %}{% include "_feature_card.html" %}{% endwith %}
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ CTA ═══════════ -->
+<section class="py-20 px-4 relative overflow-hidden">
+  <div class="orb orb-gold w-[500px] h-[500px] left-1/2 -translate-x-1/2 top-0" style="opacity: 0.30"></div>
+
+  <div class="max-w-4xl mx-auto text-center relative">
+    <div class="glass-card glow-card rounded-3xl p-6 sm:p-10 lg:p-14"
+         style="box-shadow: 0 32px 80px -20px rgba(212,175,55,0.35), 0 12px 32px rgba(212,175,55,0.10), inset 0 1px 0 rgba(255,255,255,0.85);">
+      {% if recent_posts %}
+      <span class="inline-block text-[10px] font-bold text-[#D4AF37] uppercase tracking-[0.22em] mb-3">— Latest Insights —</span>
+      <h2 class="font-serif text-3xl sm:text-4xl font-bold text-gray-900 mb-3">From the <span class="text-gold-shimmer">Blog</span></h2>
+      <p class="text-gray-500 text-base mb-10">Expert insights on proxies, web scraping, and data collection.</p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+        {% for post in recent_posts %}
+        <a href="/blog/{{ post.slug }}/" class="group glass-card rounded-2xl p-5 text-left transition-all hover:-translate-y-1">
+          {% if post.tag_list %}
+          <span class="text-[10px] font-bold text-[#D4AF37] uppercase tracking-[0.18em] mb-2 block">{{ post.tag_list.0 }}</span>
+          {% endif %}
+          <h3 class="font-serif font-bold text-gray-900 mb-2 group-hover:text-[#A07818] transition-colors leading-snug">{{ post.title }}</h3>
+          <p class="text-sm text-gray-500 line-clamp-2 mb-3">{{ post.excerpt }}</p>
+          <div class="text-xs text-gray-400 flex items-center gap-1.5">
+            <span>{{ post.published_at|date:"M d, Y" }}</span>
+            <span class="text-[#D4AF37]/40">·</span>
+            <span>{{ post.reading_time }} min read</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      <a href="/blog/" class="glass-btn inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm mb-12">
+        Read all articles
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <div class="border-t border-[#D4AF37]/10 my-2"></div>
+      {% endif %}
+
+      <div class="pt-2">
+        <span class="inline-block text-3xl mb-4">✦</span>
+        <h2 class="font-serif text-3xl sm:text-5xl font-bold text-gray-900 mb-4">Ready to <span class="text-gold-shimmer">Scale?</span></h2>
+        <p class="text-gray-500 text-base sm:text-lg mb-8 max-w-xl mx-auto">Join thousands of professionals who rely on GoldenProxies for their most demanding data operations.</p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href="/register/" class="gold-btn glow-btn inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl text-base">
+            ✦ Start Free Trial
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+          </a>
+          <a href="/pricing/" class="glass-btn px-8 py-3.5 rounded-2xl text-base">View Pricing</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

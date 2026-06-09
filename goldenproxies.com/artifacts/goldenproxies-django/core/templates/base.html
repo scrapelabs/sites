@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}GoldenProxies — Premium Proxy Network{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { gold: '#D4AF37', 'gold-light': '#F0D060', 'gold-dark': '#B8941F' },
+          fontFamily: { serif: ['Georgia','Times New Roman','serif'] },
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #FDFBF4; }
+    .bg-grid {
+      background-image: radial-gradient(circle at 1px 1px, rgba(212,175,55,0.10) 1px, transparent 0);
+      background-size: 36px 36px;
+    }
+
+    /* ── Glass nav ── */
+    .glass-nav {
+      background: linear-gradient(180deg, rgba(253,251,244,0.92), rgba(253,251,244,0.85));
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border-bottom: 1px solid rgba(212,175,55,0.14);
+      box-shadow: 0 1px 24px rgba(212,175,55,0.06);
+    }
+
+    /* ── Glass card ── */
+    .glass-card {
+      position: relative;
+      background: linear-gradient(135deg, rgba(255,255,255,0.45), rgba(255,252,240,0.25));
+      backdrop-filter: blur(22px) saturate(160%);
+      -webkit-backdrop-filter: blur(22px) saturate(160%);
+      border: 1px solid rgba(212,175,55,0.20);
+      box-shadow:
+        0 4px 32px rgba(212,175,55,0.07),
+        0 1px 2px rgba(212,175,55,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.65),
+        inset 0 -1px 0 rgba(212,175,55,0.06);
+      transition: box-shadow 0.4s ease, transform 0.3s ease, border-color 0.3s ease;
+    }
+    /* Subtle inner highlight on hover for "lit" feel */
+    .glass-card:hover {
+      box-shadow:
+        0 8px 48px rgba(212,175,55,0.14),
+        0 2px 8px rgba(212,175,55,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.80),
+        inset 0 0 24px rgba(212,175,55,0.04);
+      border-color: rgba(212,175,55,0.32);
+    }
+
+    /* ── Glow card variant — rainbow conic gradient halo ── */
+    .glow-card {
+      position: relative;
+    }
+    .glow-card::before {
+      content: '';
+      position: absolute;
+      inset: -1.5px;
+      border-radius: inherit;
+      padding: 1.5px;
+      background: conic-gradient(from var(--angle, 0deg),
+        rgba(212,175,55,0.0) 0%,
+        rgba(232,200,74,0.55) 25%,
+        rgba(255,236,150,0.85) 50%,
+        rgba(232,200,74,0.55) 75%,
+        rgba(212,175,55,0.0) 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+              mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      opacity: 0.55;
+      animation: spin-conic 8s linear infinite;
+      pointer-events: none;
+    }
+    @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+    @keyframes spin-conic { to { --angle: 360deg; } }
+    .glow-card:hover::before { opacity: 1; }
+
+    /* ── Glass sidebar ── */
+    .glass-sidebar {
+      background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(253,251,244,0.38));
+      backdrop-filter: blur(28px) saturate(160%);
+      -webkit-backdrop-filter: blur(28px) saturate(160%);
+      border-right: 1px solid rgba(212,175,55,0.14);
+      box-shadow: 2px 0 32px rgba(212,175,55,0.04);
+    }
+
+    /* ── Glass input ── */
+    .glass-input {
+      background: rgba(255,255,255,0.38);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(212,175,55,0.20);
+    }
+
+    /* ── Glass button (secondary / outline) ── */
+    .glass-btn {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(255,255,255,0.45), rgba(255,252,240,0.20));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(212,175,55,0.50);
+      color: #A07818;
+      font-weight: 600;
+      box-shadow:
+        0 2px 8px rgba(212,175,55,0.06),
+        inset 0 1px 0 rgba(255,255,255,0.60);
+      transition: all 0.25s ease;
+    }
+    .glass-btn:hover {
+      background: linear-gradient(135deg, rgba(255,250,225,0.65), rgba(255,236,150,0.30));
+      border-color: rgba(212,175,55,0.85);
+      color: #8A6800;
+      box-shadow:
+        0 4px 18px rgba(212,175,55,0.20),
+        0 0 24px rgba(232,200,74,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.80);
+      transform: translateY(-1px);
+    }
+    .glass-btn:active { transform: translateY(0); }
+
+    /* ── Glass danger button ── */
+    .glass-btn-danger {
+      background: transparent;
+      border: 1.5px solid rgba(220,38,38,0.40);
+      color: #dc2626;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .glass-btn-danger:hover {
+      background: rgba(220,38,38,0.06);
+      border-color: rgba(220,38,38,0.65);
+    }
+
+    /* ── Gold primary button — real metallic gradient + shimmer sweep ── */
+    .gold-btn {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      background: linear-gradient(135deg, #E8C84A 0%, #D4AF37 35%, #B8941F 65%, #D4AF37 100%);
+      background-size: 200% 200%;
+      background-position: 0% 50%;
+      border: 1px solid rgba(184,148,31,0.55);
+      color: #4A3300;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.30);
+      box-shadow:
+        0 4px 16px rgba(212,175,55,0.30),
+        0 1px 3px rgba(184,148,31,0.20),
+        inset 0 1px 0 rgba(255,255,255,0.55),
+        inset 0 -1px 0 rgba(184,148,31,0.30);
+      transition: background-position 0.6s ease, box-shadow 0.3s ease, transform 0.15s ease;
+    }
+    /* Sweeping shine highlight */
+    .gold-btn::before {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0;
+      left: -120%;
+      width: 60%;
+      background: linear-gradient(115deg,
+        transparent 0%,
+        rgba(255,255,255,0.0) 30%,
+        rgba(255,255,255,0.55) 50%,
+        rgba(255,255,255,0.0) 70%,
+        transparent 100%);
+      transform: skewX(-20deg);
+      pointer-events: none;
+      animation: gold-shine 3.5s ease-in-out infinite;
+    }
+    .gold-btn:hover {
+      background-position: 100% 50%;
+      transform: translateY(-1px);
+      box-shadow:
+        0 6px 24px rgba(212,175,55,0.45),
+        0 2px 6px rgba(184,148,31,0.25),
+        0 0 32px rgba(255,236,150,0.40),
+        inset 0 1px 0 rgba(255,255,255,0.70),
+        inset 0 -1px 0 rgba(184,148,31,0.35);
+    }
+    .gold-btn:active { transform: translateY(0); }
+    .gold-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .gold-btn:disabled::before { display: none; }
+    @keyframes gold-shine {
+      0%       { left: -120%; }
+      55%,100% { left: 220%; }
+    }
+
+    /* ── Glow button — pulsing ring of gold ── */
+    .glow-btn {
+      position: relative;
+      animation: gold-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes gold-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0.55), 0 4px 16px rgba(212,175,55,0.30); }
+      50%      { box-shadow: 0 0 0 12px rgba(212,175,55,0.0), 0 6px 24px rgba(212,175,55,0.45); }
+    }
+
+    /* ── Shimmering gradient text (for hero headlines) ── */
+    .text-gold-shimmer {
+      background-image: linear-gradient(110deg,
+        #C9A227 0%,
+        #E8C84A 25%,
+        #FFE9A3 50%,
+        #E8C84A 75%,
+        #C9A227 100%);
+      background-size: 250% auto;
+      -webkit-background-clip: text;
+              background-clip: text;
+      -webkit-text-fill-color: transparent;
+              color: transparent;
+      animation: text-shimmer 4.5s linear infinite;
+    }
+    @keyframes text-shimmer {
+      to { background-position: -250% 0; }
+    }
+
+    /* ── Floating ambient orbs (place inside section.relative) ── */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      pointer-events: none;
+      opacity: 0.55;
+      mix-blend-mode: screen;
+      animation: orb-float 18s ease-in-out infinite;
+    }
+    .orb-gold {
+      background: radial-gradient(circle, rgba(232,200,74,0.55) 0%, rgba(212,175,55,0.20) 45%, transparent 70%);
+    }
+    .orb-warm {
+      background: radial-gradient(circle, rgba(255,220,130,0.45) 0%, rgba(212,175,55,0.15) 50%, transparent 75%);
+    }
+    @keyframes orb-float {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%     { transform: translate(40px,-30px) scale(1.08); }
+      66%     { transform: translate(-30px,30px) scale(0.94); }
+    }
+
+    /* ── Sparkle decoration ── */
+    .sparkle::before, .sparkle::after {
+      content: '✦';
+      position: absolute;
+      color: rgba(212,175,55,0.35);
+      font-size: 0.9rem;
+      animation: twinkle 3s ease-in-out infinite;
+    }
+    @keyframes twinkle {
+      0%,100% { opacity: 0.2; transform: scale(0.8); }
+      50%      { opacity: 1;   transform: scale(1.2); }
+    }
+    /* Drifting sparkle (for hero) */
+    .sparkle-drift {
+      position: absolute;
+      pointer-events: none;
+      color: rgba(212,175,55,0.55);
+      animation: drift 12s ease-in-out infinite;
+      filter: drop-shadow(0 0 8px rgba(232,200,74,0.50));
+    }
+    @keyframes drift {
+      0%,100% { transform: translateY(0) rotate(0deg); opacity: 0.4; }
+      50%     { transform: translateY(-20px) rotate(180deg); opacity: 1; }
+    }
+
+    /* ── Icon halo ── */
+    .icon-halo {
+      position: relative;
+    }
+    .icon-halo::after {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: inherit;
+      background: radial-gradient(circle, rgba(232,200,74,0.45) 0%, transparent 65%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .group:hover .icon-halo::after,
+    .icon-halo:hover::after { opacity: 1; }
+
+    /* ── Table glass rows ── */
+    .glass-row {
+      background: linear-gradient(90deg, rgba(255,255,255,0.32), rgba(255,252,240,0.18));
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(212,175,55,0.08);
+      transition: background 0.15s;
+    }
+    .glass-row:hover {
+      background: linear-gradient(90deg, rgba(255,255,255,0.52), rgba(255,250,220,0.30));
+    }
+
+    /* ── Badge glass ── */
+    .glass-badge {
+      background: rgba(255,255,255,0.40);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(212,175,55,0.18);
+    }
+
+    .nav-link { transition: color 0.2s; }
+
+    /* ── Blog article prose ── */
+    .blog-prose h2 { font-size: 1.45rem; font-weight: 700; margin: 2rem 0 0.75rem; font-family: Georgia, serif; color: #111827; }
+    .blog-prose h3 { font-size: 1.15rem; font-weight: 600; margin: 1.5rem 0 0.5rem; color: #1f2937; }
+    .blog-prose p  { margin-bottom: 1.1rem; line-height: 1.8; color: #374151; }
+    .blog-prose ul, .blog-prose ol { margin: 0.75rem 0 1.1rem 1.5rem; }
+    .blog-prose li { margin-bottom: 0.4rem; line-height: 1.75; color: #374151; }
+    .blog-prose strong { color: #111827; font-weight: 700; }
+    .blog-prose em { color: #4b5563; }
+    .blog-prose blockquote { border-left: 3px solid #D4AF37; padding: 0.75rem 1.25rem; margin: 1.75rem 0; background: rgba(212,175,55,0.06); border-radius: 0 0.75rem 0.75rem 0; color: #6b7280; font-style: italic; }
+    .blog-prose a { color: #D4AF37; text-decoration: underline; text-underline-offset: 3px; }
+    .blog-prose code { background: rgba(212,175,55,0.08); border: 1px solid rgba(212,175,55,0.15); padding: 0.15rem 0.4rem; border-radius: 0.35rem; font-size: 0.85em; }
+    .blog-prose pre { background: #1e1e1e; color: #d4d4d4; padding: 1.25rem; border-radius: 0.75rem; overflow-x: auto; margin: 1.25rem 0; font-size: 0.85rem; }
+    .nav-link:hover { color: #D4AF37; }
+
+    /* ── Mobile menu ── */
+    #mobile-menu {
+      display: none;
+      position: fixed;
+      top: 64px;
+      left: 0; right: 0;
+      z-index: 39;
+      background: rgba(253,251,244,0.97);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(212,175,55,0.14);
+      box-shadow: 0 8px 32px rgba(212,175,55,0.08);
+    }
+    #mobile-menu.open { display: block; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.25); border-radius: 3px; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-[#FDFBF4] bg-grid min-h-screen text-gray-800 antialiased">
+
+{% if messages %}
+<div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 space-y-2 w-full max-w-md px-4">
+  {% for message in messages %}
+  <div class="glass-card rounded-xl px-5 py-3 flex items-center gap-3 shadow-lg
+    {% if message.tags == 'success' %}border-green-300/40 text-green-800
+    {% elif message.tags == 'error' %}border-red-300/40 text-red-800
+    {% else %}border-[#D4AF37]/30 text-gray-800{% endif %}">
+    {% if message.tags == 'success' %}<span class="text-green-500 text-lg">✓</span>{% endif %}
+    <span class="text-sm font-medium">{{ message }}</span>
+    <button onclick="this.parentElement.remove()" class="ml-auto text-gray-400 hover:text-gray-600">✕</button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<nav class="glass-nav fixed top-0 left-0 right-0 z-40 h-16">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+    <!-- Logo -->
+    <a href="/" class="flex items-center gap-2.5 group flex-shrink-0">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center shadow-md shadow-[#D4AF37]/25">
+        <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      </div>
+      <span class="font-serif font-bold text-lg text-gray-900 group-hover:text-[#D4AF37] transition-colors">GoldenProxies</span>
+    </a>
+
+    {% if not user.is_authenticated %}
+    <!-- Desktop nav -->
+    <div class="hidden md:flex items-center gap-8">
+      <a href="/pricing/" class="nav-link text-sm font-medium text-gray-600">Pricing Plans</a>
+      <a href="/blog/" class="nav-link text-sm font-medium text-gray-600">Blog</a>
+      <a href="/contact/" class="nav-link text-sm font-medium text-gray-600">Contact</a>
+    </div>
+    <!-- Desktop auth -->
+    <div class="hidden md:flex items-center gap-3">
+      <a href="/login/" class="text-sm font-semibold text-gray-700 hover:text-[#D4AF37] transition-colors px-3 py-2">Sign in</a>
+      <a href="/register/" class="gold-btn px-5 py-2 rounded-xl text-sm transition-all">Get Started</a>
+    </div>
+    <!-- Mobile: sign in + hamburger -->
+    <div class="flex md:hidden items-center gap-2">
+      <a href="/login/" class="text-sm font-semibold text-gray-700 hover:text-[#D4AF37] transition-colors px-2 py-1.5">Sign in</a>
+      <button id="hamburger" onclick="toggleMenu()" class="p-2 rounded-xl hover:bg-[#D4AF37]/8 transition-colors" aria-label="Menu">
+        <span id="ham-open"><svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></span>
+        <span id="ham-close" class="hidden"><svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></span>
+      </button>
+    </div>
+    {% else %}
+    <!-- Desktop nav (authenticated) -->
+    <div class="hidden md:flex items-center gap-8">
+      <a href="/dashboard/" class="nav-link text-sm font-medium text-gray-600">Dashboard</a>
+      <a href="/blog/" class="nav-link text-sm font-medium text-gray-600">Blog</a>
+      {% if user.email == 'khemiri.mohamed.ensi@gmail.com' %}
+      <a href="/admin-panel/" class="nav-link text-sm font-medium text-[#D4AF37]">
+        <span class="flex items-center gap-1.5">👑 Admin</span>
+      </a>
+      {% endif %}
+    </div>
+    <!-- Desktop user -->
+    <div class="hidden md:flex items-center gap-3">
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl glass-card">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#D4AF37]/40 to-[#D4AF37]/20 flex items-center justify-center text-xs font-bold text-[#D4AF37]">
+          {{ user.first_name|first|default:user.email|first|upper }}
+        </div>
+        <span class="text-sm font-medium text-gray-700">{{ user.first_name|default:user.email }}</span>
+      </div>
+      <a href="/logout/" class="text-sm text-gray-500 hover:text-red-500 transition-colors px-2 py-2">Sign out</a>
+    </div>
+    <!-- Mobile: avatar + hamburger (authenticated) -->
+    <div class="flex md:hidden items-center gap-2">
+      <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#D4AF37]/40 to-[#D4AF37]/20 flex items-center justify-center text-xs font-bold text-[#D4AF37]">
+        {{ user.first_name|first|default:user.email|first|upper }}
+      </div>
+      <button id="hamburger" onclick="{% block mobile_menu_action %}toggleMenu(){% endblock %}" class="p-2 rounded-xl hover:bg-[#D4AF37]/8 transition-colors" aria-label="Menu">
+        <span id="ham-open"><svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></span>
+        <span id="ham-close" class="hidden"><svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></span>
+      </button>
+    </div>
+    {% endif %}
+  </div>
+</nav>
+
+<!-- Mobile menu drawer -->
+<div id="mobile-menu">
+  <div class="px-4 py-4 space-y-1">
+    {% if not user.is_authenticated %}
+    <a href="/pricing/" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37] transition-all">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      Pricing Plans
+    </a>
+    <a href="/blog/" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37] transition-all">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
+      Blog
+    </a>
+    <a href="/contact/" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37] transition-all">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      Contact
+    </a>
+    <div class="pt-2 pb-1">
+      <a href="/register/" class="gold-btn block text-center px-4 py-3 rounded-xl text-sm transition-all">Get Started Free</a>
+    </div>
+    {% else %}
+    <a href="/dashboard/" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37] transition-all">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Dashboard
+    </a>
+    <a href="/blog/" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37] transition-all">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
+      Blog
+    </a>
+    {% if user.email == 'khemiri.mohamed.ensi@gmail.com' %}
+    <a href="/admin-panel/" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[#D4AF37] hover:bg-[#D4AF37]/8 transition-all">
+      <span>👑</span> Admin Panel
+    </a>
+    {% endif %}
+    <div class="pt-2 border-t border-[#D4AF37]/10">
+      <div class="px-4 py-2 text-xs text-gray-400">Signed in as <span class="font-medium text-gray-600">{{ user.email }}</span></div>
+      <a href="/logout/" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-500 hover:text-red-500 hover:bg-red-50/60 transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Sign out
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<main class="pt-16">
+  {% block content %}{% endblock %}
+</main>
+
+{% block footer %}
+<footer class="mt-24 border-t border-[#D4AF37]/10 bg-white/40 backdrop-blur-sm">
+  <div class="max-w-7xl mx-auto px-6 py-12">
+    <div class="flex flex-col items-center gap-6 text-center md:flex-row md:justify-between md:text-left">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center">
+          <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <span class="font-serif font-bold text-gray-800">GoldenProxies</span>
+      </div>
+      <div class="flex flex-wrap items-center justify-center gap-5 text-sm text-gray-500">
+        <a href="/pricing/" class="hover:text-[#D4AF37] transition-colors">Pricing</a>
+        <a href="/blog/" class="hover:text-[#D4AF37] transition-colors">Blog</a>
+        <a href="/contact/" class="hover:text-[#D4AF37] transition-colors">Contact</a>
+        <a href="/login/" class="hover:text-[#D4AF37] transition-colors">Sign In</a>
+      </div>
+      <p class="text-xs text-gray-400">© 2026 GoldenProxies. Premium Proxy Network.</p>
+    </div>
+  </div>
+</footer>
+{% endblock %}
+
+{% block scripts %}{% endblock %}
+
+<script>
+  function toggleMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const open = document.getElementById('ham-open');
+    const close = document.getElementById('ham-close');
+    const isOpen = menu.classList.toggle('open');
+    open.classList.toggle('hidden', isOpen);
+    close.classList.toggle('hidden', !isOpen);
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  }
+  // Close on outside click
+  document.addEventListener('click', function(e) {
+    const menu = document.getElementById('mobile-menu');
+    const hamburger = document.getElementById('hamburger');
+    if (menu && menu.classList.contains('open') && !menu.contains(e.target) && !hamburger.contains(e.target)) {
+      menu.classList.remove('open');
+      document.getElementById('ham-open').classList.remove('hidden');
+      document.getElementById('ham-close').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+  });
+</script>
+</body>
+</html>

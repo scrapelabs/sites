@@ -1,0 +1,102 @@
+{# Shared pricing-cards partial. Rendered on the landing page #}
+{# (templates/core/index.html) and on the full Pricing page #}
+{# (templates/core/pricing.html) so the two surfaces can never #}
+{# drift apart. All numbers + trial lengths flow from #}
+{# core.whop.get_pricing_dict() — change pricing in one place, #}
+{# every surface updates. #}
+{# #}
+{# Caller-controlled flags: #}
+{#   include_styles  — emit the <style> block (set False if the #}
+{#                     parent template already imports it). #}
+{#   show_toggle     — legacy flag, no longer used (monthly-only). #}
+<style>
+.pl-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;max-width:1100px;margin:0 auto;}
+@media(max-width:860px){.pl-grid{grid-template-columns:1fr;max-width:480px;}}
+.pl-card{background:#fff;border:1.5px solid var(--b1);border-radius:20px;padding:32px 28px;display:flex;flex-direction:column;gap:0;transition:box-shadow .2s,border-color .2s;position:relative;}
+.pl-card:hover{box-shadow:var(--sh3);}
+.pl-card.feat{border-color:var(--bl);box-shadow:0 0 0 3px rgba(29,78,216,.08),var(--sh2);}
+.pl-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--grad);color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.8px;padding:4px 14px;border-radius:20px;white-space:nowrap;}
+.pl-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
+.pl-price{display:flex;align-items:flex-end;gap:4px;margin-bottom:6px;}
+.pl-price .amt{font-family:'Plus Jakarta Sans',sans-serif;font-size:44px;font-weight:800;color:var(--tx);line-height:1;letter-spacing:-2px;}
+.pl-price .per{font-size:14px;color:var(--tx3);padding-bottom:6px;}
+.pl-tagline{font-size:13.5px;color:var(--tx2);line-height:1.6;margin-bottom:24px;}
+.pl-cta{display:block;text-align:center;padding:12px 20px;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;text-decoration:none;transition:all .2s;margin-bottom:28px;}
+.pl-cta.primary{background:var(--grad);color:#fff;box-shadow:var(--sh-bl);}
+.pl-cta.primary:hover{opacity:.9;transform:translateY(-1px);}
+.pl-cta.outline{border:1.5px solid var(--b2);color:var(--tx);background:none;}
+.pl-cta.outline:hover{border-color:var(--bl);color:var(--bl);background:var(--pd);}
+.pl-divider{height:1px;background:var(--b1);margin-bottom:24px;}
+.pl-feat-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:11px;}
+.pl-feat-list li{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;color:var(--tx2);line-height:1.5;}
+.pl-chk{flex-shrink:0;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.pl-chk.yes{background:rgba(5,150,105,.12);color:var(--ac);}
+.pl-chk.no{background:var(--bg2);color:var(--tx3);}
+.pl-chk svg{width:11px;height:11px;}
+.pl-reassure{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ac3);background:rgba(5,150,105,.07);border:1px solid rgba(5,150,105,.18);padding:8px 12px;border-radius:9px;font-weight:600;margin:-18px 0 22px;}
+</style>
+
+<div class="pl-grid">
+  <div class="pl-card">
+    <div class="pl-name">Starter</div>
+    <div class="pl-price">
+      <span class="amt">${{ pricing.starter_monthly }}</span>
+      <span class="per">/ month</span>
+    </div>
+    <p class="pl-tagline">Solo plumbers, roofers &amp; contractors who work one state. Try free for {{ pricing.starter_trial_days }} days.</p>
+    <a class="pl-cta outline" href="{% url 'signup' %}">Start {{ pricing.starter_trial_days }}-day free trial</a>
+    <div class="pl-reassure"><span class="pl-chk yes" style="width:14px;height:14px;"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Cancel in 1 click before day {{ pricing.starter_trial_days }} — never charged.</div>
+    <div class="pl-divider"></div>
+    <ul class="pl-feat-list">
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span><strong>1 alert per day</strong></li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span><strong>1 monitored state</strong> — change anytime</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Custom delivery time &amp; timezone</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Basic AI score (tier only)</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Email delivery</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>7-day permit history</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Trade-specific filtering + CSV export</li>
+    </ul>
+  </div>
+
+  <div class="pl-card feat">
+    <div class="pl-badge">MOST POPULAR</div>
+    <div class="pl-name">Pro</div>
+    <div class="pl-price">
+      <span class="amt" id="pro-price-amt">${{ pricing.pro_monthly }}</span>
+      <span class="per">/ month</span>
+    </div>
+    <p class="pl-tagline">Active contractors expanding across multiple states. {{ pricing.pro_trial_days }}-day free trial included.</p>
+    <a class="pl-cta primary" href="{% url 'signup' %}?plan=pro&amp;period=monthly" data-plan="pro" data-base="{{ pricing.pro_monthly }}">Start {{ pricing.pro_trial_days }}-day free trial</a>
+    <div class="pl-reassure"><span class="pl-chk yes" style="width:14px;height:14px;"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Cancel in 1 click before day {{ pricing.pro_trial_days }} — never charged.</div>
+    <div class="pl-divider"></div>
+    <ul class="pl-feat-list">
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span><strong>10 alerts per day</strong></li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span><strong>Up to 2 states</strong> — change anytime</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Full AI score (0–100)</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>90-day permit history</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Trade-specific filtering</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>CSV export</li>
+    </ul>
+  </div>
+
+  <div class="pl-card">
+    <div class="pl-name">Agency</div>
+    <div class="pl-price">
+      <span class="amt" id="ag-price-amt">${{ pricing.agency_monthly }}</span>
+      <span class="per">/ month</span>
+    </div>
+    <p class="pl-tagline">Lead-gen agencies and multi-state contractor groups. {{ pricing.agency_trial_days }}-day free trial included.</p>
+    <a class="pl-cta outline" href="{% url 'signup' %}?plan=agency&amp;period=monthly" data-plan="agency" data-base="{{ pricing.agency_monthly }}">Start {{ pricing.agency_trial_days }}-day free trial</a>
+    <div class="pl-reassure"><span class="pl-chk yes" style="width:14px;height:14px;"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Cancel in 1 click before day {{ pricing.agency_trial_days }} — never charged.</div>
+    <div class="pl-divider"></div>
+    <ul class="pl-feat-list">
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span><strong>Unlimited daily alerts</strong></li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span><strong>Up to 5 states</strong> — change anytime</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Full AI score + reasoning</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>Email delivery</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>REST API access</li>
+      <li><span class="pl-chk yes"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,6 5,9 10,3"/></svg></span>White-label + priority support</li>
+    </ul>
+  </div>
+</div>
+

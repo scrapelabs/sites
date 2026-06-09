@@ -1,0 +1,95 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Scraper Logs{% endblock %}
+{% block page_title %}Scraper Logs{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; pick a scraper to view + bulk-manage its run history{% endblock %}
+
+{% block extra_head %}
+<style>
+.sl-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap;}
+.sl-search{flex:1;min-width:240px;display:flex;align-items:center;gap:0;background:#fff;border:1px solid var(--border);border-radius:9px;padding:0 12px;height:38px;}
+.sl-search input{border:0;outline:0;flex:1;font-size:13px;font-family:inherit;background:transparent;color:var(--text);}
+.sl-search svg{width:14px;height:14px;color:var(--muted);flex-shrink:0;}
+
+.sl-table{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.sl-row{display:grid;grid-template-columns:1.6fr 1.4fr 0.8fr 0.7fr 1.4fr 1fr;gap:14px;padding:13px 18px;align-items:center;border-bottom:1px solid var(--border);font-size:12.5px;}
+.sl-row:last-child{border-bottom:none;}
+.sl-row.head{background:var(--bg);font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+.sl-row a.sl-name{color:var(--text);text-decoration:none;font-weight:600;display:flex;align-items:center;gap:8px;}
+.sl-row a.sl-name:hover{color:var(--blue);}
+.sl-host{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);}
+.sl-num{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--text);}
+.sl-num.zero{color:var(--muted);font-weight:500;}
+.sl-num.bad{color:#b91c1c;}
+.sl-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:'JetBrains Mono',monospace;}
+.sl-pill.ok{background:rgba(22,163,74,.12);color:#15803d;}
+.sl-pill.failed{background:rgba(220,38,38,.12);color:#b91c1c;}
+.sl-pill.partial{background:rgba(234,88,12,.12);color:#9a3412;}
+.sl-pill.idle{background:rgba(100,116,139,.12);color:#475569;}
+.sl-pill.off{background:rgba(100,116,139,.18);color:#334155;}
+.sl-actions{display:flex;gap:6px;justify-content:flex-end;}
+.sl-btn{padding:6px 12px;background:#fff;border:1px solid var(--border);border-radius:7px;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--text);font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.sl-btn:hover{background:var(--bg);}
+.sl-btn.primary{background:var(--grad);color:#fff;border-color:transparent;box-shadow:var(--sh-grad);}
+.sl-btn.primary:hover{opacity:.92;transform:translateY(-1px);}
+
+.sl-empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:13px;}
+
+.sl-pager{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:var(--bg);border-top:1px solid var(--border);font-size:12px;color:var(--muted);font-family:inherit;}
+.sl-pager .pgs{display:flex;gap:4px;}
+.sl-pager a, .sl-pager span{padding:5px 10px;border:1px solid var(--border);border-radius:6px;text-decoration:none;color:var(--text);font-weight:600;background:#fff;}
+.sl-pager a:hover{background:var(--bg);}
+.sl-pager span.cur{background:var(--grad);color:#fff;border-color:transparent;}
+.sl-pager span.disabled{color:var(--muted);opacity:.5;background:transparent;border-color:transparent;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sl-toolbar">
+  <form class="sl-search" method="get" action="">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by name, URL, city, agency code…">
+  </form>
+  <a class="sl-btn" href="/admin-panel/scrapers/">← Back to Scrapers</a>
+</div>
+
+<div class="sl-table">
+  <div class="sl-row head">
+    <div>Scraper</div>
+    <div>Host</div>
+    <div>Total runs</div>
+    <div>Failed</div>
+    <div>Last run</div>
+    <div style="text-align:right;">Actions</div>
+  </div>
+  {% for s in scrapers %}
+  <div class="sl-row">
+    <div>
+      <a class="sl-name" href="/admin-panel/scraper-logs/{{ s.id }}/">
+        {% if s.enabled %}<span class="sl-pill ok">on</span>{% else %}<span class="sl-pill off">off</span>{% endif %}
+        {{ s.name|default:s.agency_code|default:"(unnamed)" }}
+      </a>
+    </div>
+    <div class="sl-host">{{ s.host|default:"—" }}</div>
+    <div class="sl-num{% if not s.runs_total %} zero{% endif %}">{{ s.runs_total }}</div>
+    <div class="sl-num{% if not s.runs_failed %} zero{% elif s.runs_failed %} bad{% endif %}">{{ s.runs_failed }}</div>
+    <div class="sl-host">{{ s.last_run_human }}</div>
+    <div class="sl-actions">
+      <a class="sl-btn primary" href="/admin-panel/scraper-logs/{{ s.id }}/">📜 View logs</a>
+    </div>
+  </div>
+  {% empty %}
+  <div class="sl-empty">No scrapers configured yet. <a href="/admin-panel/scrapers/new/">Create one</a> to start collecting run history.</div>
+  {% endfor %}
+
+  {% if total_pages > 1 %}
+  <div class="sl-pager">
+    <div>Page {{ page }} of {{ total_pages }} · {{ total }} total</div>
+    <div class="pgs">
+      {% if has_prev %}<a href="?q={{ q }}&page={{ prev_page }}">‹ Prev</a>{% else %}<span class="disabled">‹ Prev</span>{% endif %}
+      <span class="cur">{{ page }}</span>
+      {% if has_next %}<a href="?q={{ q }}&page={{ next_page }}">Next ›</a>{% else %}<span class="disabled">Next ›</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

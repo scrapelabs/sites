@@ -1,0 +1,376 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Revenue{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  /* ── Whop-style dashboard layout ─────────────────────────────────── */
+  .rev-section-hd { display:flex; align-items:center; justify-content:space-between;
+                    margin:0 0 14px; }
+  .rev-section-hd h2 { margin:0; font-size:20px; font-weight:600; color:#0f172a; }
+
+  .rev-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+              padding:18px 20px; box-shadow:0 1px 2px rgba(15,23,42,.04); }
+
+  /* ── TODAY panel ─────────────────────────────────────────────────── */
+  .rev-today { display:grid; grid-template-columns: minmax(0,1fr) 240px; gap:24px;
+               margin-bottom:28px; }
+  .rev-today-stats { display:flex; gap:36px; margin-bottom:6px; }
+  .rev-today-stat .lbl { font-size:12px; color:#6b7280; font-weight:500;
+                          letter-spacing:.01em; }
+  .rev-today-stat .val { font-size:28px; font-weight:700; color:#0f172a;
+                          line-height:1.1; margin-top:2px; }
+  .rev-today-stat .sub { font-size:12px; color:#9ca3af; margin-top:2px; }
+  .rev-today-stat.muted .val { color:#6b7280; font-weight:600; font-size:22px; }
+  .rev-today-chart { height:120px; margin-top:8px; position:relative; }
+  .rev-today-axis { display:flex; justify-content:space-between;
+                    font-size:11px; color:#9ca3af; margin-top:6px; }
+  .rev-today-side { border-left:1px solid #f1f5f9; padding-left:24px;
+                    display:flex; flex-direction:column; gap:18px; }
+  .rev-side-row { display:flex; justify-content:space-between; align-items:baseline; }
+  .rev-side-row .h { font-size:13px; color:#6b7280; font-weight:500; }
+  .rev-side-row a { font-size:12px; color:#3b82f6; text-decoration:none; }
+  .rev-side-row .v { font-size:22px; font-weight:700; color:#0f172a; }
+  .rev-side-row .v.muted { color:#9ca3af; font-weight:500; font-size:18px; }
+
+  /* ── STATS panel ─────────────────────────────────────────────────── */
+  .rev-stats-bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+                   margin-bottom:18px; }
+  .rev-pill { display:inline-flex; align-items:center; gap:6px;
+              padding:6px 12px; background:#fff; border:1px solid #e5e7eb;
+              border-radius:8px; font-size:13px; color:#374151;
+              text-decoration:none; cursor:pointer; }
+  .rev-pill:hover { border-color:#cbd5e1; }
+  .rev-pill.active { background:#0f172a; color:#fff; border-color:#0f172a; }
+  .rev-pill .caret { font-size:9px; color:#9ca3af; }
+  .rev-pill.active .caret { color:#94a3b8; }
+  .rev-stats-bar .sep { color:#9ca3af; font-size:12px; }
+
+  .rev-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr));
+              gap:16px; }
+  @media (max-width: 1100px) { .rev-grid { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width: 720px)  { .rev-grid { grid-template-columns:1fr; } }
+
+  .rev-kpi-card { padding:16px 18px; }
+  .rev-kpi-hd { display:flex; align-items:center; justify-content:space-between;
+                margin-bottom:8px; }
+  .rev-kpi-hd .ttl { font-size:13px; color:#374151; font-weight:500; }
+  .rev-kpi-vals { display:flex; align-items:baseline; gap:8px; margin-bottom:6px; }
+  .rev-kpi-vals .v { font-size:24px; font-weight:700; color:#0f172a; }
+  .rev-kpi-vals .d { font-size:13px; font-weight:600; }
+  .rev-kpi-vals .d.up { color:#16a34a; }
+  .rev-kpi-vals .d.down { color:#dc2626; }
+  .rev-kpi-chart { height:100px; position:relative; margin-top:4px; }
+  .rev-kpi-axis { display:flex; justify-content:space-between;
+                  font-size:11px; color:#9ca3af; margin-top:4px; }
+
+  /* ── Payments breakdown (last card) ─────────────────────────────── */
+  .rev-bd-bar { display:flex; height:8px; border-radius:6px; overflow:hidden;
+                background:#f1f5f9; margin-bottom:14px; }
+  .rev-bd-bar > span { display:block; height:100%; }
+  .rev-bd-bar > span.paid     { background:#22c55e; }
+  .rev-bd-bar > span.failed   { background:#ef4444; }
+  .rev-bd-bar > span.past_due { background:#f97316; }
+  .rev-bd-bar > span.canceled { background:#6b7280; }
+  .rev-bd-bar > span.refunded { background:#a855f7; }
+  .rev-bd-row { display:grid; grid-template-columns:14px 1fr auto auto;
+                gap:10px; align-items:center; padding:6px 0;
+                font-size:13px; color:#374151; }
+  .rev-bd-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .rev-bd-dot.paid     { background:#22c55e; }
+  .rev-bd-dot.failed   { background:#ef4444; }
+  .rev-bd-dot.past_due { background:#f97316; }
+  .rev-bd-dot.canceled { background:#6b7280; }
+  .rev-bd-dot.refunded { background:#a855f7; }
+  .rev-bd-row .amt { font-weight:600; color:#0f172a; }
+  .rev-bd-row .pct { color:#9ca3af; font-size:12px; min-width:42px;
+                     text-align:right; }
+
+  /* Footnote / source banner */
+  .rev-foot { margin-top:20px; padding:12px 16px; background:#f8fafc;
+              border:1px solid #e5e7eb; border-radius:10px; font-size:12px;
+              color:#64748b; }
+  .rev-foot strong { color:#0f172a; }
+  .rev-foot.warn   { background:#fef3c7; border-color:#fde68a; color:#92400e; }
+</style>
+{% endblock %}
+{% block page_title %}Revenue{% endblock %}
+{% block page_meta %}{% if data_source == 'whop' %} · Source: Whop{% else %} · Source: local DB (Whop unreachable){% endif %}{% endblock %}
+
+{% block content %}
+
+{% if whop %}
+{# ── TODAY ─────────────────────────────────────────────────────────── #}
+<div class="rev-section-hd"><h2>Today</h2></div>
+<div class="rev-card rev-today">
+  <div>
+    <div class="rev-today-stats">
+      <div class="rev-today-stat">
+        <div class="lbl">Gross revenue
+          {% if whop.today.pct_vs_yday is not None %}
+            <span style="color:{% if whop.today.pct_vs_yday >= 0 %}#16a34a{% else %}#dc2626{% endif %};font-weight:600">
+              {% if whop.today.pct_vs_yday >= 0 %}+{% endif %}{{ whop.today.pct_vs_yday }}%
+            </span>
+          {% endif %}
+        </div>
+        <div class="val">${{ whop.today.gross|floatformat:2 }}</div>
+        <div class="sub">{{ whop.today.as_of }}</div>
+      </div>
+      <div class="rev-today-stat muted">
+        <div class="lbl">Yesterday</div>
+        <div class="val">${{ whop.today.yesterday|floatformat:2 }}</div>
+      </div>
+    </div>
+    <div class="rev-today-chart"><canvas id="todayChart"></canvas></div>
+    <div class="rev-today-axis"><span>12:00 AM</span><span>12:00 AM</span></div>
+  </div>
+  <div class="rev-today-side">
+    <div>
+      <div class="rev-side-row"><span class="h">Total balance</span></div>
+      {% if whop.totals.ledger %}
+        <div class="rev-side-row"><span class="v">${{ whop.totals.ledger.balance|floatformat:2 }}</span></div>
+        {% if whop.totals.ledger.pending_balance %}
+          <div class="rev-side-row"><span style="font-size:11px;color:#6b7280">+${{ whop.totals.ledger.pending_balance|floatformat:2 }} pending</span></div>
+        {% endif %}
+      {% else %}
+        <div class="rev-side-row"><span class="v muted">—</span></div>
+      {% endif %}
+    </div>
+    <div>
+      <div class="rev-side-row"><span class="h">All-time gross revenue</span></div>
+      <div class="rev-side-row"><span class="v">${{ whop.totals.all_time_paid|default:"—"|floatformat:2 }}</span></div>
+    </div>
+  </div>
+</div>
+
+{# ── STATS ────────────────────────────────────────────────────────── #}
+<div class="rev-section-hd">
+  <h2>Stats</h2>
+</div>
+
+{# Range picker: each pill links to ?range=KEY (preserves Django page cache) #}
+<div class="rev-stats-bar" role="tablist" aria-label="Date range">
+  {% for opt in whop.range_options %}
+    <a class="rev-pill {% if opt.key == range_key %}active{% endif %}"
+       role="tab"
+       {% if opt.key == range_key %}aria-current="page" aria-selected="true"{% else %}aria-selected="false"{% endif %}
+       href="?range={{ opt.key }}">{{ opt.label }} <span class="caret" aria-hidden="true">▼</span></a>
+  {% endfor %}
+  <span class="sep">·</span>
+  <span style="font-size:13px;color:#374151">{{ whop.range.start }} – {{ whop.range.end }}</span>
+  <span class="sep">·</span>
+  <span style="font-size:12px;color:#6b7280">compared to <strong style="color:#374151">Previous period</strong></span>
+  <span class="sep">·</span>
+  <span style="font-size:12px;color:#6b7280">Daily · All products</span>
+</div>
+
+<div class="rev-grid">
+  {# 1: GROSS REVENUE #}
+  <div class="rev-card rev-kpi-card">
+    <div class="rev-kpi-hd"><span class="ttl">Gross revenue</span></div>
+    <div class="rev-kpi-vals">
+      <span class="v">${{ whop.range.gross.value|floatformat:2 }}</span>
+      <span class="d {% if whop.range.gross.delta >= 0 %}up{% else %}down{% endif %}">
+        {% if whop.range.gross.delta >= 0 %}+{% endif %}${{ whop.range.gross.delta|floatformat:2 }}
+      </span>
+    </div>
+    <div class="rev-kpi-chart"><canvas id="grossChart"></canvas></div>
+    <div class="rev-kpi-axis">
+      <span>{{ whop.range.start }}</span><span>Today</span>
+    </div>
+  </div>
+
+  {# 2: NET REVENUE (estimate) #}
+  <div class="rev-card rev-kpi-card">
+    <div class="rev-kpi-hd">
+      <span class="ttl">
+        Net revenue{% if not whop.range.fees_real %} (est.){% endif %}
+        <span title="{% if whop.range.fees_real %}Computed from Whop's actual per-payment fee breakdown (GET /payments/{id}/fees) — platform fee + Stripe processing + cross-border + sales-tax remittance. Matches Whop's own dashboard.{% else %}Real fee API unavailable for some payments; falling back to a flat {{ whop.range.fee_pct|floatformat:2 }} factor. Set whop_fee_pct in System Settings to tune the fallback.{% endif %}"
+              style="color:#9ca3af;cursor:help">ⓘ</span>
+      </span>
+    </div>
+    <div class="rev-kpi-vals">
+      <span class="v">${{ whop.range.net.value|floatformat:2 }}</span>
+      <span class="d {% if whop.range.net.delta >= 0 %}up{% else %}down{% endif %}">
+        {% if whop.range.net.delta >= 0 %}+{% endif %}${{ whop.range.net.delta|floatformat:2 }}
+      </span>
+    </div>
+    <div class="rev-kpi-chart"><canvas id="netChart"></canvas></div>
+    <div class="rev-kpi-axis">
+      <span>{{ whop.range.start }}</span><span>Today</span>
+    </div>
+  </div>
+
+  {# 3: NEW USERS #}
+  <div class="rev-card rev-kpi-card">
+    <div class="rev-kpi-hd"><span class="ttl">New users</span></div>
+    <div class="rev-kpi-vals">
+      <span class="v">{{ whop.range.new_users.value }}</span>
+      <span class="d {% if whop.range.new_users.delta >= 0 %}up{% else %}down{% endif %}">
+        {% if whop.range.new_users.delta >= 0 %}+{% endif %}{{ whop.range.new_users.delta }}
+      </span>
+    </div>
+    <div class="rev-kpi-chart"><canvas id="usersChart"></canvas></div>
+    <div class="rev-kpi-axis">
+      <span>{{ whop.range.start }}</span><span>Today</span>
+    </div>
+  </div>
+
+  {# 4: MRR #}
+  <div class="rev-card rev-kpi-card">
+    <div class="rev-kpi-hd"><span class="ttl">MRR</span></div>
+    <div class="rev-kpi-vals">
+      <span class="v">${{ whop.range.mrr.value|floatformat:2 }}</span>
+      <span class="d {% if whop.range.mrr.delta >= 0 %}up{% else %}down{% endif %}">
+        {% if whop.range.mrr.delta >= 0 %}+{% endif %}${{ whop.range.mrr.delta|floatformat:2 }}
+      </span>
+    </div>
+    <div class="rev-kpi-chart"><canvas id="mrrChart"></canvas></div>
+    <div class="rev-kpi-axis">
+      <span>{{ whop.range.start }}</span><span>Today</span>
+    </div>
+  </div>
+
+  {# 5: ARR #}
+  <div class="rev-card rev-kpi-card">
+    <div class="rev-kpi-hd"><span class="ttl">ARR</span></div>
+    <div class="rev-kpi-vals">
+      <span class="v">${{ whop.range.arr.value|floatformat:2 }}</span>
+      <span class="d {% if whop.range.arr.delta >= 0 %}up{% else %}down{% endif %}">
+        {% if whop.range.arr.delta >= 0 %}+{% endif %}${{ whop.range.arr.delta|floatformat:2 }}
+      </span>
+    </div>
+    <div class="rev-kpi-chart"><canvas id="arrChart"></canvas></div>
+    <div class="rev-kpi-axis">
+      <span>{{ whop.range.start }}</span><span>Today</span>
+    </div>
+  </div>
+
+  {# 6: PAYMENTS BREAKDOWN #}
+  <div class="rev-card rev-kpi-card">
+    <div class="rev-kpi-hd"><span class="ttl">Payments breakdown</span></div>
+    <div class="rev-bd-bar">
+      {% for row in whop.range.payments_breakdown %}
+        {% if row.pct > 0 %}<span class="{{ row.key }}" style="width:{{ row.pct }}%"></span>{% endif %}
+      {% endfor %}
+    </div>
+    {% for row in whop.range.payments_breakdown %}
+      <div class="rev-bd-row">
+        <span class="rev-bd-dot {{ row.key }}"></span>
+        <span>{{ row.label }}</span>
+        <span class="amt">${{ row.amount|floatformat:2 }}</span>
+        <span class="pct">({{ row.pct }}%)</span>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Source / status footnote ───────────────────────────────────────── #}
+<div class="rev-foot{% if not whop.payments_ok %} warn{% endif %}">
+  {% if whop.payments_ok %}
+    <strong>Source:</strong> Whop API · {{ whop.totals.memberships }} memberships ·
+    {% if whop.range.fees_real %}
+      Net revenue uses Whop's real per-payment fee breakdown (<code>GET /payments/{id}/fees</code>) — matches Whop's dashboard exactly.
+    {% else %}
+      Net revenue falls back to an approximate {{ whop.range.fee_pct|floatformat:2 }} fee factor
+      (set <code>whop_fee_pct</code> in System Settings to override).
+    {% endif %}
+  {% else %}
+    <strong>⚠ Whop /payments endpoint failed</strong> — KPIs and charts may be incomplete.
+    The cache was bypassed so the next page load will retry.
+  {% endif %}
+</div>
+
+{# ── Chart.js init ──────────────────────────────────────────────────── #}
+{{ whop.today.hourly|json_script:"today-data" }}
+{{ whop.today.hourly_yday|json_script:"yday-data" }}
+{{ whop.range.labels|json_script:"range-labels" }}
+{{ whop.range.gross.series|json_script:"gross-series" }}
+{{ whop.range.net.series|json_script:"net-series" }}
+{{ whop.range.new_users.series|json_script:"users-series" }}
+{{ whop.range.mrr.series|json_script:"mrr-series" }}
+{{ whop.range.arr.series|json_script:"arr-series" }}
+
+<script>
+(function(){
+  function ready(fn){ if(window.Chart){ fn(); } else { setTimeout(()=>ready(fn), 50); } }
+  function readJSON(id){ try { return JSON.parse(document.getElementById(id).textContent); } catch(e){ return []; } }
+  ready(function(){
+    Chart.defaults.font.family = "'Inter','Segoe UI',sans-serif";
+    Chart.defaults.font.size = 11;
+
+    const lineOpts = (showY) => ({
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{
+        backgroundColor:'#0f172a', titleColor:'#fff', bodyColor:'#fff',
+        padding:8, cornerRadius:6, displayColors:false,
+      }},
+      scales:{
+        x:{ display:false, grid:{display:false} },
+        y:{ display:showY, grid:{color:'#f1f5f9', drawBorder:false},
+            ticks:{color:'#9ca3af', maxTicksLimit:5}, beginAtZero:true },
+      },
+      elements:{ line:{tension:.35, borderWidth:2, borderColor:'#3b82f6',
+                       backgroundColor:'rgba(59,130,246,.08)', fill:true},
+                 point:{radius:0, hoverRadius:4, backgroundColor:'#3b82f6'} },
+    });
+
+    // Today (24 hourly buckets, with yesterday in light gray behind)
+    const hours = Array.from({length:24}, (_,i) =>
+      `${((i+11)%12+1)}:00 ${i<12?'AM':'PM'}`);
+    new Chart(document.getElementById('todayChart'), {
+      type:'line',
+      data:{
+        labels: hours,
+        datasets:[
+          { data: readJSON('yday-data'), borderColor:'#cbd5e1',
+            backgroundColor:'rgba(0,0,0,0)', borderWidth:1.5, tension:.35,
+            pointRadius:0 },
+          { data: readJSON('today-data'), borderColor:'#3b82f6',
+            backgroundColor:'rgba(59,130,246,.08)', borderWidth:2, fill:true,
+            tension:.35, pointRadius:0 },
+        ],
+      },
+      options: lineOpts(false),
+    });
+
+    // 5 KPI line charts share daily labels
+    const labels = readJSON('range-labels');
+    const mkLine = (canvasId, dataId, showY) =>
+      new Chart(document.getElementById(canvasId), {
+        type:'line',
+        data:{ labels, datasets:[{ data: readJSON(dataId) }] },
+        options: lineOpts(showY),
+      });
+    mkLine('grossChart','gross-series', true);
+    mkLine('netChart',  'net-series',   true);
+    mkLine('usersChart','users-series', true);
+    mkLine('mrrChart',  'mrr-series',   true);
+    mkLine('arrChart',  'arr-series',   true);
+  });
+})();
+</script>
+
+{% else %}
+{# ── Whop unreachable: minimal local-DB snapshot ─────────────────── #}
+<div class="rev-card" style="margin-bottom:20px;background:#fef3c7;border-color:#fde68a;color:#92400e">
+  <strong>⚠ Whop API unreachable</strong> — showing a minimal local-DB snapshot.
+  Whop dashboard mirroring (Today panel, daily line charts, MRR/ARR breakdown)
+  requires the Whop API to be configured and reachable.
+</div>
+<div class="rev-grid">
+  <div class="rev-card rev-kpi-card">
+    <div class="rev-kpi-hd"><span class="ttl">MRR (local estimate)</span></div>
+    <div class="rev-kpi-vals"><span class="v">${{ fallback.mrr }}</span></div>
+  </div>
+  <div class="rev-card rev-kpi-card">
+    <div class="rev-kpi-hd"><span class="ttl">Active subs</span></div>
+    <div class="rev-kpi-vals"><span class="v">{{ fallback.active_subs }}</span></div>
+  </div>
+  <div class="rev-card rev-kpi-card">
+    <div class="rev-kpi-hd"><span class="ttl">Total users</span></div>
+    <div class="rev-kpi-vals"><span class="v">{{ fallback.total_users }}</span></div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

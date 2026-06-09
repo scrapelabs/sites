@@ -1,0 +1,78 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Proxy Stats — GoldenProxies{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-4xl mx-auto space-y-6">
+  <div>
+    <h1 class="text-2xl font-serif font-bold text-gray-900">Proxy Stats</h1>
+    <p class="text-gray-500 text-sm mt-1">Your usage statistics and active plan details.</p>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="glass-card rounded-2xl p-5 shadow-md">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Bandwidth Used</div>
+      <div class="text-2xl font-serif font-bold text-[#D4AF37]">{{ profile.bandwidth_used_gb }} GB</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5 shadow-md">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Proxies Generated</div>
+      <div class="text-2xl font-serif font-bold text-[#D4AF37]">{{ profile.proxies_generated }}</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5 shadow-md">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Active Plans</div>
+      <div class="text-2xl font-serif font-bold text-[#D4AF37]">{{ purchases.count }}</div>
+    </div>
+    <div class="glass-card rounded-2xl p-5 shadow-md">
+      <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Uptime</div>
+      <div class="text-2xl font-serif font-bold text-green-600">99.9%</div>
+    </div>
+  </div>
+
+  <div class="glass-card rounded-2xl p-6 shadow-md">
+    <h2 class="font-serif font-bold text-gray-900 mb-5">Purchase History</h2>
+    {% if purchases %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[#D4AF37]/10">
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Plan</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Type</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Amount</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Status</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Date</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#D4AF37]/8">
+          {% for p in purchases %}
+          <tr class="hover:bg-[#D4AF37]/3 transition-colors">
+            <td class="py-3 font-semibold text-gray-900">{{ p.plan_name }}</td>
+            <td class="py-3">
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full capitalize
+                {% if p.plan_type == 'residential' %}bg-[#D4AF37]/10 text-[#B8941F]
+                {% elif p.plan_type == 'datacenter' %}bg-blue-50 text-blue-600
+                {% else %}bg-purple-50 text-purple-600{% endif %}">
+                {{ p.plan_type }}
+              </span>
+            </td>
+            <td class="py-3 font-bold text-gray-900">${{ p.amount }}</td>
+            <td class="py-3">
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full border
+                {% if p.status == 'active' %}bg-green-50 text-green-700 border-green-200
+                {% elif p.status == 'expired' %}bg-gray-50 text-gray-500 border-gray-200
+                {% else %}bg-red-50 text-red-600 border-red-200{% endif %}">
+                {{ p.status|capfirst }}
+              </span>
+            </td>
+            <td class="py-3 text-gray-500">{{ p.created_at|date:"M d, Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-10">
+      <p class="text-gray-400 text-sm">No purchases yet.</p>
+      <a href="/pricing/" class="text-[#D4AF37] text-sm font-semibold hover:underline mt-2 block">Browse plans →</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

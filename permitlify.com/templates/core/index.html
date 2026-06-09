@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="description" content="Permitlify — Daily building permit alerts scored by AI. Be first to call the best leads in your market.">
+<title>Permitlify — Daily Permit Leads for Contractors</title>
+{# Preload the LCP hero images so the browser starts fetching them in #}
+{# parallel with the HTML/CSS parse, instead of waiting until it discovers #}
+{# the <img> tag in the body. `media` queries make sure each device only #}
+{# downloads the variant it actually shows (mobile/desktop split at 860px). #}
+<link rel="preload" as="image" href="/static/ads/03_branded_square.webp" type="image/webp" media="(max-width: 860px)" fetchpriority="high">
+<link rel="preload" as="image" href="/static/ads/04_branded_wide.webp" type="image/webp" media="(min-width: 861px)" fetchpriority="high">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all';this.onload=null;">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bl:#1d4ed8;--bl2:#3b82f6;--bl3:#1e3a8a;
+  --ac:#059669;--ac2:#10b981;--ac3:#047857;
+  --grad:linear-gradient(135deg,#1d4ed8 0%,#059669 100%);
+  --grad2:linear-gradient(135deg,#2563eb 0%,#10b981 100%);
+  --gr:#22c55e;--gd:rgba(34,197,94,.1);
+  --ye:#d97706;--re:#dc2626;
+  --tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;
+  --bg:#ffffff;--bg2:#f8fafc;--bg3:#f0f4f8;
+  --b1:rgba(0,0,0,.07);--b2:rgba(0,0,0,.12);
+  --pd:rgba(29,78,216,.09);--ad:rgba(5,150,105,.09);
+  --sh:0 1px 4px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --sh2:0 4px 20px rgba(0,0,0,.08);
+  --sh3:0 12px 40px rgba(0,0,0,.12);
+  --sh-bl:0 6px 20px rgba(29,78,216,.28);
+}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);-webkit-font-smoothing:antialiased;overflow-x:hidden;}
+h1,h2,h3,h4{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.grad-text{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+img{display:block;}
+
+/* ── Nav ─────────────────────────────────────────────────── */
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--b1);box-shadow:var(--sh);}
+.nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;gap:8px;}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;}
+.pl-logo-text{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:21px;line-height:1;letter-spacing:-0.5px;}
+.pl-logo-text .pl-permit{color:#1C2F74;}
+.pl-logo-text .pl-lify{color:#49C85B;}
+.nav-links-pub{display:flex;align-items:center;gap:4px;margin-left:24px;}
+@media(max-width:860px){.nav-links-pub{display:none;}}
+.nav-a{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;color:var(--tx2);text-decoration:none;padding:8px 12px;border-radius:8px;transition:all .18s;}
+.nav-a:hover,.nav-a.active{background:var(--bg3);color:var(--tx);}
+.nav-right{display:flex;align-items:center;gap:8px;margin-left:auto;}
+.btn-ghost{font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:600;color:var(--tx2);background:none;border:none;cursor:pointer;padding:8px 14px;border-radius:8px;transition:all .18s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.btn-ghost:hover{background:var(--bg3);color:var(--tx);}
+.btn-primary{font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:700;color:#fff;background:var(--grad);border:none;cursor:pointer;padding:9px 20px;border-radius:10px;transition:all .2s;box-shadow:var(--sh-bl);text-decoration:none;display:inline-block;}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px);}
+@media(max-width:560px){.btn-ghost{display:none;}.btn-primary{font-size:12.5px;padding:8px 14px;}}
+.test-ribbon{display:inline-flex;align-items:center;gap:6px;background:#fef3c7;border:1px solid #fcd34d;color:#92400e;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:'JetBrains Mono',monospace;margin-left:10px;}
+/* Hamburger */
+.nav-hamburger{display:none;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--tx2);margin-left:6px;transition:background .18s;}
+.nav-hamburger:hover{background:var(--bg3);}
+.nav-hamburger svg{display:block;}
+@media(max-width:860px){.nav-hamburger{display:flex;align-items:center;justify-content:center;}}
+/* Mobile dropdown */
+.nav-mobile-menu{display:none;position:absolute;top:64px;left:0;right:0;background:#fff;border-bottom:1px solid var(--b1);box-shadow:0 8px 24px rgba(0,0,0,.08);padding:12px 20px 16px;flex-direction:column;gap:4px;z-index:99;}
+.nav-mobile-menu.open{display:flex;}
+.nav-mobile-menu .nav-a{font-size:15px;padding:10px 12px;}
+@media(min-width:861px){.nav-mobile-menu{display:none!important;}}
+
+/* ── Hero ────────────────────────────────────────────────── */
+.hero{padding:64px 24px 0;position:relative;overflow:hidden;background:#fff;}
+@media(max-width:860px){.hero{padding:48px 20px 48px;}}
+.hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:1200px;height:800px;background:radial-gradient(ellipse at top,rgba(29,78,216,.07) 0%,transparent 65%);pointer-events:none;}
+.hero-inner{max-width:1400px;margin:0 auto;position:relative;z-index:1;display:grid;grid-template-columns:5fr 7fr;gap:48px;align-items:center;}
+@media(max-width:860px){.hero-inner{grid-template-columns:1fr;text-align:center;gap:28px;}.hero-text{order:1;}.hero-visuals{order:2;}}
+.hero-text{text-align:left;padding-bottom:64px;}
+@media(max-width:860px){.hero-text{text-align:center;padding-bottom:0;}}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--pd);border:1px solid rgba(29,78,216,.2);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;color:var(--bl);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;margin-bottom:20px;}
+.hero-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--bl);display:block;animation:pulse-dot 2s ease-in-out infinite;}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.hero h1{font-size:clamp(32px,4vw,58px);font-weight:800;color:var(--tx);line-height:1.1;letter-spacing:-2px;margin-bottom:8px;}
+.hero-rotating{font-size:clamp(32px,4vw,58px);font-weight:800;line-height:1.1;letter-spacing:-2px;height:1.15em;overflow:hidden;margin-bottom:20px;}
+.hero-rotating-inner{animation:rotateWords 8s ease-in-out infinite;}
+@keyframes rotateWords{0%,18%{transform:translateY(0);}20%,38%{transform:translateY(-1.15em);}40%,58%{transform:translateY(-2.3em);}60%,78%{transform:translateY(-3.45em);}80%,98%{transform:translateY(-4.6em);}100%{transform:translateY(0);}}
+.hero-rotating-word{display:block;height:1.15em;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:16px;color:var(--tx2);max-width:480px;margin:0 0 24px;line-height:1.7;}
+@media(max-width:860px){.hero-sub{margin:0 auto 24px;}}
+.hero-stat-row{display:flex;align-items:center;gap:10px;margin-bottom:24px;flex-wrap:wrap;}
+@media(max-width:860px){.hero-stat-row{justify-content:center;gap:8px;}}
+.hero-stat{background:var(--bg3);border:1px solid var(--b1);border-radius:12px;padding:10px 16px;text-align:center;}
+.hero-stat .num{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-stat .lbl{font-size:10px;color:var(--tx3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.7px;margin-top:2px;}
+.hero-divider{width:1px;height:32px;background:var(--b2);}
+@media(max-width:860px){.hero-divider{display:none;}}
+.hero-integrations{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+@media(max-width:860px){.hero-integrations{justify-content:center;}}
+.hero-int-label{font-size:12px;color:var(--tx3);}
+.hero-int{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--b1);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:500;color:var(--tx2);}
+.hero-cta-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+@media(max-width:860px){.hero-cta-row{justify-content:center;}}
+.btn-hero-primary{font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#fff;background:var(--grad);border:none;cursor:pointer;padding:14px 28px;border-radius:12px;box-shadow:var(--sh-bl);transition:all .22s;display:inline-flex;align-items:center;gap:8px;text-decoration:none;}
+.btn-hero-primary:hover{opacity:.9;transform:translateY(-2px);box-shadow:0 10px 32px rgba(29,78,216,.35);}
+.btn-hero-secondary{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--tx2);background:var(--bg);border:1.5px solid var(--b2);cursor:pointer;padding:13px 22px;border-radius:12px;transition:all .22s;display:inline-flex;align-items:center;gap:8px;text-decoration:none;}
+.btn-hero-secondary:hover{border-color:var(--bl);color:var(--bl);}
+.hero-note{font-size:11px;color:var(--tx3);margin-top:14px;font-family:'JetBrains Mono',monospace;}
+
+/* Hero visual column — branded ad images */
+.hero-visuals{position:relative;height:100%;}
+@media(max-width:860px){.hero-visuals{height:auto;padding-bottom:0;}}
+.hero-img-wrap{position:relative;border-radius:20px;overflow:hidden;box-shadow:0 0 0 1.5px rgba(29,78,216,.18),0 30px 80px rgba(0,0,0,.18);animation:float-card 6s ease-in-out infinite;}
+.hero-img-wrap img{width:100%;height:auto;border-radius:20px;}
+.hero-img-desktop{display:block;}
+.hero-img-mobile{display:none;}
+@media(max-width:860px){.hero-img-desktop{display:none;}.hero-img-mobile{display:block;}}
+/* Disable float animation on mobile — prevents images drifting into text */
+@media(max-width:860px){.hero-img-wrap,.split-img-float{animation:none;transform:none;}}
+@keyframes float-card{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+
+/* ── Gallery Strip (dark) ─────────────────────────────────── */
+.gallery{background:linear-gradient(180deg,#06091a 0%,#0a0f2e 60%,#06091a 100%);padding:80px 24px;overflow:hidden;position:relative;}
+.gallery::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(29,78,216,.18) 0%,transparent 65%);pointer-events:none;}
+.gallery-inner{max-width:1200px;margin:0 auto;position:relative;z-index:1;}
+.gallery-header{text-align:center;margin-bottom:52px;}
+.gallery-eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#38bdf8;margin-bottom:16px;}
+.gallery-eyebrow::before,.gallery-eyebrow::after{content:'';width:28px;height:1.5px;background:linear-gradient(90deg,transparent,#38bdf8);}
+.gallery-eyebrow::after{background:linear-gradient(270deg,transparent,#38bdf8);}
+.gallery-h2{font-size:clamp(28px,4vw,46px);font-weight:800;color:#fff;letter-spacing:-1.5px;line-height:1.1;margin-bottom:14px;}
+.gallery-h2 span{background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.gallery-sub{font-size:16px;color:rgba(255,255,255,.5);max-width:520px;margin:0 auto;line-height:1.7;}
+
+/* Top wide card */
+.gallery-wide{border-radius:20px;overflow:hidden;box-shadow:0 0 0 1px rgba(99,102,241,.25),0 0 60px rgba(99,102,241,.18),0 24px 64px rgba(0,0,0,.6);margin-bottom:20px;transition:transform .35s cubic-bezier(.22,1,.36,1),box-shadow .35s;}
+.gallery-wide:hover{transform:translateY(-6px) scale(1.008);box-shadow:0 0 0 1px rgba(99,102,241,.5),0 0 90px rgba(99,102,241,.3),0 32px 80px rgba(0,0,0,.7);}
+.gallery-wide img{width:100%;height:auto;}
+
+/* 3-col squares */
+.gallery-row3{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-bottom:20px;max-width:760px;margin-left:auto;margin-right:auto;}
+@media(max-width:680px){.gallery-row3{grid-template-columns:1fr;}}
+.gallery-sq{position:relative;border-radius:18px;overflow:hidden;transition:transform .35s cubic-bezier(.22,1,.36,1),box-shadow .35s;cursor:pointer;}
+.gallery-sq:hover{transform:translateY(-8px) scale(1.015);}
+.gallery-sq img{width:100%;height:auto;}
+.gallery-sq.cyan{box-shadow:0 0 0 1px rgba(56,189,248,.25),0 0 40px rgba(56,189,248,.15),0 20px 50px rgba(0,0,0,.5);}
+.gallery-sq.cyan:hover{box-shadow:0 0 0 1px rgba(56,189,248,.5),0 0 70px rgba(56,189,248,.3),0 28px 60px rgba(0,0,0,.65);}
+.gallery-sq.violet{box-shadow:0 0 0 1px rgba(167,139,250,.25),0 0 40px rgba(167,139,250,.15),0 20px 50px rgba(0,0,0,.5);}
+.gallery-sq.violet:hover{box-shadow:0 0 0 1px rgba(167,139,250,.5),0 0 70px rgba(167,139,250,.3),0 28px 60px rgba(0,0,0,.65);}
+.gallery-sq.green{box-shadow:0 0 0 1px rgba(52,211,153,.25),0 0 40px rgba(52,211,153,.15),0 20px 50px rgba(0,0,0,.5);}
+.gallery-sq.green:hover{box-shadow:0 0 0 1px rgba(52,211,153,.5),0 0 70px rgba(52,211,153,.3),0 28px 60px rgba(0,0,0,.65);}
+.gallery-badge{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:4px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:rgba(255,255,255,.85);}
+
+/* 2-col row (wide + square) */
+.gallery-row2{display:grid;grid-template-columns:1.72fr 1fr;gap:20px;margin-bottom:20px;}
+@media(max-width:680px){.gallery-row2{grid-template-columns:1fr;}}
+.gallery-row2-rev{display:grid;grid-template-columns:1fr 1.72fr;gap:20px;margin-bottom:20px;}
+@media(max-width:680px){.gallery-row2-rev{grid-template-columns:1fr;}}
+
+/* Stats bar */
+.gallery-bar{margin-top:56px;display:flex;align-items:center;justify-content:center;gap:40px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.07);padding-top:44px;}
+.gallery-stat{text-align:center;}
+.gallery-stat-num{font-size:30px;font-weight:800;color:#fff;letter-spacing:-1px;font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.gallery-stat-lbl{font-size:11px;color:rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.9px;margin-top:4px;}
+.gallery-divider{width:1px;height:36px;background:rgba(255,255,255,.1);}
+@media(max-width:560px){.gallery-divider{display:none;}.gallery-bar{gap:24px;}}
+
+/* ── Split sections ─────────────────────────────────────────── */
+.split{padding:100px 24px;}
+@media(max-width:820px){.split{padding:56px 20px;}}
+.split-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:center;}
+@media(max-width:820px){.split-inner{grid-template-columns:1fr;gap:32px;}}
+/* Desktop: reversed layout puts image left, text right */
+.split-inner.rev{grid-template-areas:'img text';}
+.split-inner.rev .split-img{grid-area:img;}
+.split-inner.rev .split-text{grid-area:text;}
+/* Mobile: cancel grid areas entirely and force text first, image second */
+@media(max-width:820px){
+  .split-inner.rev{grid-template-areas:none;grid-template-columns:1fr;}
+  .split-inner.rev .split-img{grid-area:auto;order:2;}
+  .split-inner.rev .split-text{grid-area:auto;order:1;}
+}
+.split-text{}
+.split-eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--bl);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.split-eyebrow::before{content:'';width:20px;height:2px;background:var(--grad);border-radius:2px;display:block;}
+.split-h2{font-size:clamp(26px,3.5vw,40px);font-weight:800;color:var(--tx);letter-spacing:-1.2px;line-height:1.15;margin-bottom:16px;}
+.split-p{font-size:15.5px;color:var(--tx2);line-height:1.75;margin-bottom:20px;}
+.split-checks{display:flex;flex-direction:column;gap:10px;margin-bottom:28px;}
+.split-check{display:flex;align-items:flex-start;gap:10px;font-size:14px;color:var(--tx2);}
+.split-check-ico{width:22px;height:22px;border-radius:50%;background:var(--gd);border:1px solid rgba(34,197,94,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.split-check-ico svg{width:12px;height:12px;stroke:#16a34a;}
+.split-img{position:relative;}
+.split-img img{width:100%;height:auto;border-radius:20px;box-shadow:var(--sh3);}
+@media(max-width:820px){.split-img{overflow:visible;}.split-img img{box-shadow:var(--sh2);}}
+.split-img-glow{box-shadow:0 0 0 1.5px rgba(29,78,216,.15),0 8px 40px rgba(29,78,216,.12),0 24px 60px rgba(0,0,0,.1);}
+.split-img-glow-green{box-shadow:0 0 0 1.5px rgba(5,150,105,.15),0 8px 40px rgba(5,150,105,.12),0 24px 60px rgba(0,0,0,.1);}
+.split-img-float{animation:float-card 6s ease-in-out infinite;}
+.split-img-badge{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid var(--b1);border-radius:20px;padding:7px 18px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:var(--bl);box-shadow:var(--sh2);white-space:nowrap;}
+.btn-split{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:#fff;background:var(--grad);border:none;cursor:pointer;padding:12px 24px;border-radius:11px;box-shadow:var(--sh-bl);transition:all .22s;display:inline-flex;align-items:center;gap:8px;text-decoration:none;}
+.btn-split:hover{opacity:.9;transform:translateY(-2px);}
+.bg-light{background:var(--bg3);}
+.bg-white{background:#fff;}
+
+/* ── 2-wide image row ─────────────────────────────────────── */
+.img-row{padding:0 24px 80px;}
+.img-row-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+@media(max-width:680px){.img-row-inner{grid-template-columns:1fr;}}
+.img-row-card{border-radius:18px;overflow:hidden;box-shadow:var(--sh2);transition:transform .3s cubic-bezier(.22,1,.36,1);}
+.img-row-card:hover{transform:translateY(-6px);}
+.img-row-card img{width:100%;height:auto;}
+.img-row-label{text-align:center;padding:12px 14px;background:#fff;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--bl);letter-spacing:.5px;}
+
+/* ── Full-width image section ─────────────────────────────── */
+.full-img{padding:0 24px 80px;background:var(--bg3);}
+.full-img-inner{max-width:1100px;margin:0 auto;}
+.full-img-head{text-align:center;padding:72px 0 48px;}
+.full-img-card{border-radius:20px;overflow:hidden;box-shadow:var(--sh3);}
+.full-img-card img{width:100%;height:auto;}
+
+/* ── Comparison section ────────────────────────────────────── */
+.compare{padding:80px 24px;background:var(--bg3);}
+@media(max-width:560px){.compare{padding:60px 16px;}}
+.section-inner{max-width:1100px;margin:0 auto;}
+.section-label{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--bl);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.section-label::before{content:'';width:20px;height:2px;background:var(--grad);border-radius:2px;display:block;}
+.section-h2{font-size:clamp(28px,4vw,44px);font-weight:800;color:var(--tx);letter-spacing:-1.2px;margin-bottom:12px;}
+.section-sub{font-size:16px;color:var(--tx2);max-width:560px;line-height:1.7;}
+.compare-table-wrap{margin-top:48px;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:16px;}
+@media(max-width:640px){.compare-table th,.compare-table td{padding:10px 12px;font-size:12px;}.compare-table th{font-size:10px;}}
+.compare-table{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;box-shadow:var(--sh2);}
+.compare-table thead tr{background:var(--bg2);}
+.compare-table th{padding:14px 18px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;text-align:left;border-bottom:1px solid var(--b1);}
+.compare-table td{padding:14px 18px;font-size:13.5px;border-bottom:1px solid var(--b1);}
+.compare-table tbody tr:last-child td{border-bottom:none;}
+.compare-table tbody tr:hover{background:var(--bg2);}
+.compare-table tr.highlight-row td{background:var(--pd);}
+.compare-table tr.highlight-row td:first-child{border-left:3px solid var(--bl);}
+.co-brand{font-weight:600;color:var(--tx2);font-size:13.5px;}
+.co-brand.ours{font-weight:800;color:var(--bl);}
+.co-val{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--tx3);}
+.co-val.good{color:var(--ac);font-weight:600;}
+.co-val.best{font-weight:800;font-size:14px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.co-check{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--gd);}
+.co-check svg{width:13px;height:13px;stroke:#16a34a;}
+.co-x{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:rgba(220,38,38,.08);}
+.co-x svg{width:13px;height:13px;stroke:#dc2626;}
+
+/* ── Features grid ─────────────────────────────────────────── */
+.features{padding:100px 24px;background:#fff;}
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:52px;}
+@media(max-width:900px){.features-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:560px){.features-grid{grid-template-columns:1fr;}}
+.feat-card{background:#fff;border-radius:16px;padding:26px;border:1px solid var(--b1);box-shadow:var(--sh);transition:all .22s;position:relative;overflow:hidden;}
+.feat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--grad);}
+.feat-card:hover{box-shadow:var(--sh2);transform:translateY(-2px);}
+.feat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.feat-icon svg{width:22px;height:22px;}
+.feat-icon.blue{background:var(--pd);}
+.feat-icon.blue svg{stroke:var(--bl);}
+.feat-icon.green{background:var(--ad);}
+.feat-icon.green svg{stroke:var(--ac);}
+.feat-icon.teal{background:rgba(16,185,129,.1);}
+.feat-icon.teal svg{stroke:var(--ac2);}
+.feat-card h3{font-size:16px;font-weight:700;color:var(--tx);margin-bottom:8px;}
+.feat-card p{font-size:13.5px;color:var(--tx2);line-height:1.7;}
+
+/* ── Leads marquee ─────────────────────────────────────────── */
+.leads{padding:100px 24px;background:var(--bg3);overflow:hidden;}
+@media(max-width:860px){.leads{padding:64px 0;}}
+.leads-inner{max-width:1100px;margin:0 auto;}
+.leads-marquee-wrap{position:relative;margin-top:52px;overflow:hidden;-webkit-transform:translateZ(0);transform:translateZ(0);}
+.leads-marquee-wrap::before,.leads-marquee-wrap::after{content:'';position:absolute;top:0;bottom:0;width:80px;z-index:10;pointer-events:none;}
+.leads-marquee-wrap::before{left:0;background:linear-gradient(to right,var(--bg3),transparent);}
+.leads-marquee-wrap::after{right:0;background:linear-gradient(to left,var(--bg3),transparent);}
+@media(max-width:860px){.leads-marquee-wrap::before,.leads-marquee-wrap::after{width:32px;}}
+.leads-track{display:flex;gap:14px;animation:marquee-scroll 30s linear infinite;will-change:transform;-webkit-user-select:none;user-select:none;touch-action:pan-y;}
+@media(hover:hover){.leads-track:hover{animation-play-state:paused;}}
+@media(max-width:860px){.leads-track{animation-duration:22s;}}
+@keyframes marquee-scroll{0%{transform:translateX(0);}100%{transform:translateX(-50%)}}
+.lead-card{flex-shrink:0;width:240px;background:#fff;border-radius:14px;padding:18px;border:1px solid var(--b1);box-shadow:var(--sh);}
+.lead-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.lead-ring{width:46px;height:46px;border-radius:50%;border:3px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;}
+.lead-ring.a{border-color:var(--ac);}
+.lead-ring.b{border-color:var(--bl);}
+.lead-ring.c{border-color:var(--ye);}
+.lead-ring .n{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;color:var(--tx);}
+.lead-ring .g{font-family:'JetBrains Mono',monospace;font-size:9px;}
+.lead-ring.a .g{color:var(--ac);}
+.lead-ring.b .g{color:var(--bl);}
+.lead-ring.c .g{color:var(--ye);}
+.lead-type{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 9px;border-radius:20px;font-weight:600;}
+.lead-type.roofing{background:rgba(29,78,216,.08);color:var(--bl);border:1px solid rgba(29,78,216,.15);}
+.lead-type.hvac{background:rgba(5,150,105,.08);color:var(--ac);border:1px solid rgba(5,150,105,.15);}
+.lead-type.plumbing{background:rgba(16,185,129,.1);color:#047857;border:1px solid rgba(5,150,105,.2);}
+.lead-type.electrical{background:rgba(217,119,6,.1);color:var(--ye);border:1px solid rgba(217,119,6,.2);}
+.lead-type.newbuild{background:rgba(168,85,247,.1);color:#7c3aed;border:1px solid rgba(168,85,247,.2);}
+.lead-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;color:var(--tx);margin-bottom:2px;}
+.lead-addr{font-size:12px;color:var(--tx3);}
+.lead-footer{display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid var(--b1);}
+.lead-btn{flex:1;font-size:11.5px;font-weight:600;font-family:'DM Sans',sans-serif;padding:7px;border-radius:8px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .18s;}
+.lead-btn.call{background:var(--grad);color:#fff;}
+.lead-btn.email{background:var(--bg3);color:var(--tx2);border:1px solid var(--b1);}
+
+/* ── Steps ─────────────────────────────────────────────────── */
+.steps-section{padding:80px 24px;background:#fff;text-align:center;}
+.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:900px;margin:52px auto 0;}
+@media(max-width:700px){.steps-grid{grid-template-columns:1fr;}}
+.step-card{background:var(--bg3);border-radius:18px;padding:32px 24px;border:1px solid var(--b1);box-shadow:var(--sh);position:relative;}
+.step-number{width:48px;height:48px;border-radius:14px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#fff;margin:0 auto 18px;box-shadow:var(--sh-bl);}
+.step-card h3{font-size:17px;font-weight:700;color:var(--tx);margin-bottom:10px;}
+.step-card p{font-size:14px;color:var(--tx2);line-height:1.7;}
+
+/* ── Testimonials ──────────────────────────────────────────── */
+.testimonials{padding:100px 24px;background:var(--bg3);overflow:hidden;}
+@media(max-width:860px){.testimonials{padding:64px 0;}}
+.testi-track-wrap{position:relative;margin-top:52px;overflow:hidden;-webkit-transform:translateZ(0);transform:translateZ(0);}
+.testi-track-wrap::before,.testi-track-wrap::after{content:'';position:absolute;top:0;bottom:0;width:120px;z-index:10;pointer-events:none;}
+.testi-track-wrap::before{left:0;background:linear-gradient(to right,var(--bg3),transparent);}
+.testi-track-wrap::after{right:0;background:linear-gradient(to left,var(--bg3),transparent);}
+@media(max-width:860px){.testi-track-wrap::before,.testi-track-wrap::after{width:32px;}}
+.testi-track{display:flex;gap:18px;animation:marquee-scroll 40s linear infinite;will-change:transform;-webkit-user-select:none;user-select:none;touch-action:pan-y;}
+@media(hover:hover){.testi-track:hover{animation-play-state:paused;}}
+@media(max-width:860px){.testi-track{animation-duration:28s;}}
+.testi-card{flex-shrink:0;width:320px;background:#fff;border-radius:16px;padding:24px;border:1px solid var(--b1);box-shadow:var(--sh);}
+.testi-stars{display:flex;gap:3px;margin-bottom:12px;}
+.testi-star{width:14px;height:14px;color:#f59e0b;fill:#f59e0b;}
+.testi-text{font-size:14px;color:var(--tx2);line-height:1.75;margin-bottom:16px;font-style:italic;}
+.testi-author{display:flex;align-items:center;gap:10px;}
+.testi-avatar{width:36px;height:36px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;}
+.testi-name{font-size:13.5px;font-weight:700;color:var(--tx);}
+.testi-role{font-size:12px;color:var(--tx3);}
+
+/* ── CTA ───────────────────────────────────────────────────── */
+.cta-main{padding:80px 24px;background:#fff;}
+.cta-box{max-width:720px;margin:0 auto;background:var(--bg3);border-radius:24px;padding:56px 48px;border:1px solid var(--b1);text-align:center;position:relative;overflow:hidden;}
+@media(max-width:560px){.cta-box{padding:40px 24px;border-radius:18px;}}
+.cta-box::before{content:'';position:absolute;top:-80px;right:-80px;width:300px;height:300px;background:radial-gradient(circle,rgba(29,78,216,.07) 0%,transparent 70%);pointer-events:none;}
+.cta-box h2{font-size:clamp(26px,4vw,40px);font-weight:800;color:var(--tx);letter-spacing:-1px;margin-bottom:12px;}
+.cta-box p{font-size:16px;color:var(--tx2);margin-bottom:32px;line-height:1.7;}
+.cta-checks{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:32px;}
+.cta-check{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--tx2);}
+.cta-check svg{width:16px;height:16px;stroke:var(--ac);}
+.cta-btns{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;}
+.btn-cta-primary{font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#fff;background:var(--grad);border:none;cursor:pointer;padding:14px 32px;border-radius:12px;box-shadow:var(--sh-bl);transition:all .22s;display:inline-flex;align-items:center;gap:8px;text-decoration:none;}
+.btn-cta-primary:hover{opacity:.9;transform:translateY(-1px);}
+.btn-cta-secondary{font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:var(--tx2);background:#fff;border:1.5px solid var(--b2);cursor:pointer;padding:13px 28px;border-radius:12px;transition:all .22s;}
+.btn-cta-secondary:hover{border-color:var(--bl);color:var(--bl);}
+
+/* ── Footer ────────────────────────────────────────────────── */
+footer{background:var(--bg3);border-top:1px solid var(--b1);padding:56px 24px 32px;}
+.footer-inner{max-width:1100px;margin:0 auto;}
+.footer-top{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px;}
+@media(max-width:768px){.footer-top{grid-template-columns:1fr 1fr;}}
+@media(max-width:480px){.footer-top{grid-template-columns:1fr;}}
+.footer-brand .name{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:var(--tx);margin-bottom:8px;}
+.footer-brand .name span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.footer-brand p{font-size:14px;color:var(--tx3);line-height:1.7;max-width:280px;}
+.footer-col h4{font-size:12px;font-weight:600;color:var(--tx);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;font-family:'JetBrains Mono',monospace;}
+.footer-col a{display:block;font-size:14px;color:var(--tx3);text-decoration:none;margin-bottom:10px;transition:color .18s;}
+.footer-col a:hover{color:var(--bl);}
+.footer-bottom{display:flex;align-items:center;justify-content:space-between;padding-top:28px;border-top:1px solid var(--b1);flex-wrap:wrap;gap:12px;}
+.footer-copy{font-size:12.5px;color:var(--tx3);}
+.footer-copy a{color:var(--tx3);text-decoration:none;}
+.footer-copy a:hover{color:var(--bl);}
+.footer-socials{display:flex;gap:10px;}
+.fsocial{width:32px;height:32px;border-radius:8px;background:#fff;border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--tx3);transition:all .18s;}
+.fsocial:hover{border-color:var(--bl);color:var(--bl);}
+.fsocial svg{width:15px;height:15px;}
+.back-top{position:fixed;bottom:80px;right:24px;width:40px;height:40px;border-radius:10px;background:var(--grad);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-bl);z-index:70;opacity:0;pointer-events:none;transition:all .3s;}
+.back-top.visible{opacity:1;pointer-events:auto;}
+.back-top:hover{transform:translateY(-2px);}
+.back-top svg{width:18px;height:18px;stroke:#fff;}
+@keyframes float-card{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+</style>
+
+<!-- htmx 2.x + Alpine 3.x — small (29KB total), deferred so no render-block -->
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+</head>
+<body>
+<a href="#main-content" class="skip-to-main" style="position:absolute;left:-9999px;top:0;z-index:9999;background:#1d4ed8;color:#fff;padding:10px 16px;border-radius:0 0 8px 0;font-weight:600;text-decoration:none" onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">Skip to main content</a>
+
+<!-- ── Nav ──────────────────────────────────────────────────── -->
+<nav x-data="{ open: false }">
+  <div class="nav-inner">
+    <a class="nav-logo" href="{% url 'index' %}" aria-label="Permitlify home">
+      <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" height="36" viewBox="0 0 512 512" fill="none" style="width:auto;display:block;flex-shrink:0">
+        <defs>
+          <linearGradient id="gBG" x1="128" y1="90" x2="350" y2="360" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#4DB8FF"/><stop offset="0.55" stop-color="#2B8CFF"/><stop offset="1" stop-color="#63D95C"/></linearGradient>
+          <linearGradient id="gDS" x1="40" y1="160" x2="230" y2="360" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#27B8D8"/><stop offset="1" stop-color="#77E34E"/></linearGradient>
+          <linearGradient id="gNV" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1F347E"/><stop offset="1" stop-color="#162A6A"/></linearGradient>
+          <filter id="lgs" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#16306b" flood-opacity="0.14"/></filter>
+        </defs>
+        <g transform="translate(44,58)" filter="url(#lgs)">
+          <rect x="0" y="82" width="172" height="232" rx="26" fill="url(#gDS)" opacity="0.96"/>
+          <path d="M52 24H238C252.359 24 264 35.641 264 50V250L204 314H52C37.641 314 26 302.359 26 288V50C26 35.641 37.641 24 52 24Z" fill="white"/>
+          <path d="M52 24H238C252.359 24 264 35.641 264 50V250L204 314H52C37.641 314 26 302.359 26 288V50C26 35.641 37.641 24 52 24Z" stroke="#BFD2F7" stroke-width="12"/>
+          <path d="M264 250L204 314L148 314L214 242C226 229 245 236 264 250Z" fill="url(#gNV)"/>
+          <path d="M84 106L110 132L155 85" stroke="#39C38B" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="86" y="170" width="76" height="12" rx="6" fill="#CFD9F2"/>
+          <rect x="86" y="208" width="92" height="12" rx="6" fill="#CFD9F2"/>
+          <rect x="86" y="246" width="70" height="12" rx="6" fill="#CFD9F2"/>
+          <g transform="translate(112,48)">
+            <path d="M148 8C82 8 28 61 28 127C28 212 128 298 140 313C144 319 153 319 157 313C169 298 268 215 268 127C268 61 214 8 148 8Z" fill="url(#gBG)"/>
+            <circle cx="149" cy="125" r="54" fill="white"/>
+            <path d="M148 8C82 8 28 61 28 127C28 212 128 298 140 313C144 319 153 319 157 313C168 300 235 229 258 158C225 142 194 134 161 135C132 136 103 146 77 165C84 201 111 240 148 276C183 234 216 198 241 157C225 118 192 89 152 82C150 57 149 33 148 8Z" fill="#1B77E8" fill-opacity="0.35"/>
+            <path d="M259 153C234 133 202 123 166 125C138 127 109 136 82 154C95 211 146 259 184 293C208 269 247 223 265 169C262 163 261 158 259 153Z" fill="#9EE75A" fill-opacity="0.55"/>
+          </g>
+        </g>
+      </svg>
+      <span class="pl-logo-text"><span class="pl-permit">Permit</span><span class="pl-lify">lify</span></span>
+    </a>
+
+    <div class="nav-links-pub">
+      <a class="nav-a active" href="{% url 'index' %}">Home</a>
+      <a class="nav-a" href="{% url 'pricing' %}">Pricing</a>
+      <a class="nav-a" href="{% url 'blog' %}">Blog</a>
+    </div>
+    <div class="nav-right">
+      {% if user_logged_in %}
+      <a class="btn-ghost" href="{% url 'dashboard' %}">Dashboard</a>
+      {% else %}
+      <a class="btn-ghost" href="{% url 'login' %}">Log In</a>
+      <a class="btn-primary" href="{% url 'signup' %}">Get Started Free</a>
+      {% endif %}
+      {% comment %}
+        @click.stop is required: the mobile menu below uses
+        @click.outside="open = false" (a document-level listener), and
+        since the hamburger is OUTSIDE that menu, the same tap that
+        opens it would immediately bubble up and close it again.
+      {% endcomment %}
+      <button class="nav-hamburger" aria-label="Open menu"
+              :aria-expanded="open ? 'true' : 'false'"
+              @click.stop="open = !open">
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <!-- Mobile nav dropdown — Alpine.js handles toggle + close-on-outside-click -->
+  <div class="nav-mobile-menu" :class="{open: open}" @click.outside="open = false">
+    <a class="nav-a active" href="{% url 'index' %}">Home</a>
+    <a class="nav-a" href="{% url 'pricing' %}">Pricing</a>
+    <a class="nav-a" href="{% url 'blog' %}">Blog</a>
+    {% if user_logged_in %}
+    <a class="nav-a" href="{% url 'dashboard' %}" style="color:var(--bl);font-weight:600;">Dashboard</a>
+    {% else %}
+    <a class="nav-a" href="{% url 'login' %}" style="font-weight:600;">Log In</a>
+    <a class="btn-primary" href="{% url 'signup' %}" style="margin-top:6px;text-align:center;">Get Started Free</a>
+    {% endif %}
+  </div>
+</nav>
+
+<main id="main-content" tabindex="-1">
+
+<!-- ── Hero ─────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-badge">&#9679; Live across {{ city_count }} cities in {{ state_count }} state{{ state_count|pluralize }}</div>
+      <h1>The All-in-One Permit Platform for</h1>
+      <div class="hero-rotating">
+        <div class="hero-rotating-inner">
+          <span class="hero-rotating-word">Roofing Contractors</span>
+          <span class="hero-rotating-word">HVAC Companies</span>
+          <span class="hero-rotating-word">Plumbing Companies</span>
+          <span class="hero-rotating-word">Electricians</span>
+          <span class="hero-rotating-word">General Contractors</span>
+        </div>
+      </div>
+      <p class="hero-sub">Get fresh building permit alerts every morning — scored by AI and ranked by lead quality. Be first to call. Beat your competition to every job.</p>
+      <div class="hero-stat-row">
+        <div class="hero-stat"><div class="num">{{ cron_schedule.hour_label }}</div><div class="lbl">Daily Delivery</div></div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat"><div class="num">{{ city_count }}</div><div class="lbl">Cities Covered</div></div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat"><div class="num">0–100</div><div class="lbl">AI Lead Score</div></div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat"><div class="num">${{ pricing.starter_monthly }}/mo</div><div class="lbl">Starting Price</div></div>
+      </div>
+      <div class="hero-integrations">
+        <span class="hero-int-label">Alerts sent directly to:</span>
+        <span class="hero-int"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email</span>
+      </div>
+      <div class="hero-cta-row">
+        <a class="btn-hero-primary" href="{% url 'signup' %}">
+          Get Started Free
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+        <a class="btn-hero-secondary" href="{% url 'dashboard' %}">
+          View Demo
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M2 12a10 10 0 1120 0 10 10 0 01-20 0"/></svg>
+        </a>
+      </div>
+      <div class="hero-note">Free trial on every plan &nbsp;&middot;&nbsp; Card required to start &nbsp;&middot;&nbsp; {{ marketing.cancel_promise }}</div>
+      {% if permits_24h and permits_24h != "0" %}
+      <div style="margin-top:18px;display:inline-flex;align-items:center;gap:10px;padding:8px 16px;background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.22);border-radius:999px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--ac3);">
+        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 4px rgba(16,185,129,.18);"></span>
+        <strong>{{ permits_24h }}</strong>&nbsp;permits scored in the last 24h
+      </div>
+      {% endif %}
+    </div>
+    <!-- Right: branded ad visuals -->
+    <div class="hero-visuals">
+      {# Hero images — eager-loaded with fetchpriority=high so they paint #}
+      {# as part of LCP. Matches the <link rel="preload"> tags in <head>. #}
+      <div class="hero-img-wrap hero-img-desktop split-img-float">
+        <picture><source srcset="/static/ads/04_branded_wide.webp" type="image/webp"><img src="/static/ads/04_branded_wide.png" alt="Permitlify — Stop Chasing Leads" fetchpriority="high" decoding="async"></picture>
+      </div>
+      <div class="hero-img-wrap hero-img-mobile split-img-float">
+        <picture><source srcset="/static/ads/03_branded_square.webp" type="image/webp"><img src="/static/ads/03_branded_square.png" alt="Permitlify — Be First to Every Job" fetchpriority="high" decoding="async"></picture>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Ad Gallery (dark) ──────────────────────────────────── -->
+<section class="gallery">
+  <div class="gallery-inner">
+    <div class="gallery-header">
+      <div class="gallery-eyebrow">Seen Everywhere &nbsp;·&nbsp; Built for Every Screen</div>
+      <h2 class="gallery-h2">Stop Chasing Leads.<br><span>Let Permits Come to You.</span></h2>
+      <p class="gallery-sub">Permitlify delivers scored, ready-to-call construction leads every morning — wherever you work.</p>
+    </div>
+
+    <!-- 3 squares -->
+    <div class="gallery-row3">
+      <div class="gallery-sq cyan">
+        <picture><source srcset="/static/ads/05_competitor_fear.webp" type="image/webp"><img src="/static/ads/05_competitor_fear.png" alt="Be First — FOMO" loading="lazy" decoding="async"></picture>
+      </div>
+      <div class="gallery-sq violet">
+        <picture><source srcset="/static/ads/07_social_proof.webp" type="image/webp"><img src="/static/ads/07_social_proof.png" alt="Social Proof" loading="lazy" decoding="async"></picture>
+      </div>
+    </div>
+
+    <!-- Wide + square -->
+    <div class="gallery-row2">
+      <div class="gallery-sq violet" style="border-radius:18px;">
+        <picture><source srcset="/static/ads/10_comparison.webp" type="image/webp"><img src="/static/ads/10_comparison.png" alt="Before vs After Comparison" loading="lazy" decoding="async"></picture>
+      </div>
+      <div class="gallery-sq cyan" style="border-radius:18px;">
+        <picture><source srcset="/static/ads/11_morning_leads.webp" type="image/webp"><img src="/static/ads/11_morning_leads.png" alt="Wake Up to Leads" loading="lazy" decoding="async"></picture>
+      </div>
+    </div>
+
+    <div class="gallery-bar">
+      <div class="gallery-stat"><div class="gallery-stat-num">{{ city_count }}</div><div class="gallery-stat-lbl">Cities Monitored</div></div>
+      <div class="gallery-divider"></div>
+      <div class="gallery-stat"><div class="gallery-stat-num">{{ cron_schedule.hour_label }}</div><div class="gallery-stat-lbl">Daily Delivery</div></div>
+      <div class="gallery-divider"></div>
+      <div class="gallery-stat"><div class="gallery-stat-num">0–100</div><div class="gallery-stat-lbl">AI Lead Score</div></div>
+      <div class="gallery-divider"></div>
+      <div class="gallery-stat"><div class="gallery-stat-num">3 min</div><div class="gallery-stat-lbl">Avg Setup Time</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Split: AI Scoring ──────────────────────────────────── -->
+<section class="split bg-white">
+  <div class="split-inner">
+    <div class="split-text">
+      <div class="split-eyebrow">AI Lead Scoring</div>
+      <h2 class="split-h2">Every Permit Gets an Instant AI Grade</h2>
+      <p class="split-p">Our AI analyzes permit type, job value signals, contact quality, and freshness to produce a 0–100 score and A–F letter grade for every single permit. You only call the A's.</p>
+      <div class="split-checks">
+        <div class="split-check"><div class="split-check-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>Ranked by lead quality — hottest at the top</div>
+        <div class="split-check"><div class="split-check-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>No more reading raw permit reports</div>
+        <div class="split-check"><div class="split-check-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>Trained on real contractor win/loss data</div>
+      </div>
+      <a class="btn-split" href="{% url 'signup' %}">See My Scored Leads <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+    </div>
+    <div class="split-img">
+      <div class="split-img-float split-img-glow">
+        <picture><source srcset="/static/ads/06_ai_scoring.webp" type="image/webp"><img src="/static/ads/06_ai_scoring.png" alt="AI Scoring Feature" style="border-radius:20px;" loading="lazy" decoding="async"></picture>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Split: Time Savings ───────────────────────────────── -->
+<section class="split bg-light">
+  <div class="split-inner rev">
+    <div class="split-img">
+      <div class="split-img-float split-img-glow-green">
+        <picture><source srcset="/static/ads/13_time_savings.webp" type="image/webp"><img src="/static/ads/13_time_savings.png" alt="Stop Wasting 2 Hours Daily" style="border-radius:20px;" loading="lazy" decoding="async"></picture>
+      </div>
+    </div>
+    <div class="split-text">
+      <div class="split-eyebrow">Stop Wasting Time</div>
+      <h2 class="split-h2">Get 2 Hours Back Every Single Morning</h2>
+      <p class="split-p">The average contractor spends 2+ hours manually checking city permit portals each morning. Permitlify does it automatically — and delivers better data, faster.</p>
+      <div class="split-checks">
+        <div class="split-check"><div class="split-check-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>Zero manual research — ever</div>
+        <div class="split-check"><div class="split-check-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>{{ city_count }} city scrapers running every morning</div>
+        <div class="split-check"><div class="split-check-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>Delivered before your workday starts</div>
+      </div>
+      <a class="btn-split" href="{% url 'signup' %}">Reclaim My Mornings <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Full-width: How It Works ───────────────────────────── -->
+<section class="full-img">
+  <div class="full-img-inner">
+    <div class="full-img-head">
+      <div class="section-label" style="justify-content:center">How It Works</div>
+      <h2 class="section-h2" style="text-align:center;max-width:600px;margin:0 auto 12px">3 Simple Steps to Your First Call</h2>
+      <p class="section-sub" style="text-align:center;margin:0 auto 0;">From signup to your first scored permit lead in under 3 minutes.</p>
+    </div>
+    <div class="full-img-card">
+      <picture><source srcset="/static/ads/16_how_it_works.webp" type="image/webp"><img src="/static/ads/16_how_it_works.png" alt="How It Works — 3 Steps" loading="lazy" decoding="async"></picture>
+    </div>
+    <div style="text-align:center;margin-top:36px;">
+      <a class="btn-cta-primary" href="{% url 'signup' %}">Start Free — from ${{ pricing.starter_monthly }}/mo &nbsp;&rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Split: ROI ─────────────────────────────────────────── -->
+<section class="split bg-white">
+  <div class="split-inner">
+    <div class="split-text">
+      <div class="split-eyebrow">ROI That Speaks for Itself</div>
+      <h2 class="split-h2">One Permit Can Pay for a Full Year</h2>
+      <p class="split-p">Contractors are landing $42K+ jobs directly from Permitlify leads. At ${{ pricing.starter_monthly }}–${{ pricing.agency_monthly }}/month, the math is simple: one closed job covers months of access.</p>
+      <div class="split-checks">
+        <div class="split-check"><div class="split-check-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>Average 10x+ ROI in the first 30 days</div>
+        <div class="split-check"><div class="split-check-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>No per-lead fees — unlimited access</div>
+        <div class="split-check"><div class="split-check-ico"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>${{ pricing.starter_monthly }}/mo Starter · ${{ pricing.pro_monthly }}/mo Pro · ${{ pricing.agency_monthly }}/mo Agency</div>
+      </div>
+      <a class="btn-split" href="{% url 'pricing' %}">See Pricing &nbsp;&rarr;</a>
+    </div>
+    <div class="split-img">
+      <div class="split-img-float split-img-glow">
+        <picture><source srcset="/static/ads/09_roi_focused.webp" type="image/webp"><img src="/static/ads/09_roi_focused.png" alt="ROI — $42K Job" style="border-radius:20px;" loading="lazy" decoding="async"></picture>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Full-width: Pricing ────────────────────────────────── -->
+<section style="padding:0 24px 80px;background:#fff;">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div style="text-align:center;padding:72px 0 48px;">
+      <div class="section-label" style="justify-content:center">Pricing Plans</div>
+      <h2 class="section-h2" style="text-align:center;max-width:500px;margin:0 auto 12px">Simple, Transparent Pricing</h2>
+      <p class="section-sub" style="text-align:center;margin:0 auto;">No per-lead fees. No contracts. Just unlimited permit leads, scored daily.</p>
+    </div>
+    {# Inline live pricing cards (shared partial with /pricing). #}
+    {# Previously a static PNG (14_pricing.png) that silently drifted #}
+    {# whenever real plan prices/features changed. Now there is no #}
+    {# image — both surfaces render from the same partial, so the #}
+    {# landing page can never disagree with /pricing again. #}
+    {% include 'core/_pricing_cards.html' %}
+    <div style="text-align:center;margin-top:36px;">
+      <a class="btn-cta-primary" href="{% url 'pricing' %}">See Full Plan Comparison &nbsp;&rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Comparison table ───────────────────────────────────── -->
+<section class="compare">
+  <div class="section-inner">
+    <div style="text-align:center;max-width:620px;margin:0 auto;">
+      <div class="section-label" style="justify-content:center">Why Permitlify</div>
+      <h2 class="section-h2" style="text-align:center">Better leads. Lower cost. Every day.</h2>
+      <p class="section-sub" style="margin:0 auto;text-align:center">See how Permitlify compares to expensive per-lead services and manual research.</p>
+    </div>
+    <div class="compare-table-wrap">
+      <table class="compare-table">
+        <thead><tr><th>Service</th><th>Daily Updates</th><th>AI Lead Scoring</th><th>Contact Info</th></tr></thead>
+        <tbody>
+          <tr><td><span class="co-brand">Angi / HomeAdvisor</span></td><td><span class="co-val">Pay per lead ($30–$100)</span></td><td><div class="co-x"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></td><td><div class="co-x"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></td></tr>
+          <tr><td><span class="co-brand">Permitly.io</span></td><td><span class="co-val">Monthly scrape only</span></td><td><div class="co-x"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></td><td><div class="co-check"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div></td></tr>
+          <tr><td><span class="co-brand">Manual City Portals</span></td><td><span class="co-val">Hours of daily work</span></td><td><div class="co-x"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></div></td><td><span class="co-val">Partial</span></td></tr>
+          <tr class="highlight-row"><td><span class="co-brand ours">Permitlify</span></td><td><span class="co-val best">Daily at {{ cron_schedule.hour_label }} ✓</span></td><td><div class="co-check"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div></td><td><span class="co-val good">Phone + Email + Address</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="text-align:center;margin-top:36px;">
+      <a class="btn-cta-primary" href="{% url 'signup' %}">Start Free — from ${{ pricing.starter_monthly }}/mo &nbsp;&rarr;</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features grid ─────────────────────────────────────── -->
+<section class="features">
+  <div class="section-inner">
+    <div style="text-align:center;max-width:580px;margin:0 auto;">
+      <div class="section-label" style="justify-content:center">Platform Features</div>
+      <h2 class="section-h2" style="text-align:center">Everything You Need to Win More Jobs</h2>
+      <p class="section-sub" style="margin:0 auto;text-align:center">Powerful tools built specifically for contractors who want to be first to every opportunity.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feat-card"><div class="feat-icon blue"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 14a1 1 0 01-.78-1.63l9.9-10.2a.5.5 0 01.86.46l-1.92 6.02A1 1 0 0013 10h7a1 1 0 01.78 1.63l-9.9 10.2a.5.5 0 01-.86-.46l1.92-6.02A1 1 0 0011 14z"/></svg></div><h3>Daily {{ cron_schedule.hour_label }} Delivery</h3><p>Fresh permits land in your dashboard and inbox before your workday starts. No manual checking of city websites — ever.</p></div>
+      <div class="feat-card"><div class="feat-icon green"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3v16a2 2 0 002 2h16M18 17V9M13 17V5M8 17v-3"/></svg></div><h3>AI Lead Scoring</h3><p>Every permit gets an instant AI score (0–100) and letter grade (A–F). Call confidently without reading a single raw permit report.</p></div>
+      <div class="feat-card"><div class="feat-icon teal"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><h3>Full Contact Info</h3><p>Phone number, email, and property address included with every permit — no extra cost, no skip-tracing needed. Just call.</p></div>
+      <div class="feat-card"><div class="feat-icon blue"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div><h3>{{ city_count }} Cities Covered</h3><p>From Accela to EnerGov to Socrata — we pull from every major permit platform across {{ state_count }} state{{ state_count|pluralize }}. Fresh data every morning.</p></div>
+      <div class="feat-card"><div class="feat-icon green"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.268 21a2 2 0 003.464 0"/><path d="M3.262 15.326A1 1 0 004 17h16a1 1 0 00.74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 006 8c0 4.499-1.411 5.956-2.738 7.326"/></svg></div><h3>Daily Email Alerts</h3><p>Get your scored permit digest delivered to your inbox at the exact time you set — every weekday, before your workday starts.</p></div>
+      <div class="feat-card"><div class="feat-icon teal"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg></div><h3>REST API Access</h3><p>Pull AI-scored permits into any tool you build — dashboards, internal CRMs, custom dialer queues — with a simple authenticated REST endpoint.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Live Leads Marquee ─────────────────────────────────── -->
+<section class="leads">
+  <div class="leads-inner">
+    <div style="text-align:center;max-width:620px;margin:0 auto;">
+      <div class="section-label" style="justify-content:center">Live Feed</div>
+      <h2 class="section-h2" style="text-align:center">Your Daily Hot Leads, Scored &amp; Ready</h2>
+      <p class="section-sub" style="margin:0 auto;text-align:center">Every card below is a real contractor opportunity — scored, ranked, and ready to call.</p>
+    </div>
+    <div class="leads-marquee-wrap">
+      <div class="leads-track" id="leadsTrack"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 3-Step quick start ─────────────────────────────────── -->
+<section class="steps-section">
+  <div class="section-inner">
+    <div class="section-label" style="justify-content:center">For Contractors</div>
+    <h2 class="section-h2" style="text-align:center">Start Winning Jobs in 3 Simple Steps</h2>
+    <p class="section-sub" style="margin:0 auto;text-align:center">From signup to your first call in under 10 minutes. No setup fees, no contracts.</p>
+    <div class="steps-grid">
+      <div class="step-card"><div class="step-number">1</div><h3>Choose Your Market</h3><p>Pick your city or cities. We currently cover {{ city_count }} cities across {{ state_count }} state{{ state_count|pluralize }}. Add more any time.</p></div>
+      <div class="step-card"><div class="step-number">2</div><h3>Get Your Daily Feed</h3><p>Every morning at {{ cron_schedule.hour_label }}, permits land in your dashboard — AI-scored, ranked by lead quality, with full contact info.</p></div>
+      <div class="step-card"><div class="step-number">3</div><h3>Call First, Win More Jobs</h3><p>Use the one-tap call button to reach every homeowner first. First call wins the job — every time.</p></div>
+    </div>
+    <div style="text-align:center;margin-top:40px;">
+      <a class="btn-cta-primary" href="{% url 'login' %}">Create Your Free Account &nbsp;&rarr;</a>
+      <p style="font-size:12px;color:var(--tx3);margin-top:12px;font-family:'JetBrains Mono',monospace;">{{ pricing.starter_trial_days }} to {{ pricing.agency_trial_days }}-day trial by plan &middot; Card required &middot; Cancel before it ends = no charge</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Testimonials ───────────────────────────────────────── -->
+<section class="testimonials">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div style="text-align:center;max-width:520px;margin:0 auto;">
+      <div class="section-label" style="justify-content:center">Testimonials</div>
+      <h2 class="section-h2" style="text-align:center">Trusted by Contractors Nationwide</h2>
+    </div>
+    <div class="testi-track-wrap">
+      <div class="testi-track" id="testiTrack"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Final CTA ──────────────────────────────────────────── -->
+<section class="cta-main">
+  <div class="section-inner">
+    <div class="cta-box">
+      <h2>Start Winning Permit Leads Today</h2>
+      <p>Join contractors already using Permitlify to call first and close more jobs. Setup takes 60 seconds.</p>
+      <div class="cta-checks">
+        <div class="cta-check"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Card required — not charged until trial ends</div>
+        <div class="cta-check"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Free trial on every plan</div>
+        <div class="cta-check"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Cancel anytime</div>
+      </div>
+      <div class="cta-btns">
+        <a class="btn-cta-primary" href="{% url 'signup' %}">Get Started Free <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+        <button class="btn-cta-secondary">Talk to Sales</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="name">Permit<span>lify</span></div>
+        <p>Daily permit lead alerts scored by AI. Built for roofing, HVAC, plumbing, and electrical contractors across the US.</p>
+      </div>
+      <div class="footer-col"><h4>Product</h4><a href="{% url 'dashboard' %}">Dashboard</a><a href="{% url 'permits' %}">All Permits</a><a href="{% url 'pricing' %}">Pricing</a><a href="{% url 'signup' %}">Start Free Trial</a></div>
+      <div class="footer-col"><h4>About</h4><a href="{% url 'blog' %}">Blog</a></div>
+      <div class="footer-col"><h4>Company</h4><a href="{% url 'contact' %}">Contact Us</a><a href="{% url 'support' %}">Support</a><a href="{% url 'privacy' %}">Privacy Policy</a><a href="{% url 'terms' %}">Terms of Service</a></div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">&copy; 2026 Permitlify.com &nbsp;&middot;&nbsp; <a href="{% url 'privacy' %}">Privacy</a> &nbsp;&middot;&nbsp; <a href="{% url 'terms' %}">Terms</a> &nbsp;&middot;&nbsp; <a href="{% url 'index' %}" style="color:var(--bl);font-weight:600">← Back to Live Site</a></div>
+    </div>
+  </div>
+</footer>
+
+<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
+
+<script>
+window.addEventListener('scroll',function(){var bt=document.getElementById('backTop');if(bt)bt.classList.toggle('visible',window.scrollY>400);});
+
+// Hamburger nav now handled by Alpine.js (see <nav x-data>)
+
+var LEADS=[
+  {pid:'PW26-12643',type:'Roofing',typeClass:'roofing',title:'Residential Roofing Permit',addr:'3421 Magnolia Ave',city:'Fort Worth TX',score:96,grade:'A+',ringClass:'a',name:'Sarah T. Monroe',phone:'(817) 542-9900'},
+  {pid:'PW26-12644',type:'HVAC',typeClass:'hvac',title:'HVAC System Replacement',addr:'907 Westbrook Dr',city:'Fort Worth TX',score:82,grade:'A-',ringClass:'b',name:'David Okonkwo',phone:'(817) 290-4411'},
+  {pid:'PW26-12645',type:'New Build',typeClass:'newbuild',title:'New Residential Construction',addr:'1105 Ridgecrest Blvd',city:'Fort Worth TX',score:91,grade:'A',ringClass:'a',name:'Meridian Homes LLC',phone:'(817) 663-1122'},
+  {pid:'PW26-12648',type:'Roofing',typeClass:'roofing',title:'Storm Damage Roof Repair',addr:'711 Cypress Creek Rd',city:'Fort Worth TX',score:88,grade:'A',ringClass:'a',name:'Cynthia Park',phone:'(817) 201-8844'},
+  {pid:'PW26-12651',type:'Plumbing',typeClass:'plumbing',title:'Plumbing New Construction',addr:'4412 Heritage Oaks Ct',city:'Fort Worth TX',score:79,grade:'B+',ringClass:'b',name:'Sunrise Homes TX',phone:'(817) 338-2271'},
+  {pid:'PW26-12653',type:'Roofing',typeClass:'roofing',title:'Hail Damage Full Replace',addr:'5103 Lakeview Dr',city:'Fort Worth TX',score:94,grade:'A',ringClass:'a',name:'Patricia Simmons',phone:'(817) 461-9920'},
+  {pid:'PW26-12646',type:'Plumbing',typeClass:'plumbing',title:'Water Main Replacement',addr:'2218 Oak Hill Ln',city:'Fort Worth TX',score:74,grade:'B+',ringClass:'b',name:'Greg Fischer',phone:'(817) 445-7730'},
+  {pid:'PW26-12647',type:'Electrical',typeClass:'electrical',title:'Commercial Panel Upgrade',addr:'5560 Commerce St',city:'Fort Worth TX',score:67,grade:'B',ringClass:'b',name:'Vault Storage LLC',phone:'(214) 980-3355'},
+];
+function makeLeadCard(l){return '<div class="lead-card"><div class="lead-card-top"><div><span class="lead-type '+l.typeClass+'">'+l.type+'</span></div><div class="lead-ring '+l.ringClass+'"><span class="n">'+l.score+'</span><span class="g">'+l.grade+'</span></div></div><div class="lead-name" style="margin-top:10px">'+l.title+'</div><div class="lead-addr">'+l.addr+'</div><div class="lead-addr" style="color:var(--tx3)">'+l.city+'</div><div class="lead-footer"><button class="lead-btn call">Call</button><button class="lead-btn email">Email</button></div></div>';}
+var track=document.getElementById('leadsTrack');
+if(track){var doubled=LEADS.concat(LEADS);doubled.forEach(function(l){track.innerHTML+=makeLeadCard(l);});}
+
+var TESTIMONIALS=[
+  {text:'"Permitlify completely changed how we prospect. We\'re closing 3–4 extra jobs per month just from the daily feed."',name:'Jake R.',role:'Owner, Texas Premier Roofing',init:'JR'},
+  {text:'"The AI scoring is scary accurate. We only call the A and B permits now, and our close rate has nearly doubled."',name:'Maria L.',role:'Sales Director, CoolBreeze HVAC',init:'ML'},
+  {text:'"I used to spend 2 hours every morning pulling permits manually. Now it takes 10 minutes and the leads are better."',name:'Tom D.',role:'GM, Diamond Plumbing',init:'TD'},
+  {text:'"The AI-ranked daily digest is a game changer. We work the A leads first thing every morning."',name:'Sarah K.',role:'Ops Lead, Bright Spark Electric',init:'SK'},
+  {text:'"Best $197 we spend each month. ROI is 10x easily — we landed a $42k commercial job from one permit last week."',name:'Carlos M.',role:'Owner, M&M Roofing LLC',init:'CM'},
+  {text:'"The city coverage is insane. We expanded to Dallas and Austin, and Permitlify had them covered immediately."',name:'Lisa T.',role:'Founder, Lone Star HVAC',init:'LT'},
+];
+var tt=document.getElementById('testiTrack');
+if(tt){var tdbl=TESTIMONIALS.concat(TESTIMONIALS);tdbl.forEach(function(t){tt.innerHTML+='<div class="testi-card"><div class="testi-stars">'+Array(5).fill('<svg aria-hidden="true" class="testi-star" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>').join('')+'</div><div class="testi-text">'+t.text+'</div><div class="testi-author"><div class="testi-avatar">'+t.init+'</div><div><div class="testi-name">'+t.name+'</div><div class="testi-role">'+t.role+'</div></div></div></div>';});}
+</script>
+</body>
+</html>

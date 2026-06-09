@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#1d4ed8">
+<title>Permitlify — {% if is_new_user %}Choose Your Plan{% else %}Subscription Required{% endif %}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --pr:#1d4ed8;--pr2:#3b82f6;
+  --ac:#059669;--ac2:#10b981;
+  --grad:linear-gradient(135deg,#1d4ed8 0%,#059669 100%);
+  --tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;
+}
+body{font-family:'DM Sans',sans-serif;min-height:100vh;background:#f8fafc;-webkit-font-smoothing:antialiased;}
+
+.topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-icon{width:34px;height:34px;border-radius:9px;background:var(--grad);display:flex;align-items:center;justify-content:center;}
+.logo-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;color:var(--tx);letter-spacing:-.3px;}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.topbar-email{font-size:13px;color:var(--tx3);}
+.topbar-logout{font-size:13px;color:var(--tx2);text-decoration:none;font-weight:500;padding:6px 14px;border:1.5px solid #e2e8f0;border-radius:8px;transition:all .2s;}
+.topbar-logout:hover{border-color:#cbd5e1;color:var(--tx);}
+
+.hero{text-align:center;padding:60px 24px 40px;max-width:640px;margin:0 auto;}
+.lock-icon{width:64px;height:64px;border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
+.lock-icon.new{background:linear-gradient(135deg,rgba(29,78,216,.12),rgba(5,150,105,.08));}
+.lock-icon.renew{background:linear-gradient(135deg,rgba(220,38,38,.12),rgba(220,38,38,.06));}
+.hero-label{font-family:'DM Sans',monospace;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:12px;}
+.hero-label.new{color:var(--pr);}
+.hero-label.renew{color:#ef4444;}
+.hero-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(26px,4vw,38px);font-weight:800;color:var(--tx);letter-spacing:-1px;line-height:1.15;margin-bottom:14px;}
+.hero-sub{font-size:15.5px;color:var(--tx2);line-height:1.7;max-width:480px;margin:0 auto 32px;}
+
+.notice{max-width:640px;margin:0 auto 24px;padding:0 24px;}
+.notice-box{background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;font-size:13.5px;color:#92400e;display:flex;align-items:flex-start;gap:10px;}
+.notice-box svg{flex-shrink:0;margin-top:1px;}
+.notice-error{background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:10px;padding:12px 20px;margin-bottom:20px;font-size:13.5px;display:inline-block;}
+
+.period-toggle{display:inline-flex;background:#f1f5f9;border-radius:10px;padding:4px;gap:4px;margin-bottom:32px;}
+.period-btn{padding:8px 22px;border-radius:7px;border:none;background:transparent;font-size:13.5px;font-weight:600;color:var(--tx2);cursor:pointer;transition:all .2s;}
+.period-btn.active{background:#fff;color:var(--tx);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.badge-save{display:inline-block;background:#dcfce7;color:#15803d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;vertical-align:middle;}
+
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:860px;margin:0 auto 20px;padding:0 24px;}
+@media(max-width:700px){.plans{grid-template-columns:1fr;max-width:380px;}}
+
+.plan-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:22px 20px;position:relative;transition:all .25s;}
+.plan-card:hover{border-color:var(--pr2);box-shadow:0 6px 24px rgba(29,78,216,.1);transform:translateY(-2px);}
+.plan-card.popular{border-color:var(--pr);box-shadow:0 0 0 1px var(--pr);}
+.pop-badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--grad);color:#fff;font-size:10px;font-weight:700;padding:3px 14px;border-radius:20px;white-space:nowrap;font-family:'Plus Jakarta Sans',sans-serif;}
+.plan-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;color:var(--tx);margin-bottom:6px;}
+.plan-price{font-family:'Plus Jakarta Sans',sans-serif;font-size:32px;font-weight:800;color:var(--tx);letter-spacing:-1.5px;margin-bottom:4px;}
+.plan-price span{font-size:14px;font-weight:500;color:var(--tx3);}
+.plan-period{font-size:12px;color:var(--tx3);margin-bottom:16px;}
+.plan-feats{list-style:none;display:flex;flex-direction:column;gap:7px;margin-bottom:20px;}
+.plan-feats li{font-size:13px;color:var(--tx2);display:flex;align-items:center;gap:8px;}
+.plan-feats li::before{content:'✓';font-weight:700;color:var(--ac2);font-size:12px;}
+.plan-btn{width:100%;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif;}
+.plan-card:not(.popular) .plan-btn{background:#f1f5f9;color:var(--tx);}
+.plan-card:not(.popular) .plan-btn:hover{background:#e2e8f0;}
+.plan-card.popular .plan-btn{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(29,78,216,.35);}
+.plan-card.popular .plan-btn:hover{box-shadow:0 6px 20px rgba(29,78,216,.45);}
+.plan-btn.disabled{background:#f1f5f9!important;color:#94a3b8!important;cursor:not-allowed!important;box-shadow:none!important;pointer-events:none;}
+
+.support-line{text-align:center;font-size:13px;color:var(--tx3);padding-bottom:48px;}
+.support-line a{color:var(--pr);text-decoration:none;font-weight:500;}
+.support-line a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="logo" href="/">
+    <div class="logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </div>
+    <span class="logo-name">Permitlify</span>
+  </a>
+  <div class="topbar-right">
+    {% if user_email %}<span class="topbar-email">{{ user_email }}</span>{% endif %}
+    <a class="topbar-logout" href="/logout/">Sign out</a>
+  </div>
+</div>
+
+<div class="hero">
+  {% if is_new_user %}
+    <div class="lock-icon new">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div class="hero-label new">Activate Your Account</div>
+    <h1 class="hero-title">Choose your plan to get started</h1>
+    <p class="hero-sub">You're one step away from receiving daily permit leads in your area. Pick a plan below to activate your account — every plan starts with a free trial and you can cancel anytime.</p>
+  {% else %}
+    <div class="lock-icon renew">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    </div>
+    <div class="hero-label renew">Subscription Required</div>
+    <h1 class="hero-title">Your subscription has expired</h1>
+    <p class="hero-sub">Renew your plan to continue receiving daily permit leads and access your dashboard. Pick up where you left off — your data is still here.</p>
+  {% endif %}
+
+  {% if sync_error %}
+  <div class="notice-error">No active subscription found. Please complete payment and try the link again.</div>
+  {% endif %}
+</div>
+
+{% if missing_label %}
+<div class="notice">
+  <div class="notice-box">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <div><strong>{{ missing_label }} isn't available for purchase yet.</strong> The plan ID hasn't been configured in our billing system. Please pick another plan below, or <a href="/support/" style="color:#92400e;text-decoration:underline;">contact support</a>.</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Monthly plans -->
+<div class="plans" id="monthly-plans">
+  <div class="plan-card">
+    <div class="plan-name">Starter</div>
+    <div class="plan-price">${{ pricing.starter_monthly }}<span>/mo</span></div>
+    <div class="plan-period">1 state · billed monthly</div>
+    <ul class="plan-feats">
+      <li>Daily permit alerts</li>
+      <li>Email notifications</li>
+      <li>Basic lead scoring</li>
+    </ul>
+    {% if available.starter_monthly %}
+      <a class="plan-btn" href="/billing/embed/?plan=starter&period=monthly&back=/paywall/" style="display:block;text-align:center;text-decoration:none;">{% if is_new_user %}Subscribe to Starter{% else %}Renew Starter{% endif %}</a>
+    {% else %}
+      <span class="plan-btn disabled" style="display:block;text-align:center;">Coming soon</span>
+    {% endif %}
+  </div>
+
+  <div class="plan-card popular">
+    <div class="pop-badge">Most Popular</div>
+    <div class="plan-name">Pro</div>
+    <div class="plan-price">${{ pricing.pro_monthly }}<span>/mo</span></div>
+    <div class="plan-period">Up to 2 states · billed monthly</div>
+    <ul class="plan-feats">
+      <li>Everything in Starter</li>
+      <li>Priority lead scoring</li>
+      <li>Contractor matching</li>
+    </ul>
+    {% if available.pro_monthly %}
+      <a class="plan-btn" href="/billing/embed/?plan=pro&period=monthly&back=/paywall/" style="display:block;text-align:center;text-decoration:none;">{% if is_new_user %}Subscribe to Pro{% else %}Renew Pro{% endif %}</a>
+    {% else %}
+      <span class="plan-btn disabled" style="display:block;text-align:center;">Coming soon</span>
+    {% endif %}
+  </div>
+
+  <div class="plan-card">
+    <div class="plan-name">Agency</div>
+    <div class="plan-price">${{ pricing.agency_monthly }}<span>/mo</span></div>
+    <div class="plan-period">Up to 5 states · billed monthly</div>
+    <ul class="plan-feats">
+      <li>Everything in Pro</li>
+      <li>API access</li>
+      <li>Team seats</li>
+    </ul>
+    {% if available.agency_monthly %}
+      <a class="plan-btn" href="/billing/embed/?plan=agency&period=monthly&back=/paywall/" style="display:block;text-align:center;text-decoration:none;">{% if is_new_user %}Subscribe to Agency{% else %}Renew Agency{% endif %}</a>
+    {% else %}
+      <span class="plan-btn disabled" style="display:block;text-align:center;">Coming soon</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="support-line">
+  Questions? <a href="/support/">Contact our support team</a>{% if not is_new_user %} · <a href="/billing/sync/?next=/dashboard/">I already renewed — check status</a>{% endif %}
+</div>
+
+</body>
+</html>

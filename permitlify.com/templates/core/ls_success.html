@@ -1,0 +1,112 @@
+{% extends "core/base.html" %}
+{% block title %}Subscription Activated — Permitlify{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div style="min-height:70vh;display:flex;align-items:center;justify-content:center;padding:40px 16px;">
+  <div style="max-width:500px;width:100%;text-align:center;">
+
+    <div style="width:80px;height:80px;background:linear-gradient(135deg,#059669,#10b981);border-radius:24px;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 8px 32px rgba(5,150,105,.3);">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+
+    <h1 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:var(--tx);margin:0 0 12px;">Payment successful!</h1>
+    <p style="font-size:16px;color:var(--tx2);line-height:1.6;margin:0 0 24px;">
+      Your <strong>{{ plan }}</strong> plan is now active. We're connecting it to your account&hellip;
+    </p>
+
+    <!-- Sync status card -->
+    <div id="syncCard" style="background:var(--sur2);border:1px solid var(--b1);border-radius:16px;padding:20px 24px;margin-bottom:28px;text-align:left;">
+      <div id="syncSpinner" style="display:flex;align-items:center;gap:12px;color:var(--tx2);font-size:14px;">
+        <svg id="spinnerIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="animation:spin 1s linear infinite;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        <span id="syncMsg">Connecting subscription to your account&hellip;</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;" id="actionBtns">
+      <a href="/dashboard/" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:var(--pr);color:#fff;text-decoration:none;border-radius:12px;font-weight:600;font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Go to Dashboard
+      </a>
+      <a href="/settings/#billing" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:var(--sur2);color:var(--tx);text-decoration:none;border-radius:12px;font-weight:600;font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;border:1px solid var(--b1);">
+        View Billing
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+(function () {
+  var attempts = 0;
+  var maxAttempts = 5;
+  var delay = 2000;
+
+  function getCsrf() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+  }
+
+  function setMsg(text, isOk, isErr) {
+    var icon = document.getElementById('spinnerIcon');
+    var msg  = document.getElementById('syncMsg');
+    if (msg) msg.textContent = text;
+    if (icon) {
+      icon.style.animation = 'none';
+      if (isOk) {
+        icon.style.stroke = '#059669';
+        icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+      } else if (isErr) {
+        icon.style.stroke = 'var(--re, #dc2626)';
+        icon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+      } else {
+        icon.style.animation = 'spin 1s linear infinite';
+      }
+    }
+  }
+
+  function trySync() {
+    attempts++;
+    fetch('/billing/sync/', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() }
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d.ok) {
+        setMsg('Subscription connected \u2014 taking you to your dashboard\u2026', true, false);
+        // Auto-land the user in their logged-in session.
+        setTimeout(function () { window.location.href = '/dashboard/'; }, 1200);
+      } else if (attempts < maxAttempts) {
+        setMsg('Waiting for Lemon Squeezy to confirm (' + attempts + '/' + maxAttempts + ')\u2026', false, false);
+        setTimeout(trySync, delay);
+      } else {
+        setMsg('Auto-sync timed out. Use \u201CSync\u201D on the Billing page to connect manually.', false, true);
+        var card = document.getElementById('syncCard');
+        if (card) {
+          var btn = document.createElement('button');
+          btn.textContent = 'Retry Sync';
+          btn.onclick = function () { attempts = 0; setMsg('Retrying\u2026', false, false); document.getElementById('spinnerIcon').style.animation='spin 1s linear infinite'; trySync(); };
+          btn.style.cssText = 'margin-top:12px;padding:8px 18px;background:var(--pr);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;';
+          card.appendChild(btn);
+        }
+      }
+    })
+    .catch(function () {
+      if (attempts < maxAttempts) {
+        setTimeout(trySync, delay);
+      } else {
+        setMsg('Could not reach server. Visit Settings \u203A Billing and click Sync.', false, true);
+      }
+    });
+  }
+
+  setTimeout(trySync, 1500);
+})();
+</script>
+{% endblock %}

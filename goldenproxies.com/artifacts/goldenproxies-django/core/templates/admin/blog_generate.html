@@ -1,0 +1,399 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Generate Blog Post — Admin — GoldenProxies{% endblock %}
+{% block mobile_title %}AI Generator{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-3xl mx-auto space-y-5">
+
+  <div class="flex items-center gap-3">
+    <a href="/admin-panel/blog/" class="text-gray-400 hover:text-gray-600 transition-colors">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+      <h1 class="text-2xl font-serif font-bold text-gray-900">AI Blog Generator</h1>
+      <p class="text-sm text-gray-400 mt-0.5">Powered by DigitalOcean Inference ({{ do_model }})</p>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="glass-card rounded-2xl p-4 flex flex-wrap gap-3">
+    <div class="flex items-center gap-2 text-sm">
+      {% if do_configured %}
+      <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
+      <span class="text-green-700 font-medium">DO Inference configured</span>
+      {% else %}
+      <span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span>
+      <span class="text-red-600 font-medium">DO Inference not configured</span>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2 text-sm">
+      {% if proxy_configured %}
+      <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
+      <span class="text-green-700 font-medium">Proxy scraper configured</span>
+      {% else %}
+      <span class="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+      <span class="text-amber-700 font-medium">Proxy not configured (URL fetches go direct)</span>
+      {% endif %}
+    </div>
+    {% if not do_configured or not proxy_configured %}
+    <a href="/admin-panel/api-settings/" class="ml-auto text-xs text-[#D4AF37] hover:underline font-semibold">Configure settings →</a>
+    {% endif %}
+  </div>
+
+  {% if error %}
+  <div class="px-4 py-3 rounded-xl text-sm font-medium border border-red-300 bg-red-50/80 text-red-700">{{ error }}</div>
+  {% endif %}
+
+  {% csrf_token %}
+
+  <!-- ───── Wizard: 3-step Scrape → Rewrite → Publish ───── -->
+
+  <!-- Inline alert (success / error) for any wizard action -->
+  <div id="wizardAlert" class="hidden px-4 py-3 rounded-xl text-sm font-medium border"></div>
+
+  <!-- STEP 1 — URL + Scrape -->
+  <div class="glass-card rounded-2xl p-6 shadow-md">
+    <div class="flex items-start gap-3 mb-5">
+      <div class="w-7 h-7 rounded-full bg-[#D4AF37] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
+      <div>
+        <h2 class="font-bold text-gray-900">Scrape source content</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Paste any article URL — we fetch it {% if proxy_configured %}through your configured proxy{% else %}directly{% endif %} and clean the body text.</p>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Source URL <span class="text-red-400">*</span></label>
+        <input type="url" id="sourceUrl" placeholder="https://example.com/blog/post-to-rewrite"
+          class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+      </div>
+      <div class="flex justify-end">
+        <button type="button" id="scrapeBtn"
+          class="gold-btn px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2">
+          <span class="btn-label">⤓ Scrape Content</span>
+          <span class="btn-spinner hidden">
+            <svg class="w-4 h-4 animate-spin inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            Scraping…
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 — Scraped text + Rewrite -->
+  <div id="step2Card" class="glass-card rounded-2xl p-6 shadow-md hidden">
+    <div class="flex items-start gap-3 mb-5">
+      <div class="w-7 h-7 rounded-full bg-[#D4AF37] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
+      <div class="flex-1">
+        <h2 class="font-bold text-gray-900">Review scraped text</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Edit the text below if needed, then have the AI rewrite it as an original GoldenProxies post.</p>
+      </div>
+      <span id="charCount" class="text-xs text-gray-400 font-mono whitespace-nowrap mt-1"></span>
+    </div>
+
+    <div class="space-y-3">
+      <textarea id="scrapedText" rows="14"
+        class="w-full px-4 py-3 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm font-mono leading-relaxed focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition"></textarea>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <button type="button" id="rescrapeBtn" class="text-xs text-gray-500 hover:text-[#D4AF37] transition-colors">↻ Re-scrape</button>
+        <button type="button" id="rewriteBtn" {% if not do_configured %}disabled{% endif %}
+          class="gold-btn px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2
+          {% if not do_configured %}opacity-50 cursor-not-allowed{% endif %}">
+          <span class="btn-label">✦ Rewrite with AI</span>
+          <span class="btn-spinner hidden">
+            <svg class="w-4 h-4 animate-spin inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            Rewriting…
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 — Edit & Publish -->
+  <div id="step3Card" class="glass-card rounded-2xl p-6 shadow-md hidden">
+    <div class="flex items-start gap-3 mb-5">
+      <div class="w-7 h-7 rounded-full bg-[#D4AF37] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
+      <div>
+        <h2 class="font-bold text-gray-900">Review & publish</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Tweak any field, then publish to your blog or save as a draft.</p>
+      </div>
+    </div>
+
+    <div class="space-y-4">
+      <div class="grid sm:grid-cols-3 gap-4">
+        <div class="sm:col-span-2">
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Title</label>
+          <input type="text" id="postTitle" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Slug</label>
+          <input type="text" id="postSlug" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm font-mono focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Excerpt</label>
+        <textarea id="postExcerpt" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition"></textarea>
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Tags</label>
+          <input type="text" id="postTags" placeholder="residential proxies, web scraping" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Cover image URL</label>
+          <input type="url" id="postCover" placeholder="https://…" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Meta description</label>
+        <input type="text" id="postMeta" maxlength="180" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Content (HTML)</label>
+          <button type="button" id="togglePreviewBtn" class="text-xs text-[#D4AF37] hover:underline">Show preview</button>
+        </div>
+        <textarea id="postContent" rows="14" class="w-full px-4 py-3 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm font-mono focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition"></textarea>
+        <div id="postPreview" class="hidden mt-3 p-5 rounded-xl border border-[#D4AF37]/20 bg-white/60 blog-prose"></div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-[#D4AF37]/10">
+        <button type="button" id="saveDraftBtn"
+          class="glass-btn px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2">
+          <span class="btn-label">Save as Draft</span>
+          <span class="btn-spinner hidden">
+            <svg class="w-4 h-4 animate-spin inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            Saving…
+          </span>
+        </button>
+        <button type="button" id="publishBtn"
+          class="gold-btn px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2">
+          <span class="btn-label">📣 Publish to Blog</span>
+          <span class="btn-spinner hidden">
+            <svg class="w-4 h-4 animate-spin inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            Publishing…
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───── Alternative: topic-based one-shot generator (kept as-is) ───── -->
+  <details class="glass-card rounded-2xl p-6 shadow-md">
+    <summary class="cursor-pointer font-bold text-gray-900 flex items-center gap-2 list-none">
+      <span class="text-[#D4AF37] text-lg">✦</span> Or generate from a topic instead
+      <svg class="w-4 h-4 ml-auto text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+    </summary>
+    <div class="mt-5">
+      <p class="text-xs text-gray-400 mb-4">No source URL? Provide a topic and the model writes a full ~800-word draft from scratch.</p>
+      <form method="post" id="genForm" class="space-y-4">
+        {% csrf_token %}
+        <input type="hidden" name="mode" value="generate">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Topic <span class="text-red-400">*</span></label>
+          <input type="text" name="topic" required placeholder="e.g. How to scrape e-commerce sites with residential proxies"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Target Keywords</label>
+          <input type="text" name="keywords" placeholder="residential proxies, web scraping, data collection"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+        </div>
+        <div class="flex justify-end">
+          <button type="submit" id="genBtn" {% if not do_configured %}disabled{% endif %}
+            class="gold-btn px-6 py-2.5 rounded-xl text-sm font-semibold {% if not do_configured %}opacity-50 cursor-not-allowed{% endif %}">
+            ✦ Generate Draft
+          </button>
+        </div>
+      </form>
+    </div>
+  </details>
+
+</div>
+
+<script>
+(function() {
+  const csrf = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+
+  const $ = id => document.getElementById(id);
+  const sourceUrl   = $('sourceUrl');
+  const scrapeBtn   = $('scrapeBtn');
+  const rescrapeBtn = $('rescrapeBtn');
+  const step2Card   = $('step2Card');
+  const scrapedText = $('scrapedText');
+  const charCount   = $('charCount');
+  const rewriteBtn  = $('rewriteBtn');
+  const step3Card   = $('step3Card');
+  const alertBox    = $('wizardAlert');
+
+  const fields = {
+    title:   $('postTitle'),
+    slug:    $('postSlug'),
+    excerpt: $('postExcerpt'),
+    tags:    $('postTags'),
+    cover:   $('postCover'),
+    meta:    $('postMeta'),
+    content: $('postContent'),
+  };
+  const previewBox = $('postPreview');
+  const togglePreviewBtn = $('togglePreviewBtn');
+
+  // showAlert(kind, text, links?) — `text` is rendered as plain text (XSS-safe),
+  // optional `links` is an array of {label, href} appended as anchor elements.
+  function showAlert(kind, text, links) {
+    alertBox.className = 'px-4 py-3 rounded-xl text-sm font-medium border flex flex-wrap items-center gap-x-3 gap-y-1';
+    if (kind === 'success') {
+      alertBox.classList.add('border-green-300', 'bg-green-50/80', 'text-green-700');
+    } else {
+      alertBox.classList.add('border-red-300', 'bg-red-50/80', 'text-red-700');
+    }
+    alertBox.replaceChildren();
+    const span = document.createElement('span');
+    span.textContent = text;
+    alertBox.appendChild(span);
+    (links || []).forEach(l => {
+      if (!l || !l.href) return;
+      const a = document.createElement('a');
+      a.href = l.href;
+      a.textContent = l.label || l.href;
+      a.className = 'underline font-semibold';
+      if (l.target) a.target = l.target;
+      alertBox.appendChild(a);
+    });
+    alertBox.classList.remove('hidden');
+    alertBox.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  }
+  function hideAlert() { alertBox.classList.add('hidden'); }
+
+  function setBusy(btn, busy) {
+    btn.disabled = busy;
+    btn.querySelector('.btn-label').classList.toggle('hidden', busy);
+    btn.querySelector('.btn-spinner').classList.toggle('hidden', !busy);
+  }
+
+  function updateCharCount() {
+    const n = scrapedText.value.length;
+    charCount.textContent = n.toLocaleString() + ' chars';
+  }
+
+  async function postForm(url, data) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrf,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(data),
+      });
+      try { return await r.json(); }
+      catch { return {ok: false, error: `Server returned an unexpected response (${r.status}).`}; }
+    } catch (e) {
+      return {ok: false, error: `Network error: ${e && e.message ? e.message : e}`};
+    }
+  }
+
+  // ── Step 1: scrape ──
+  async function doScrape() {
+    hideAlert();
+    const url = sourceUrl.value.trim();
+    if (!url) { showAlert('error', 'Please enter a source URL.'); sourceUrl.focus(); return; }
+    setBusy(scrapeBtn, true);
+    try {
+      const j = await postForm('/admin-panel/blog/scrape/', {url});
+      if (!j.ok) { showAlert('error', j.error || 'Scrape failed.'); return; }
+      scrapedText.value = j.text;
+      updateCharCount();
+      step2Card.classList.remove('hidden');
+      step2Card.scrollIntoView({behavior: 'smooth', block: 'start'});
+      showAlert('success', `Scraped ${j.length.toLocaleString()} characters. Edit the text below if needed, then click "Rewrite with AI".`);
+    } catch (err) {
+      showAlert('error', `Unexpected error: ${err && err.message ? err.message : err}`);
+    } finally {
+      setBusy(scrapeBtn, false);
+    }
+  }
+  scrapeBtn.addEventListener('click', doScrape);
+  rescrapeBtn.addEventListener('click', doScrape);
+  sourceUrl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doScrape(); }});
+  scrapedText.addEventListener('input', updateCharCount);
+
+  // ── Step 2: rewrite ──
+  rewriteBtn.addEventListener('click', async () => {
+    hideAlert();
+    const text = scrapedText.value.trim();
+    if (!text) { showAlert('error', 'No source text to rewrite.'); return; }
+    setBusy(rewriteBtn, true);
+    try {
+      const j = await postForm('/admin-panel/blog/rewrite/', {
+        text, source_url: sourceUrl.value.trim()
+      });
+      if (!j.ok) { showAlert('error', j.error || 'Rewrite failed.'); return; }
+      fields.title.value   = j.title || '';
+      fields.slug.value    = j.slug || '';
+      fields.excerpt.value = j.excerpt || '';
+      fields.tags.value    = j.tags || '';
+      fields.meta.value    = j.meta_description || '';
+      fields.content.value = j.content || '';
+      fields.cover.value   = '';
+      step3Card.classList.remove('hidden');
+      step3Card.scrollIntoView({behavior: 'smooth', block: 'start'});
+      showAlert('success', 'Rewrite complete — review the fields below and publish when ready.');
+    } catch (err) {
+      showAlert('error', `Unexpected error: ${err && err.message ? err.message : err}`);
+    } finally {
+      setBusy(rewriteBtn, false);
+    }
+  });
+
+  // ── Step 3: preview toggle + publish/draft ──
+  // Server already sanitizes content with bleach before returning it to step 3,
+  // so the saved/displayed HTML is restricted to the blog allow-list. The
+  // preview here renders that already-cleaned HTML.
+  togglePreviewBtn.addEventListener('click', () => {
+    const hidden = previewBox.classList.toggle('hidden');
+    togglePreviewBtn.textContent = hidden ? 'Show preview' : 'Hide preview';
+    if (!hidden) previewBox.innerHTML = fields.content.value;
+  });
+
+  async function publish(status) {
+    hideAlert();
+    if (!fields.title.value.trim()) {
+      showAlert('error', 'Title is required.');
+      fields.title.focus();
+      return;
+    }
+    const btn = status === 'published' ? $('publishBtn') : $('saveDraftBtn');
+    setBusy(btn, true);
+    try {
+      const j = await postForm('/admin-panel/blog/publish/', {
+        title:            fields.title.value,
+        slug:             fields.slug.value,
+        excerpt:          fields.excerpt.value,
+        tags:             fields.tags.value,
+        cover_image_url:  fields.cover.value,
+        meta_description: fields.meta.value,
+        content:          fields.content.value,
+        source_url:       sourceUrl.value.trim(),
+        status,
+      });
+      if (!j.ok) { showAlert('error', j.error || 'Save failed.'); return; }
+      const links = [];
+      if (j.view_url) links.push({label: 'View post', href: j.view_url, target: '_blank'});
+      if (j.edit_url) links.push({label: status === 'published' ? 'Edit' : 'Open in editor', href: j.edit_url});
+      const text = status === 'published' ? '✓ Published!' : '✓ Saved as draft.';
+      showAlert('success', text, links);
+    } catch (err) {
+      showAlert('error', `Unexpected error: ${err && err.message ? err.message : err}`);
+    } finally {
+      setBusy(btn, false);
+    }
+  }
+  $('publishBtn').addEventListener('click', () => publish('published'));
+  $('saveDraftBtn').addEventListener('click', () => publish('draft'));
+})();
+</script>
+{% endblock %}

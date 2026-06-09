@@ -1,0 +1,659 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Email Settings{% endblock %}
+{% block page_title %}Email Settings{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; Per-service sender configuration & delivery testing{% endblock %}
+
+{% block extra_head %}
+<style>
+.es-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+@media(max-width:1100px){.es-grid{grid-template-columns:1fr;}}
+
+.es-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.es-card-head{display:flex;align-items:center;gap:12px;padding:20px 22px 16px;border-bottom:1px solid var(--border);}
+.es-ico{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.es-ico svg{width:17px;height:17px;}
+.es-card-label{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14.5px;color:var(--text);}
+.es-card-desc{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.5;}
+.es-badges{display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;}
+.es-badge{font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.es-badge.custom{background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.2);}
+.es-badge.default{background:var(--bg);color:var(--muted);border:1px solid var(--border);}
+.es-badge.working{background:rgba(22,163,74,.12);color:#15803d;border:1px solid rgba(22,163,74,.25);}
+.es-badge.failed{background:rgba(220,38,38,.1);color:#b91c1c;border:1px solid rgba(220,38,38,.22);}
+.es-badge.untested{background:rgba(107,114,128,.1);color:#475569;border:1px solid rgba(107,114,128,.2);}
+
+.es-body{padding:18px 22px;}
+.es-field{margin-bottom:14px;}
+.es-field:last-of-type{margin-bottom:0;}
+.es-label{display:block;font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:5px;letter-spacing:.02em;}
+.es-label span{font-weight:400;color:var(--muted);margin-left:4px;}
+.es-input,.es-textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--text);background:#fff;outline:none;transition:border .15s;box-sizing:border-box;}
+.es-textarea{font-family:'DM Sans',sans-serif;font-size:12.5px;min-height:74px;resize:vertical;line-height:1.55;}
+.es-input:focus,.es-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+
+.es-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--bg);border-top:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+.es-save-btn{padding:8px 20px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .18s,transform .18s,box-shadow .18s;display:flex;align-items:center;gap:6px;box-shadow:var(--sh-grad);}
+.es-save-btn:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 4px 16px rgba(29,78,216,.35);}
+.es-save-btn:active{transform:translateY(0);opacity:.88;}
+.es-save-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none;}
+.es-save-btn svg{width:13px;height:13px;}
+.es-status{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:5px;opacity:0;transition:opacity .3s;}
+.es-status.show{opacity:1;}
+.es-status.ok{color:#16a34a;}
+.es-status.err{color:#dc2626;}
+
+.es-events{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.es-events-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+.es-event{display:flex;align-items:center;justify-content:space-between;padding:5px 0;font-size:11.5px;}
+.es-event-label{color:var(--text);}
+.es-event-note{color:var(--muted);font-size:11px;}
+
+/* Test workflow */
+.es-test{margin-top:18px;padding:14px 14px 16px;background:linear-gradient(180deg,rgba(29,78,216,.025),rgba(5,150,105,.02));border:1px solid var(--border);border-radius:11px;}
+.es-test-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;gap:10px;}
+.es-test-head:hover .es-test-toggle{color:var(--text);}
+.es-test-title-wrap{display:flex;align-items:center;gap:10px;flex:1;min-width:0;}
+.es-test-title-ico{width:30px;height:30px;border-radius:8px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:var(--sh-grad);}
+.es-test-title-ico svg{width:14px;height:14px;}
+.es-test-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:var(--text);}
+.es-test-title-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.es-test-title-block{display:flex;flex-direction:column;min-width:0;}
+.es-test-toggle{font-size:18px;color:var(--muted);transition:color .15s,transform .25s;flex-shrink:0;}
+.es-test.open .es-test-toggle{transform:rotate(180deg);}
+.es-test-body{display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);}
+.es-test.open .es-test-body{display:block;}
+.es-test-row{display:grid;grid-template-columns:1fr;gap:12px;}
+.es-test .es-label{font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;gap:5px;}
+.es-test .es-label-hint{font-size:10.5px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:auto;}
+.es-test .es-label svg{width:12px;height:12px;color:var(--muted);}
+.es-test-actions{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.es-test-btn{padding:7px 14px;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all .15s;}
+.es-test-btn:hover{border-color:var(--blue);color:var(--blue);}
+.es-test-btn:disabled{opacity:.55;cursor:not-allowed;}
+.es-test-btn svg{width:13px;height:13px;}
+.es-test-btn.primary{background:var(--blue);color:#fff;border-color:var(--blue);}
+.es-test-btn.primary:hover{background:#1e40af;border-color:#1e40af;color:#fff;}
+.es-test-btn.success{background:#16a34a;color:#fff;border-color:#16a34a;}
+.es-test-btn.success:hover{background:#15803d;border-color:#15803d;color:#fff;}
+.es-test-btn.danger{background:#fff;color:#b91c1c;border-color:rgba(220,38,38,.3);}
+.es-test-btn.danger:hover{background:#fef2f2;color:#991b1b;border-color:#dc2626;}
+
+.es-test-result{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.5;display:none;}
+.es-test-result.show{display:block;}
+.es-test-result.ok{background:rgba(22,163,74,.08);color:#15803d;border:1px solid rgba(22,163,74,.2);}
+.es-test-result.err{background:rgba(220,38,38,.06);color:#991b1b;border:1px solid rgba(220,38,38,.18);}
+
+.es-meta{margin-top:10px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.65;}
+.es-meta-row{display:flex;justify-content:space-between;gap:8px;}
+.es-meta-row .k{color:var(--muted);}
+.es-meta-row .v{color:var(--text);text-align:right;word-break:break-all;}
+
+.es-notice{background:#fffbeb;border:1px solid #fcd34d;border-radius:11px;padding:13px 16px;display:flex;gap:11px;align-items:flex-start;margin-bottom:22px;}
+.es-notice.ok-notice{background:rgba(22,163,74,.06);border-color:rgba(22,163,74,.25);}
+.es-notice-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.es-notice-text{font-size:12px;color:#92400e;line-height:1.6;}
+.es-notice.ok-notice .es-notice-text{color:#15803d;}
+.es-notice-text strong{color:#78350f;}
+.es-notice.ok-notice .es-notice-text strong{color:#14532d;}
+.es-notice-text code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+
+/* Transport configuration container */
+.tx-card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:24px;overflow:hidden;}
+.tx-head{padding:20px 24px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(29,78,216,.04),rgba(5,150,105,.04));}
+.tx-head-ico{width:42px;height:42px;border-radius:11px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:var(--sh-grad);}
+.tx-head-ico svg{width:19px;height:19px;}
+.tx-head-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15.5px;color:var(--text);}
+.tx-head-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;}
+.tx-head-status{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
+.tx-status-pill{font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',monospace;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;display:inline-flex;align-items:center;gap:6px;}
+.tx-status-pill.live{background:rgba(22,163,74,.12);color:#15803d;border:1px solid rgba(22,163,74,.25);}
+.tx-status-pill.off{background:rgba(220,38,38,.08);color:#b91c1c;border:1px solid rgba(220,38,38,.2);}
+.tx-status-pill.live::before{content:'';width:6px;height:6px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.18);animation:pulse 2s infinite;}
+.tx-status-pill.off::before{content:'';width:6px;height:6px;border-radius:50%;background:#b91c1c;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+.tx-status-detail{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+
+.tx-pane{display:none;padding:22px 24px;}
+.tx-pane.active{display:block;}
+.tx-pane-intro{font-size:12.5px;color:var(--muted);line-height:1.65;margin-bottom:16px;}
+.tx-pane-intro a{color:var(--blue);text-decoration:none;font-weight:600;}
+.tx-pane-intro a:hover{text-decoration:underline;}
+.tx-pane-intro code{background:rgba(0,0,0,.05);padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+
+.tx-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.tx-grid.cols-3{grid-template-columns:2fr 1fr 1fr;}
+@media(max-width:760px){.tx-grid,.tx-grid.cols-3{grid-template-columns:1fr;}}
+.tx-field{display:flex;flex-direction:column;gap:5px;}
+.tx-field.full{grid-column:1 / -1;}
+.tx-field label{font-size:11.5px;font-weight:600;color:var(--text);letter-spacing:.02em;}
+.tx-field label span{font-weight:400;color:var(--muted);margin-left:4px;}
+.tx-field input[type=text],.tx-field input[type=password],.tx-field input[type=email],.tx-field input[type=number]{padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--text);background:#fff;outline:none;transition:border .15s;}
+.tx-field input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.tx-checkbox{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text);cursor:pointer;user-select:none;margin-top:4px;}
+.tx-checkbox input{width:15px;height:15px;cursor:pointer;}
+
+.tx-actions{display:flex;align-items:center;justify-content:space-between;margin-top:20px;padding-top:18px;border-top:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+.tx-actions-right{display:flex;align-items:center;gap:10px;}
+.tx-save{padding:9px 22px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px;box-shadow:var(--sh-grad);transition:opacity .18s,transform .18s;}
+.tx-save:hover{opacity:.92;transform:translateY(-1px);}
+.tx-save:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+.tx-save svg{width:13px;height:13px;}
+.tx-clear{padding:8px 14px;background:transparent;color:#b91c1c;border:1px solid rgba(220,38,38,.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;}
+.tx-clear:hover{background:#fef2f2;border-color:#dc2626;}
+.tx-result{font-size:12px;display:flex;align-items:center;gap:6px;opacity:0;transition:opacity .25s;}
+.tx-result.show{opacity:1;}
+.tx-result.ok{color:#16a34a;}
+.tx-result.err{color:#dc2626;}
+
+.tx-help{margin-top:14px;padding:12px 14px;background:var(--bg);border:1px dashed var(--border);border-radius:9px;font-size:11.5px;color:var(--muted);line-height:1.65;}
+.tx-help strong{color:var(--text);}
+.tx-help code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+.tx-help-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px;margin-top:6px;}
+@media(max-width:600px){.tx-help-grid{grid-template-columns:1fr;}}
+
+#toastGlobal{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;font-size:12.5px;font-weight:500;padding:11px 18px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;font-family:'DM Sans',sans-serif;max-width:380px;}
+#toastGlobal.ok {background:#16a34a;}
+#toastGlobal.err{background:#dc2626;}
+#toastGlobal.show{opacity:1;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="toastGlobal"></div>
+
+{# ── Step 1: configure Resend transport ────────────────────────────── #}
+<div class="tx-card">
+  <div class="tx-head">
+    <div class="tx-head-ico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>
+      </svg>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div class="tx-head-title">Step 1 · Resend API Key</div>
+      <div class="tx-head-sub">Resend delivers all Permitlify email. Paste your API key once, save, and email starts working immediately — no redeploy.</div>
+    </div>
+    <div class="tx-head-status">
+      <span class="tx-status-pill {% if transport_status.configured %}live{% else %}off{% endif %}" id="tx-status-pill">
+        {% if transport_status.configured %}Live{% else %}Not configured{% endif %}
+      </span>
+      <span class="tx-status-detail" id="tx-status-detail">{{ transport_status.label }}</span>
+    </div>
+  </div>
+
+  <div class="tx-pane active" id="tx-pane-resend" style="border-top:none;">
+    <div class="tx-pane-intro">
+      <strong>1.</strong> Get an API key at <a href="https://resend.com/api-keys" target="_blank" rel="noopener">resend.com/api-keys</a> &nbsp;·&nbsp;
+      <strong>2.</strong> Verify domain at <a href="https://resend.com/domains" target="_blank" rel="noopener">resend.com/domains</a> (DNS only, ~5 min) &nbsp;·&nbsp;
+      <strong>3.</strong> Paste key below.
+    </div>
+    <div class="tx-grid">
+      <div class="tx-field full">
+        <label for="tx-resend-key">Resend API Key <span>(starts with <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">re_</code>)</span></label>
+        <input type="password" id="tx-resend-key" autocomplete="off" spellcheck="false"
+               placeholder="{% if has_resend_key %}•••••••• key already saved — paste new key to replace, or leave blank{% else %}re_xxxxxxxxxxxxxxxxxxxxxxxx{% endif %}">
+      </div>
+    </div>
+    <div class="tx-actions">
+      <div class="tx-result" id="tx-result-resend"></div>
+      <div class="tx-actions-right">
+        {% if has_resend_key %}
+        <button type="button" class="tx-clear" onclick="clearTransport()">Clear key</button>
+        {% endif %}
+        <button type="button" class="tx-save" onclick="saveTransport('resend')" id="tx-save-resend">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save Resend key
+        </button>
+      </div>
+    </div>
+    <div class="tx-help">
+      <strong>Pricing</strong> — Free: 3,000/mo &amp; 100/day · Pro $20/mo: 50,000/mo · Scale $90/mo: 100,000/mo. <br>
+      <strong>You don't need Gmail accounts</strong> — once <code>permitlify.com</code> is verified at Resend, you can send FROM any address @permitlify.com (billing@, alerts@, noreply@, anything you make up — they don't have to exist as inboxes).
+    </div>
+  </div>
+</div>
+
+{# ── Step 2: notify on new user signup ────────────────────────────── #}
+<div class="tx-card" style="margin-top:18px;">
+  <div class="tx-head">
+    <div class="tx-head-ico" style="background:rgba(220,38,38,.08);color:#dc2626;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 01-3.46 0"/>
+      </svg>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div class="tx-head-title">Step 2 · Notify me on new user signup</div>
+      <div class="tx-head-sub">Get an email every time a new account is created (email signup or Google Sign-In). Sent from the <strong>Alerts</strong> sender (default: <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">alerts@permitlify.com</code>) — change it in the Alerts &amp; Notifications card below.</div>
+    </div>
+    <div class="tx-head-status">
+      <span class="tx-status-pill {% if notify_signup_enabled %}live{% else %}off{% endif %}" id="signup-status-pill">
+        {% if notify_signup_enabled %}On{% else %}Off{% endif %}
+      </span>
+      <span class="tx-status-detail" id="signup-status-detail">
+        {% if notify_signup_enabled and notify_signup_to %}→ {{ notify_signup_to }}{% else %}Disabled{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div class="tx-pane active" style="border-top:none;">
+    <div class="tx-grid">
+      <div class="tx-field" style="flex:0 0 auto;display:flex;align-items:center;gap:10px;min-width:200px;">
+        <label for="signup-notify-enabled" style="margin:0;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;color:var(--text);">
+          <input type="checkbox" id="signup-notify-enabled" {% if notify_signup_enabled %}checked{% endif %}
+                 style="width:18px;height:18px;cursor:pointer;">
+          Enable signup notifications
+        </label>
+      </div>
+      <div class="tx-field full" style="flex:1;min-width:240px;">
+        <label for="signup-notify-to">Send notifications to <span>(any inbox — Gmail, Outlook, …)</span></label>
+        <input type="email" id="signup-notify-to" autocomplete="off" spellcheck="false"
+               value="{{ notify_signup_to }}" placeholder="you@example.com">
+      </div>
+    </div>
+    <div class="tx-actions">
+      <div class="tx-result" id="signup-notify-result"></div>
+      <div class="tx-actions-right">
+        <button type="button" class="tx-save" onclick="saveSignupNotify()" id="signup-notify-save">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Save notification settings
+        </button>
+      </div>
+    </div>
+    <div class="tx-help">
+      Requires the Resend API key above to be saved. The notification reuses the <strong>Alerts &amp; Notifications</strong> sender configured below — verify that sender works first if you don't receive anything.
+    </div>
+  </div>
+</div>
+
+{# ── Step 3 header ──────────────────────────────────────────────────── #}
+<div style="display:flex;align-items:center;gap:10px;margin:18px 0 14px;padding:0 4px;">
+  <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;color:var(--text);">Step 3 · Per-service sender configuration</div>
+  <div style="flex:1;height:1px;background:var(--border);"></div>
+  <div style="font-size:11.5px;color:var(--muted);">From / Display Name / Reply-To · Test · Verify</div>
+</div>
+
+<div class="es-grid">
+{% for svc in services %}
+<div class="es-card" id="card-{{ svc.key }}">
+  <div class="es-card-head">
+    <div class="es-ico" style="background:{{ svc.bg_color }};">
+      <svg viewBox="0 0 24 24" fill="none" stroke="{{ svc.icon_color }}" stroke-width="2" stroke-linecap="round">
+        {% if svc.key == 'billing' %}
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+        {% elif svc.key == 'support' %}
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+        {% elif svc.key == 'alerts' %}
+          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+        {% elif svc.key == 'marketing' %}
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+        {% elif svc.key == 'system' %}
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        {% endif %}
+      </svg>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div class="es-card-label">{{ svc.label }}</div>
+      <div class="es-card-desc">{{ svc.description }}</div>
+    </div>
+    <div class="es-badges">
+      <span class="es-badge {% if svc.health.verified_at %}working{% elif svc.health.last_test_status == 'failed' %}failed{% else %}untested{% endif %}" id="health-{{ svc.key }}">
+        {% if svc.health.verified_at %}Working{% elif svc.health.last_test_status == 'failed' %}Failed{% else %}Untested{% endif %}
+      </span>
+      <span class="es-badge {% if svc.is_customised %}custom{% else %}default{% endif %}" id="badge-{{ svc.key }}">
+        {% if svc.is_customised %}Customised{% else %}Default{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div class="es-body">
+    <div class="es-field">
+      <label class="es-label" for="{{ svc.key }}_from_email">From Email Address</label>
+      <input class="es-input" type="email" id="{{ svc.key }}_from_email"
+             value="{{ svc.vals.from_email }}" placeholder="{{ svc.vals.from_email }}" required>
+    </div>
+    <div class="es-field">
+      <label class="es-label" for="{{ svc.key }}_from_name">Display Name</label>
+      <input class="es-input" type="text" id="{{ svc.key }}_from_name"
+             value="{{ svc.vals.from_name }}" placeholder="{{ svc.vals.from_name }}" required>
+    </div>
+    <div class="es-field">
+      <label class="es-label" for="{{ svc.key }}_reply_to">Reply-To <span>(optional)</span></label>
+      <input class="es-input" type="email" id="{{ svc.key }}_reply_to"
+             value="{{ svc.vals.reply_to }}" placeholder="Leave blank to use From address">
+    </div>
+
+    <div class="es-events">
+      <div class="es-events-title">Triggered Events</div>
+      {% for ev in svc.events %}
+      <div class="es-event">
+        <span class="es-event-label">{{ ev.label }}</span>
+        <span class="es-event-note">{{ ev.note }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="es-test" id="test-{{ svc.key }}">
+      <div class="es-test-head" onclick="toggleTest('{{ svc.key }}')">
+        <div class="es-test-title-wrap">
+          <div class="es-test-title-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </div>
+          <div class="es-test-title-block">
+            <span class="es-test-title">Send a test &amp; verify delivery</span>
+            <span class="es-test-title-sub">Send a real email to your inbox using the {{ svc.label }} sender — then mark it as working</span>
+          </div>
+        </div>
+        <span class="es-test-toggle">⌄</span>
+      </div>
+      <div class="es-test-body">
+        <div class="es-test-row">
+          <div class="es-field" style="margin-bottom:0;">
+            <label class="es-label" for="{{ svc.key }}_test_to">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Recipient
+              <span class="es-label-hint">where to send the test</span>
+            </label>
+            <input class="es-input" type="email" id="{{ svc.key }}_test_to"
+                   value="{{ admin_email }}" placeholder="you@example.com">
+          </div>
+          <div class="es-field" style="margin-bottom:0;">
+            <label class="es-label" for="{{ svc.key }}_test_subject">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+              Subject line
+              <span class="es-label-hint">shown in inbox preview</span>
+            </label>
+            <input class="es-input" type="text" id="{{ svc.key }}_test_subject"
+                   value="[Permitlify Test] {{ svc.label }} email">
+          </div>
+          <div class="es-field" style="margin-bottom:0;">
+            <label class="es-label" for="{{ svc.key }}_test_body">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Message body
+              <span class="es-label-hint">plain text — what the recipient sees</span>
+            </label>
+            <textarea class="es-textarea" id="{{ svc.key }}_test_body" rows="3">This is a test email from the Permitlify admin panel for the {{ svc.label }} service.
+
+If you received this, the {{ svc.key }} sender configuration is delivering correctly.</textarea>
+          </div>
+        </div>
+
+        <div class="es-test-actions">
+          <button class="es-test-btn primary" onclick="sendTest('{{ svc.key }}')" id="send-btn-{{ svc.key }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            Send test email now
+          </button>
+          {% if svc.health.verified_at %}
+          <button class="es-test-btn danger" onclick="markVerified('{{ svc.key }}', false)" id="verify-btn-{{ svc.key }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Clear verification
+          </button>
+          {% else %}
+          <button class="es-test-btn success" onclick="markVerified('{{ svc.key }}', true)" id="verify-btn-{{ svc.key }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            I received it — mark as working
+          </button>
+          {% endif %}
+        </div>
+
+        <div class="es-test-result" id="test-result-{{ svc.key }}"></div>
+
+        <div class="es-meta" id="meta-{{ svc.key }}">
+          {% if svc.health.last_test_at %}
+          <div class="es-meta-row"><span class="k">Last test:</span><span class="v">{{ svc.health.last_test_at }} → {{ svc.health.last_test_to }} ({{ svc.health.last_test_status|default:"-" }})</span></div>
+          {% endif %}
+          {% if svc.health.last_test_error %}
+          <div class="es-meta-row"><span class="k">Last error:</span><span class="v" style="color:#b91c1c;">{{ svc.health.last_test_error }}</span></div>
+          {% endif %}
+          {% if svc.health.verified_at %}
+          <div class="es-meta-row"><span class="k">Verified at:</span><span class="v">{{ svc.health.verified_at }}</span></div>
+          {% if svc.health.verified_by %}
+          <div class="es-meta-row"><span class="k">Verified by:</span><span class="v">{{ svc.health.verified_by }}</span></div>
+          {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="es-footer">
+    <div class="es-status" id="status-{{ svc.key }}"></div>
+    <button class="es-save-btn" onclick="saveService('{{ svc.key }}')">Save</button>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+<script>
+var CSRF = '{{ csrf_token }}';
+
+function postForm(fd, cb) {
+  fetch('/admin-panel/email-settings/', {
+    method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'},
+    body: fd
+  })
+  .then(function(r){ return r.json(); })
+  .then(cb)
+  .catch(function(){ cb({ok:false, error:'Network error'}); });
+}
+
+/* ── Save Resend API key ──────────────────────────────────────────── */
+function saveTransport(provider) {
+  var btn   = document.getElementById('tx-save-' + provider);
+  var resEl = document.getElementById('tx-result-' + provider);
+  btn.disabled = true;
+
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('action',   'save_transport');
+  fd.append('provider', provider);
+
+  if (provider === 'resend') {
+    var key = document.getElementById('tx-resend-key').value.trim();
+    fd.append('resend_api_key', key);
+  }
+
+  postForm(fd, function(d){
+    btn.disabled = false;
+    renderTxResult(resEl, d.ok, d.ok ? (d.detail || 'Saved.') : (d.error || 'Save failed'));
+    if (d.transport) updateTxStatus(d.transport);
+    toast(d.ok ? (d.detail || 'Resend key saved') : ('Error: ' + (d.error || 'Save failed')), d.ok);
+    if (d.ok && provider === 'resend') {
+      document.getElementById('tx-resend-key').value = '';
+    }
+  });
+}
+
+function clearTransport() {
+  if (!confirm('Remove the saved Resend API key? Email sending will stop working until you save a new key.')) return;
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('action',   'save_transport');
+  fd.append('provider', 'clear');
+  postForm(fd, function(d){
+    toast(d.ok ? 'Cleared Resend API key' : ('Error: ' + (d.error||'')), d.ok);
+    if (d.ok) setTimeout(function(){ location.reload(); }, 600);
+  });
+}
+
+function saveSignupNotify() {
+  var btn      = document.getElementById('signup-notify-save');
+  var resEl    = document.getElementById('signup-notify-result');
+  var enabled  = document.getElementById('signup-notify-enabled').checked;
+  var toAddr   = document.getElementById('signup-notify-to').value.trim();
+  if (enabled && (!toAddr || toAddr.indexOf('@') === -1)) {
+    renderTxResult(resEl, false, 'Enter a valid recipient email.');
+    return;
+  }
+  btn.disabled = true;
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('action',  'save_signup_notify');
+  fd.append('enabled', enabled ? '1' : '0');
+  fd.append('to',      toAddr);
+  postForm(fd, function(d){
+    btn.disabled = false;
+    renderTxResult(resEl, !!d.ok, d.ok ? (d.detail || 'Saved.') : (d.error || 'Save failed.'));
+    if (d.ok) {
+      var pill   = document.getElementById('signup-status-pill');
+      var detail = document.getElementById('signup-status-detail');
+      if (pill)   { pill.className = 'tx-status-pill ' + (enabled ? 'live' : 'off'); pill.textContent = enabled ? 'On' : 'Off'; }
+      if (detail) { detail.textContent = (enabled && toAddr) ? ('→ ' + toAddr) : 'Disabled'; }
+      toast(d.detail || 'Saved.', true);
+    } else {
+      toast('Error: ' + (d.error || 'Save failed.'), false);
+    }
+  });
+}
+
+function updateTxStatus(t) {
+  var pill   = document.getElementById('tx-status-pill');
+  var detail = document.getElementById('tx-status-detail');
+  if (!pill || !detail) return;
+  if (t.configured) { pill.className = 'tx-status-pill live'; pill.textContent = 'Live'; }
+  else              { pill.className = 'tx-status-pill off';  pill.textContent = 'Not configured'; }
+  detail.textContent = t.label || '';
+}
+
+function renderTxResult(el, ok, msg) {
+  el.textContent = (ok ? '✓ ' : '✕ ') + msg;
+  el.className = 'tx-result show ' + (ok ? 'ok' : 'err');
+  setTimeout(function(){ el.className = 'tx-result ' + (ok ? 'ok' : 'err'); }, 4000);
+}
+
+function saveService(svc) {
+  var fromEmail = document.getElementById(svc + '_from_email').value.trim();
+  var fromName  = document.getElementById(svc + '_from_name').value.trim();
+  var replyTo   = document.getElementById(svc + '_reply_to').value.trim();
+  var statusEl  = document.getElementById('status-' + svc);
+  var badgeEl   = document.getElementById('badge-' + svc);
+
+  if (!fromEmail || !fromName) {
+    showStatus(statusEl, 'From email and display name are required', false);
+    return;
+  }
+
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('action',     'save');
+  fd.append('service',    svc);
+  fd.append('from_email', fromEmail);
+  fd.append('from_name',  fromName);
+  fd.append('reply_to',   replyTo);
+
+  postForm(fd, function(d){
+    if (d.ok) {
+      showStatus(statusEl, 'Saved', true);
+      toast('Saved ' + svc + ' email settings', true);
+      badgeEl.className = 'es-badge custom';
+      badgeEl.textContent = 'Customised';
+    } else {
+      showStatus(statusEl, d.error || 'Error saving', false);
+      toast('Error: ' + (d.error || 'Save failed'), false);
+    }
+  });
+}
+
+function toggleTest(svc) {
+  var el = document.getElementById('test-' + svc);
+  el.classList.toggle('open');
+}
+
+function sendTest(svc) {
+  var to      = document.getElementById(svc + '_test_to').value.trim();
+  var subject = document.getElementById(svc + '_test_subject').value.trim();
+  var body    = document.getElementById(svc + '_test_body').value.trim();
+  var btn     = document.getElementById('send-btn-' + svc);
+  var resEl   = document.getElementById('test-result-' + svc);
+
+  if (!to || to.indexOf('@') < 0) { renderTestResult(resEl, false, 'Enter a valid recipient email.'); return; }
+  if (!subject) { renderTestResult(resEl, false, 'Subject is required.'); return; }
+  if (!body)    { renderTestResult(resEl, false, 'Body is required.'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/></svg> Sending…';
+
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('action',  'test_send');
+  fd.append('service', svc);
+  fd.append('to',      to);
+  fd.append('subject', subject);
+  fd.append('body',    body);
+
+  postForm(fd, function(d){
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg> Send test';
+    renderTestResult(resEl, d.ok, d.ok ? (d.detail || ('Sent to ' + to + '. Check the inbox, then mark below.')) : (d.error || 'Send failed'));
+    if (d.health) updateHealthBadge(svc, d.health);
+    toast(d.ok ? ('Test sent to ' + to) : ('Send failed: ' + (d.error || 'unknown')), d.ok);
+  });
+}
+
+function markVerified(svc, working) {
+  var btn   = document.getElementById('verify-btn-' + svc);
+  var resEl = document.getElementById('test-result-' + svc);
+  btn.disabled = true;
+
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('action',  'verify');
+  fd.append('service', svc);
+  fd.append('working', working ? '1' : '0');
+
+  postForm(fd, function(d){
+    btn.disabled = false;
+    if (d.ok) {
+      if (working) {
+        btn.className = 'es-test-btn danger';
+        btn.innerHTML = 'Clear verification';
+        btn.setAttribute('onclick', "markVerified('" + svc + "', false)");
+      } else {
+        btn.className = 'es-test-btn success';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg> I received it — mark working';
+        btn.setAttribute('onclick', "markVerified('" + svc + "', true)");
+      }
+      renderTestResult(resEl, true, working ? 'Marked as working.' : 'Verification cleared.');
+      if (d.health) updateHealthBadge(svc, d.health);
+      toast(working ? (svc + ' marked as working') : (svc + ' verification cleared'), true);
+    } else {
+      renderTestResult(resEl, false, d.error || 'Verification failed.');
+    }
+  });
+}
+
+function updateHealthBadge(svc, health) {
+  var el = document.getElementById('health-' + svc);
+  if (!el) return;
+  if (health.verified_at) {
+    el.className = 'es-badge working';
+    el.textContent = 'Working';
+  } else if (health.last_test_status === 'failed') {
+    el.className = 'es-badge failed';
+    el.textContent = 'Failed';
+  } else {
+    el.className = 'es-badge untested';
+    el.textContent = 'Untested';
+  }
+}
+
+function renderTestResult(el, ok, msg) {
+  el.textContent = msg;
+  el.className = 'es-test-result show ' + (ok ? 'ok' : 'err');
+}
+
+function showStatus(el, msg, ok) {
+  el.textContent = ok ? '✓ ' + msg : '✕ ' + msg;
+  el.className = 'es-status show ' + (ok ? 'ok' : 'err');
+  setTimeout(function(){ el.className = 'es-status ' + (ok ? 'ok' : 'err'); }, 3000);
+}
+
+function toast(msg, ok) {
+  var el = document.getElementById('toastGlobal');
+  el.textContent = msg;
+  el.className = 'show ' + (ok ? 'ok' : 'err');
+  setTimeout(function(){ el.className = ok ? 'ok' : 'err'; }, 3000);
+}
+</script>
+{% endblock %}

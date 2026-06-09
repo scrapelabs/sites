@@ -1,0 +1,973 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Accela Permit Search{% endblock %}
+{% block page_title %}Accela Permit Search{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; Find the right Accela permit-search URL per city{% endblock %}
+
+{% block extra_head %}
+<style>
+.aps-card{background:var(--card,#fff);border:1px solid var(--border,#e5e7eb);border-radius:14px;padding:18px 20px;margin-bottom:18px;box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.aps-card h2{margin:0 0 4px 0;font-size:15px;font-weight:700;color:#0f172a;}
+.aps-card .aps-sub{color:#6b7280;font-size:12.5px;margin-bottom:14px;}
+.aps-row{display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start;}
+@media (max-width:780px){.aps-row{grid-template-columns:1fr;}}
+.aps-fc-row{display:grid;grid-template-columns:1fr 200px 160px;gap:16px;align-items:start;}
+@media (max-width:780px){.aps-fc-row{grid-template-columns:1fr;}}
+.aps-label{display:block;font-size:11.5px;font-weight:600;color:#475569;margin-bottom:5px;letter-spacing:.02em;text-transform:uppercase;}
+.aps-input,.aps-select,.aps-area{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;color:#0f172a;font-family:inherit;box-sizing:border-box;}
+.aps-area{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;line-height:1.55;min-height:120px;resize:vertical;}
+.aps-area.tall{min-height:170px;}
+.aps-input:focus,.aps-select:focus,.aps-area:focus{outline:none;border-color:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.aps-help{font-size:11.5px;color:#94a3b8;margin-top:4px;}
+.aps-actions{display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:12px;flex-wrap:wrap;}
+.aps-btn{background:#0f172a;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
+.aps-btn:hover{opacity:.9;}
+.aps-btn[disabled]{opacity:.5;cursor:not-allowed;}
+.aps-btn.run{background:linear-gradient(135deg,#3b82f6,#22d3ee);color:#fff;box-shadow:0 4px 12px rgba(59,130,246,.25);}
+.aps-btn.alt{background:#fff;color:#0f172a;border:1px solid #d1d5db;}
+.aps-btn.tiny{padding:5px 10px;font-size:11.5px;font-weight:600;}
+.aps-progress{font-size:12px;color:#64748b;}
+.aps-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.aps-tbl th,.aps-tbl td{padding:9px 10px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top;}
+.aps-tbl th{font-size:10.5px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:600;background:#f8fafc;}
+.aps-tbl tr.pending td{color:#94a3b8;}
+.aps-tbl td.url-cell{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;word-break:break-all;color:#0f172a;}
+.aps-pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+.aps-pill.high   {background:#dcfce7;color:#166534;}
+.aps-pill.medium {background:#fef3c7;color:#92400e;}
+.aps-pill.low    {background:#fee2e2;color:#991b1b;}
+.aps-pill.pending{background:#e2e8f0;color:#334155;}
+.aps-pill.error  {background:#fecaca;color:#7f1d1d;}
+.aps-row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.aps-row-actions a,.aps-row-actions button{font-size:11.5px;padding:5px 10px;border-radius:6px;text-decoration:none;font-weight:600;font-family:inherit;cursor:pointer;border:1px solid #d1d5db;background:#fff;color:#0f172a;display:inline-flex;align-items:center;gap:4px;}
+.aps-row-actions a:hover,.aps-row-actions button:hover{background:#f1f5f9;}
+.aps-row-actions .add{background:#0f172a;color:#fff;border-color:#0f172a;}
+.aps-row-actions .add:hover{background:#1e293b;}
+.aps-row-actions .add[disabled]{background:#cbd5e1;color:#fff;border-color:#cbd5e1;cursor:not-allowed;}
+.aps-row-actions .add.pushing{background:#3b82f6;border-color:#3b82f6;cursor:wait;}
+.aps-pushed{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:6px;text-decoration:none;}
+.aps-pushed.ok    {background:#dcfce7;color:#166534;border:1px solid #86efac;}
+.aps-pushed.dup   {background:#fef3c7;color:#92400e;border:1px solid #fcd34d;}
+.aps-pushed.err   {background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+.aps-pushed:hover {filter:brightness(.97);}
+.aps-skipped{color:#94a3b8;font-weight:400;font-size:11px;}
+.aps-reason{font-size:11px;color:#64748b;margin-top:3px;}
+.aps-log{margin-top:8px;font-size:11px;}
+.aps-log summary{cursor:pointer;color:#475569;font-weight:600;padding:2px 0;list-style:none;}
+.aps-log summary::-webkit-details-marker{display:none;}
+.aps-log summary::before{content:'▸ ';color:#94a3b8;}
+.aps-log[open] summary::before{content:'▾ ';}
+.aps-log-meta{display:flex;flex-wrap:wrap;gap:10px 16px;margin:6px 0 8px 0;font-size:10.5px;color:#475569;}
+.aps-log-meta span b{color:#0f172a;font-weight:700;}
+.aps-log pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;color:#0f172a;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto;}
+.aps-log h4{font-size:10.5px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin:8px 0 4px 0;}
+.aps-empty{padding:30px;text-align:center;color:#94a3b8;font-size:13px;}
+.aps-fc-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#475569;font-weight:600;user-select:none;}
+.aps-fc-toggle input{margin:0;}
+.aps-btn.stop{background:#ef4444;color:#fff;border:none;}
+.aps-btn.stop:hover{background:#dc2626;}
+</style>
+{% endblock %}
+
+{% block content %}
+<h1 style="margin-top:0;">Accela Permit Search Finder</h1>
+<p style="color:#6b7280;margin-top:4px;font-size:13px;max-width:760px;">
+  Pick a state, edit the city list if you want, then click <b>Search all cities</b>.
+  Each city goes through 3 steps: <b>1)</b> Google search via Firecrawl,
+  <b>2)</b> DO Inference picks the best <code>*.accela.com</code> URL,
+  <b>3)</b> Firecrawl fetches the chosen page and DO Inference verifies it&rsquo;s
+  actually a live permit-search page. Only verified URLs are <b>auto-pushed to scrapers</b>.
+  Cities that already exist in
+  <a href="/admin-panel/scrapers/" style="color:#1d4ed8;">your scrapers</a> are
+  filtered out of the city list automatically.
+</p>
+
+<!-- ── DO Inference finder settings ─────────────────────────────── -->
+<div class="aps-card">
+  <h2>Finder settings <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:6px;">(DO Inference)</span></h2>
+  <div class="aps-sub">
+    These knobs are sent with every per-city call. Use <code>{city}</code> and <code>{state}</code> in the prompt &mdash; they're substituted before the call. Each call is logged in the <b>Request log</b> below and on the <b>AI Usage</b> page under <code>source=accela_finder</code>.
+  </div>
+  <div>
+    <label class="aps-label" for="aps-fc-prompt">Prompt template</label>
+    <textarea id="aps-fc-prompt" class="aps-area tall" spellcheck="false">{{ firecrawl_default_prompt }}</textarea>
+    <div class="aps-help">Up to 4&nbsp;000 characters. This is just the &ldquo;ask&rdquo; &mdash; the mandatory rules (accela.com host rule, JSON output schema) are baked into the system prompt and always sent, so a one-liner like the default works fine.</div>
+  </div>
+  <div class="aps-fc-row" style="margin-top:14px;">
+    <div></div>
+    <div>
+      <label class="aps-label" for="aps-fc-model">Model</label>
+      <input id="aps-fc-model" type="text" class="aps-input" value="{{ firecrawl_default_model }}" placeholder="openai-gpt-oss-20b" style="font-family:'JetBrains Mono',monospace;font-size:12px;">
+      <div class="aps-help">Any DO Inference model id. <b>openai-gpt-oss-20b</b> is cheapest.</div>
+    </div>
+    <div>
+      <label class="aps-label" for="aps-fc-credits">Max output tokens</label>
+      <input id="aps-fc-credits" type="number" class="aps-input" min="1" max="{{ firecrawl_credits_cap }}" step="1" value="{{ firecrawl_default_credits }}">
+      <div class="aps-help">Cap is <b>{{ firecrawl_credits_cap }}</b>. The reply is small JSON so 1000&ndash;1500 is usually enough.</div>
+    </div>
+  </div>
+  <div class="aps-actions" style="margin-top:14px;">
+    <div class="aps-progress" id="aps-fc-status">
+      {% if firecrawl_settings_saved_at %}
+        Last saved {{ firecrawl_settings_saved_at }}.
+      {% else %}
+        Using built-in defaults — click <b>Save settings</b> to persist your edits.
+      {% endif %}
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="aps-btn alt" id="aps-fc-reset">Reset to defaults</button>
+      <button type="button" class="aps-btn" id="aps-fc-save">Save settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Pick state &amp; cities ─────────────────────────────────── -->
+<div class="aps-card">
+  <h2>Pick a state &amp; cities</h2>
+  <div class="aps-sub">Each city = 1 Firecrawl search + 1 Inference pick + 1 Firecrawl page verify + 1 Inference verify. The full log is in the <i>Request log</i> below. Cities are processed one at a time with an 8s gap.</div>
+  <div class="aps-row">
+    <div>
+      <label class="aps-label" for="aps-state">State</label>
+      <select id="aps-state" class="aps-select">
+        <option value="">— Select a state —</option>
+        {% for code, name in us_states %}
+          <option value="{{ code }}">{{ name }} ({{ code }})</option>
+        {% endfor %}
+      </select>
+      <div class="aps-help">Pre-fills with the largest cities in the state. Edit the list on the right freely.</div>
+    </div>
+    <div>
+      <label class="aps-label" for="aps-cities">Cities to search <span id="aps-count" style="color:#94a3b8;font-weight:400;text-transform:none;">(0)</span> <span id="aps-skipped" class="aps-skipped"></span></label>
+      <textarea id="aps-cities" class="aps-area" placeholder="Pick a state to populate this list, or paste your own (comma- or newline-separated)."></textarea>
+      <div class="aps-help">One city per line, or comma-separated. Up to 60 per run. Cities already in scrapers are auto-removed.</div>
+    </div>
+  </div>
+  <div class="aps-actions">
+    <div class="aps-progress" id="aps-progress">Idle.</div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="aps-btn alt" id="aps-clear">Clear results</button>
+      <button type="button" class="aps-btn run" id="aps-run" disabled>Search all cities</button>
+      <button type="button" class="aps-btn run" id="aps-run-usa">Run All States (USA)</button>
+      <button type="button" class="aps-btn stop" id="aps-stop-usa" style="display:none">Stop All</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CMD-style finder batch terminal ────────────────────────── -->
+<div id="finderPanel" style="display:none;position:sticky;top:0;z-index:50;background:#0b1220;color:#d8e3f3;border:1px solid #1f2a44;border-radius:14px;padding:16px 18px;margin-bottom:18px;font-family:'JetBrains Mono',monospace;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.18);">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div>
+      <span id="fpHeadline" style="font-weight:700;color:#fff;font-size:13px;">Finder batch starting…</span>
+      <span id="fpSub" style="color:#9fb1cf;margin-left:10px;font-size:11px;"></span>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button type="button" id="fpStopBtn" onclick="stopFinderBatch()" style="background:#ef4444;border:none;color:#fff;border-radius:6px;padding:4px 12px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;">Stop</button>
+      <button type="button" onclick="closeFinderPanel()" style="background:transparent;border:1px solid #334155;color:#cbd5e1;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;font-size:11px;">Close</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;">
+    <div style="flex:1;">
+      <div style="height:8px;background:#1e293b;border-radius:4px;overflow:hidden;">
+        <div id="fpBar" style="height:100%;width:0%;background:linear-gradient(90deg,#3b82f6,#22d3ee);border-radius:4px;transition:width .3s ease;"></div>
+      </div>
+    </div>
+    <div id="fpPct" style="color:#60a5fa;font-weight:700;font-size:13px;min-width:48px;text-align:right;">0%</div>
+  </div>
+  <div id="fpStats" style="display:flex;gap:16px;font-size:11px;color:#94a3b8;margin-bottom:10px;flex-wrap:wrap;"></div>
+  <div id="fpLog" style="background:#020617;border:1px solid #1e293b;border-radius:6px;padding:10px 12px;max-height:400px;overflow:auto;font-size:11px;line-height:1.65;"></div>
+</div>
+
+<!-- ── Results ────────────────────────────────────────────────── -->
+<div class="aps-card">
+  <h2>Results</h2>
+  <div class="aps-sub">Confidence is the agent's self-reported score. Always click <b>View link</b> first to spot-check the page before adding it as a scraper.</div>
+  <table class="aps-tbl">
+    <thead>
+      <tr>
+        <th style="width:18%;">City</th>
+        <th style="width:42%;">Suggested Accela URL</th>
+        <th style="width:14%;">Confidence</th>
+        <th style="width:26%;">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="aps-tbody">
+      <tr><td colspan="4" class="aps-empty">No searches yet — pick a state above and click <b>Search all cities</b>.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Request log ────────────────────────────────────────────── -->
+<div class="aps-card">
+  <h2>Request log <span id="rl-total" style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:6px;"></span></h2>
+  <div class="aps-sub">Every finder call (single or batch) is logged here with full request/response details. Click a row to expand.</div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <button type="button" class="aps-btn alt tiny" id="rl-refresh">Refresh</button>
+    <button type="button" class="aps-btn alt tiny" id="rl-load-more" style="display:none;">Load more</button>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="aps-tbl" id="rl-table">
+      <thead>
+        <tr>
+          <th style="width:130px;">Time</th>
+          <th>City / State</th>
+          <th>Model</th>
+          <th>URL found</th>
+          <th>Confidence</th>
+          <th style="width:70px;">Latency</th>
+          <th style="width:70px;">Tokens</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="rl-tbody">
+        <tr><td colspan="8" class="aps-empty">Loading&hellip;</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% comment %}
+  `|json_script` escapes <, >, and & to safe \u00xx sequences so a
+  malicious admin-set scraper city cannot break out of this JSON
+  island and execute JS in another admin's session. Renders a
+  `<script type="application/json">` tag with the same id the JS
+  below reads via getElementById.
+
+  NOTE: this MUST be {% comment %}, not {# #}. Django's {# #}
+  comments are single-line only — a multi-line {# … #} leaks the
+  body to the rendered page as text (and was the cause of PR #186).
+{% endcomment %}
+{{ cities_by_state|json_script:"aps-cities-data" }}
+{{ existing_cities_by_state|json_script:"aps-existing-data" }}
+<script>
+(function(){
+  // Defence-in-depth: read each JSON island via optional chaining so
+  // ONE missing/malformed island (e.g. a stray HTML comment leak that
+  // swallows the next script tag, like the bug fixed in PR #186) can
+  // never abort the whole IIFE and leave the change handler unbound.
+  function readIsland(id){
+    try {
+      const el = document.getElementById(id);
+      if (!el) { console.warn('aps: missing JSON island #' + id); return {}; }
+      const v = JSON.parse(el.textContent || '{}');
+      // Both islands must be plain objects keyed by state code. If the
+      // server ever returns null / a list / a primitive, fall back to
+      // {} so downstream `BY_STATE[state]` lookups still work.
+      if (!v || typeof v !== 'object' || Array.isArray(v)) {
+        console.warn('aps: #' + id + ' is not a plain object'); return {};
+      }
+      return v;
+    } catch (e) {
+      console.warn('aps: bad JSON in #' + id + ':', e);
+      return {};
+    }
+  }
+  const CITIES_BY_STATE   = readIsland('aps-cities-data');
+  // Existing (state, city) pairs already in the scrapers table —
+  // shape is `{ "CA": ["Lancaster", "Ontario", ...], ... }` to match
+  // CITIES_BY_STATE. Compared case-insensitively in the filter below
+  // so admin-typed lower-case cities still match the title-cased
+  // values stored on the server.
+  const EXISTING_BY_STATE = readIsland('aps-existing-data');
+  const $state    = document.getElementById('aps-state');
+  const $cities   = document.getElementById('aps-cities');
+  const $count    = document.getElementById('aps-count');
+  const $skipped  = document.getElementById('aps-skipped');
+  const $run      = document.getElementById('aps-run');
+  const $clear    = document.getElementById('aps-clear');
+  const $tbody    = document.getElementById('aps-tbody');
+  const $progress = document.getElementById('aps-progress');
+  const $fcPrompt = document.getElementById('aps-fc-prompt');
+  const $fcModel  = document.getElementById('aps-fc-model');
+  const $fcCred   = document.getElementById('aps-fc-credits');
+
+  function existingSet(state){
+    const list = EXISTING_BY_STATE[state] || [];
+    return new Set(list.map(c => String(c).trim().toLowerCase()));
+  }
+
+  const csrftoken = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+
+  function parseCities(raw){
+    return (raw || '')
+      .split(/[\n,]/)
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+  function refreshCount(){
+    const n = parseCities($cities.value).length;
+    $count.textContent = '(' + n + ')';
+    $run.disabled = !($state.value && n > 0);
+  }
+  function escapeHtml(s){
+    return (s == null ? '' : String(s))
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  $state.addEventListener('change', () => {
+    const all = CITIES_BY_STATE[$state.value] || [];
+    const have = existingSet($state.value);
+    // Filter out cities already saved as scrapers — they don't need
+    // a Firecrawl run. Keep insertion order from CITIES_BY_STATE so
+    // the largest cities still bubble to the top.
+    const fresh = all.filter(c => !have.has(String(c).trim().toLowerCase()));
+    const skipped = all.length - fresh.length;
+    $cities.value = fresh.join('\n');
+    if (skipped > 0){
+      $skipped.textContent = `(${skipped} already in scrapers — skipped)`;
+    } else {
+      $skipped.textContent = '';
+    }
+    refreshCount();
+  });
+  $cities.addEventListener('input', refreshCount);
+
+  $clear.addEventListener('click', () => {
+    $tbody.innerHTML = '<tr><td colspan="4" class="aps-empty">No searches yet — pick a state above and click <b>Search all cities</b>.</td></tr>';
+    $progress.textContent = 'Idle.';
+  });
+
+  // Render the per-row "Inference log" collapsible. `log` may be null
+  // (e.g. on a hard ScraperError before the inference call ran).
+  function renderLog(log){
+    if (!log) return '';
+    const meta = [];
+    if (log.status)        meta.push(`<span>status: <b>${escapeHtml(log.status)}</b></span>`);
+    if (log.model)         meta.push(`<span>model: <b>${escapeHtml(log.model)}</b></span>`);
+    if (log.credits_used != null || log.credits_budget != null) {
+      const used   = log.credits_used   != null ? log.credits_used   : '?';
+      const budget = log.credits_budget != null ? log.credits_budget : '?';
+      meta.push(`<span>tokens: <b>${escapeHtml(used)}</b> / ${escapeHtml(budget)} budget</span>`);
+    }
+    if (log.retries) {
+      meta.push(`<span>retries: <b>${escapeHtml(log.retries)}</b></span>`);
+    }
+    if (log.latency_ms != null)   meta.push(`<span>latency: <b>${escapeHtml(log.latency_ms)} ms</b></span>`);
+    if (log.agent_id)      meta.push(`<span>id: <b>${escapeHtml(String(log.agent_id).slice(0,16))}…</b></span>`);
+    const promptHtml = log.prompt
+      ? `<h4>Prompt sent</h4><pre>${escapeHtml(log.prompt)}</pre>` : '';
+    let dataHtml = '';
+    if (log.data !== null && log.data !== undefined){
+      let pretty;
+      try { pretty = JSON.stringify(log.data, null, 2); }
+      catch (e) { pretty = String(log.data); }
+      dataHtml = `<h4>Agent response (data)</h4><pre>${escapeHtml(pretty)}</pre>`;
+    }
+    const errHtml = log.error
+      ? `<h4>Error</h4><pre style="color:#991b1b;">${escapeHtml(log.error)}</pre>` : '';
+    return `<details class="aps-log">
+      <summary>Inference log</summary>
+      <div class="aps-log-meta">${meta.join('')}</div>
+      ${promptHtml}
+      ${dataHtml}
+      ${errHtml}
+    </details>`;
+  }
+
+  function renderRow(city, state, status, data){
+    // status: 'pending' | 'ok' | 'error'
+    const tr = document.createElement('tr');
+    tr.dataset.city = city;
+    if (status === 'pending'){
+      tr.className = 'pending';
+      tr.innerHTML = `
+        <td><b>${escapeHtml(city)}</b><div style="font-size:10.5px;color:#94a3b8;">${escapeHtml(state)}</div></td>
+        <td class="url-cell">searching…</td>
+        <td><span class="aps-pill pending">pending</span></td>
+        <td class="aps-row-actions"><button disabled class="add">Push to scrapers</button></td>`;
+      return tr;
+    }
+    if (status === 'error'){
+      const log = data && data.log;
+      tr.innerHTML = `
+        <td><b>${escapeHtml(city)}</b><div style="font-size:10.5px;color:#94a3b8;">${escapeHtml(state)}</div></td>
+        <td class="url-cell">
+          <span style="color:#991b1b;">${escapeHtml(data && data.error || 'Search failed.')}</span>
+          ${renderLog(log)}
+        </td>
+        <td><span class="aps-pill error">error</span></td>
+        <td class="aps-row-actions"><button disabled class="add">Push to scrapers</button></td>`;
+      return tr;
+    }
+    // ok
+    const url        = data && data.url || null;
+    const confidence = (data && data.confidence) || 'low';
+    const reason     = (data && data.reason) || '';
+    const log        = data && data.log;
+    const autoPush   = data && data.auto_push || null;
+    let urlHtml = '<span style="color:#94a3b8;">No suitable accela.com URL found.</span>';
+    if (url){
+      urlHtml = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" style="color:#1d4ed8;text-decoration:none;">${escapeHtml(url)}</a>`;
+    }
+    const suggestedName = `${city} ${state} Accela Permits`;
+    // Build the Action cell from the auto_push envelope returned by
+    // the run endpoint. The server has already created (or
+    // rejected) the scrapers row, so the user sees the outcome
+    // pill straight away — no second click. We keep a dimmed
+    // "Re-push" button only for failure cases (skipped / error /
+    // invalid) so the admin can fix the URL and retry manually.
+    let actionHtml = '';
+    if (autoPush && autoPush.status === 'pushed'){
+      actionHtml = `
+        <a href="${url ? escapeHtml(url) : '#'}" target="_blank" rel="noopener noreferrer">View link</a>
+        <a class="aps-pushed ok" href="${escapeHtml(autoPush.edit_url)}" target="_blank" rel="noopener noreferrer"
+           title="Pushed as scraper #${escapeHtml(String(autoPush.scraper_id))}: ${escapeHtml(autoPush.name || '')}">✓ Pushed ↗</a>`;
+      // Add to in-memory existing-set so a subsequent state-change
+      // call filters this city out without needing a page reload.
+      const list = EXISTING_BY_STATE[state] || (EXISTING_BY_STATE[state] = []);
+      if (!list.some(c => String(c).trim().toLowerCase() === city.trim().toLowerCase())){
+        list.push(city);
+      }
+    } else if (autoPush && autoPush.status === 'exists'){
+      const ex = autoPush.existing || {};
+      actionHtml = `
+        <a href="${url ? escapeHtml(url) : '#'}" target="_blank" rel="noopener noreferrer">View link</a>
+        <a class="aps-pushed dup" href="${escapeHtml(ex.edit_url || '#')}" target="_blank" rel="noopener noreferrer"
+           title="Already exists as scraper #${escapeHtml(String(ex.id || ''))}: ${escapeHtml(ex.name || '')}">⚠ Already exists ↗</a>`;
+    } else if (autoPush && (autoPush.status === 'invalid' || autoPush.status === 'error')){
+      actionHtml = `
+        <a href="${url ? escapeHtml(url) : '#'}" target="_blank" rel="noopener noreferrer" ${url ? '' : 'aria-disabled="true" style="opacity:.5;pointer-events:none;"'}>View link</a>
+        <span class="aps-pushed err" title="${escapeHtml(autoPush.error || 'Push failed')}">✗ ${escapeHtml(autoPush.error || 'Push failed')}</span>
+        <button class="add"
+                data-url="${url ? escapeHtml(url) : ''}"
+                data-name="${escapeHtml(suggestedName)}"
+                data-city="${escapeHtml(city)}"
+                data-state="${escapeHtml(state)}">Retry push</button>`;
+    } else {
+      // 'skipped' (no URL or low-confidence-without-URL) or null
+      const skipReason = (autoPush && autoPush.reason) || 'No URL to push.';
+      const addDisabled = url ? '' : 'disabled';
+      actionHtml = `
+        <a href="${url ? escapeHtml(url) : '#'}" target="_blank" rel="noopener noreferrer" ${url ? '' : 'aria-disabled="true" style="opacity:.5;pointer-events:none;"'}>View link</a>
+        <span class="aps-pushed err" title="${escapeHtml(skipReason)}">⊘ ${escapeHtml(skipReason).slice(0, 40)}</span>
+        <button class="add" ${addDisabled}
+                data-url="${url ? escapeHtml(url) : ''}"
+                data-name="${escapeHtml(suggestedName)}"
+                data-city="${escapeHtml(city)}"
+                data-state="${escapeHtml(state)}">Push manually</button>`;
+    }
+    tr.innerHTML = `
+      <td><b>${escapeHtml(city)}</b><div style="font-size:10.5px;color:#94a3b8;">${escapeHtml(state)}</div></td>
+      <td class="url-cell">
+        ${urlHtml}
+        ${reason ? `<div class="aps-reason">${escapeHtml(reason)}</div>` : ''}
+        ${renderLog(log)}
+      </td>
+      <td><span class="aps-pill ${escapeHtml(confidence)}">${escapeHtml(confidence)}</span></td>
+      <td class="aps-row-actions">${actionHtml}</td>`;
+    return tr;
+  }
+
+  // Click handler (event delegation) for the per-row "Push to scrapers"
+  // button. Calls the push endpoint to create a `scrapers` row directly
+  // (no popup, no second form). Replaces the button in-place with a
+  // success / dup / error pill so the admin sees what happened without
+  // losing their place in a long results table.
+  function swapButton(btn, html){
+    const cell = btn.parentNode;
+    if (!cell) return;
+    btn.outerHTML = html;
+  }
+  $tbody.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button.add');
+    if (!btn || btn.disabled) return;
+    const url   = btn.dataset.url;
+    const city  = btn.dataset.city  || '';
+    const state = btn.dataset.state || '';
+    const name  = btn.dataset.name  || '';
+    if (!url) return;
+    btn.disabled = true;
+    btn.classList.add('pushing');
+    btn.textContent = 'Pushing…';
+    let res, body = null;
+    try {
+      res = await fetch('/admin-panel/scrapers/accela-search/push/', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken, 'Accept': 'application/json'},
+        body:    JSON.stringify({url, city, state, name}),
+      });
+      try { body = await res.json(); } catch (_) { body = null; }
+    } catch (err){
+      swapButton(btn, `<span class="aps-pushed err" title="${escapeHtml(err.message || String(err))}">✗ Network error</span>`);
+      return;
+    }
+    if (res.status === 409 && body && body.existing){
+      const ex = body.existing;
+      swapButton(btn,
+        `<a class="aps-pushed dup" href="${escapeHtml(ex.edit_url)}" target="_blank" rel="noopener noreferrer"
+             title="Already exists as scraper #${escapeHtml(String(ex.id))}: ${escapeHtml(ex.name)}">⚠ Already exists ↗</a>`);
+      return;
+    }
+    if (!res.ok || !body || !body.ok){
+      const msg = (body && body.error) || `HTTP ${res.status}`;
+      swapButton(btn, `<span class="aps-pushed err" title="${escapeHtml(msg)}">✗ ${escapeHtml(msg)}</span>`);
+      return;
+    }
+    swapButton(btn,
+      `<a class="aps-pushed ok" href="${escapeHtml(body.edit_url)}" target="_blank" rel="noopener noreferrer"
+           title="Pushed as scraper #${escapeHtml(String(body.scraper_id))}: ${escapeHtml(body.name)}">✓ Pushed ↗</a>`);
+    // Add to in-memory existing-set so a subsequent state-change call
+    // filters this city out without needing a page reload.
+    const list = EXISTING_BY_STATE[state] || (EXISTING_BY_STATE[state] = []);
+    if (!list.some(c => String(c).trim().toLowerCase() === city.trim().toLowerCase())){
+      list.push(city);
+    }
+  });
+
+  function currentSettings(){
+    const credits = parseInt($fcCred.value, 10);
+    return {
+      prompt_template: $fcPrompt.value || '',
+      model:           $fcModel.value || '',
+      max_credits:     Number.isFinite(credits) ? credits : null,
+    };
+  }
+
+  // Run a single city; returns the parsed JSON envelope (may carry ok=false).
+  async function runOne(state, city, settings){
+    const body = Object.assign({state, city}, settings);
+    const res = await fetch('/admin-panel/scrapers/accela-search/run/', {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken':  csrftoken,
+        'Accept':       'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    let parsed = null;
+    try { parsed = await res.json(); } catch (e) { parsed = null; }
+    if (!parsed) return {ok:false, city, state, error:'HTTP ' + res.status};
+    return parsed;
+  }
+
+  $run.addEventListener('click', async () => {
+    const state  = $state.value;
+    const cities = parseCities($cities.value).slice(0, 60);
+    if (!state || !cities.length) return;
+    const settings = currentSettings();
+
+    $run.disabled = true;
+    $progress.textContent = `Running 0 / ${cities.length}…`;
+    $tbody.innerHTML = '';
+    const rowByCity = new Map();
+    for (const city of cities){
+      const tr = renderRow(city, state, 'pending');
+      $tbody.appendChild(tr);
+      rowByCity.set(city, tr);
+    }
+
+    // Sequential queue (concurrency=1). We sleep INTER_CITY_MS
+    // between cities to avoid hammering the inference endpoint.
+    const CONCURRENCY    = 1;
+    const INTER_CITY_MS  = 8000;
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    let cursor = 0;
+    let done   = 0;
+
+    async function worker(){
+      while (cursor < cities.length){
+        const i = cursor++;
+        const city = cities[i];
+        // Pace every call EXCEPT the first one of the run. Skipping
+        // the leading sleep keeps single-city / small-batch latency
+        // unchanged from the user's perspective.
+        if (i > 0) await sleep(INTER_CITY_MS);
+        let body;
+        try {
+          body = await runOne(state, city, settings);
+        } catch (err){
+          body = {ok:false, city, state, error:'Network error.'};
+        }
+        const status = body.ok ? 'ok' : 'error';
+        const newRow = renderRow(city, state, status, body);
+        const old = rowByCity.get(city);
+        if (old && old.parentNode) old.parentNode.replaceChild(newRow, old);
+        rowByCity.set(city, newRow);
+        done++;
+        $progress.textContent = `Running ${done} / ${cities.length}…`;
+      }
+    }
+    const workers = Array.from({length: Math.min(CONCURRENCY, cities.length)}, worker);
+    await Promise.all(workers);
+    $progress.textContent = `Done — ${done} / ${cities.length} cities searched.`;
+    $run.disabled = false;
+  });
+
+  // ── Run All States — server-side finder batch ────────────────
+  const $runUsa   = document.getElementById('aps-run-usa');
+  const $stopUsa  = document.getElementById('aps-stop-usa');
+  const _fp = {
+    panel:    document.getElementById('finderPanel'),
+    headline: document.getElementById('fpHeadline'),
+    sub:      document.getElementById('fpSub'),
+    bar:      document.getElementById('fpBar'),
+    pct:      document.getElementById('fpPct'),
+    stats:    document.getElementById('fpStats'),
+    log:      document.getElementById('fpLog'),
+    stopBtn:  document.getElementById('fpStopBtn'),
+    batchId:  null,
+    timer:    null,
+  };
+
+  function fpSetButtons(running){
+    $runUsa.style.display  = running ? 'none' : '';
+    $stopUsa.style.display = running ? ''     : 'none';
+    $stopUsa.disabled      = false;
+    $stopUsa.textContent   = 'Stop All';
+  }
+
+  function fpStatusPill(s){
+    const map = {
+      'running':   ['running',   '#60a5fa', '#1e3a5f'],
+      'stopping':  ['stopping…', '#f59e0b', '#3a2a0a'],
+      'success':   ['success',   '#22c55e', '#0a2e1a'],
+      'partial':   ['partial',   '#f97316', '#3a1d0a'],
+      'failed':    ['failed',    '#ef4444', '#3a0f0f'],
+      'cancelled': ['cancelled', '#f59e0b', '#3a2a0a'],
+      'aborted':   ['aborted',   '#ef4444', '#3a0f0f'],
+    };
+    const [label, fg, bg] = map[s] || ['—', '#94a3b8', '#1e293b'];
+    return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:'+fg+';background:'+bg+';">'+label+'</span>';
+  }
+
+  function fpRenderLog(entries){
+    if (!entries || !entries.length){
+      _fp.log.innerHTML = '<div style="color:#475569;">Waiting for first city…</div>';
+      return;
+    }
+    let html = '';
+    for (const e of entries){
+      const t = '<span style="color:#475569;">' + escapeHtml(e.t || '') + '</span> ';
+      if (e.type === 'state_start'){
+        html += '<div style="color:#60a5fa;font-weight:700;margin-top:6px;">── ' + escapeHtml(e.state_name || e.state || '') + ' (' + escapeHtml(e.state || '') + ') — ' + (e.count || 0) + ' cities ──</div>';
+      } else if (e.status === 'ok'){
+        const pushTxt = e.push === 'pushed' ? ' <span style="color:#22c55e;font-weight:700;">✓ PUSHED #' + (e.scraper_id||'') + '</span>'
+                      : e.push === 'exists' ? ' <span style="color:#f59e0b;font-weight:700;">⚠ EXISTS</span>'
+                      : e.push === 'error'  ? ' <span style="color:#ef4444;font-weight:700;">✗ push error</span>'
+                      : ' <span style="color:#22c55e;">✓ verified</span>';
+        html += '<div>' + t + '<span style="color:#22c55e;">✓</span> ' + escapeHtml(e.city || '') + ', ' + escapeHtml(e.state || '') + (e.url ? ' → <span style="color:#94a3b8;">' + escapeHtml(e.url).substring(0, 70) + '</span>' : '') + ' <span style="color:#475569;">(' + escapeHtml(e.confidence || 'low') + ')</span>' + pushTxt + '</div>';
+      } else {
+        html += '<div>' + t + '<span style="color:#ef4444;">✗</span> ' + escapeHtml(e.city || '') + ', ' + escapeHtml(e.state || '') + ' — <span style="color:#ef4444;">' + escapeHtml(e.error || 'failed') + '</span></div>';
+      }
+    }
+    _fp.log.innerHTML = html;
+    _fp.log.scrollTop = _fp.log.scrollHeight;
+  }
+
+  function fpRender(d){
+    _fp.panel.style.display = '';
+    _fp.headline.textContent = 'Finder batch #' + d.batch_id + ' — ' + (d.status || 'running');
+    const pct = d.total_cities > 0 ? Math.round((d.processed / d.total_cities) * 100) : 0;
+    _fp.bar.style.width = pct + '%';
+    _fp.pct.textContent = pct + '%';
+    _fp.sub.innerHTML = fpStatusPill(d.status);
+    const running = !d.finished;
+    _fp.stopBtn.style.display = '';
+    _fp.stopBtn.disabled = !running;
+    _fp.stopBtn.textContent = running ? 'Stop' : 'Stopped';
+    _fp.stopBtn.style.opacity = running ? '1' : '.4';
+    _fp.stats.innerHTML = ''
+      + '<span>State: <b style="color:#fff;">' + escapeHtml(d.current_state || '—') + '</b> (' + d.states_done + '/' + d.states_total + ')</span>'
+      + '<span>City: <b style="color:#fff;">' + escapeHtml(d.current_city || '—') + '</b></span>'
+      + '<span>Processed: <b style="color:#fff;">' + d.processed + '/' + d.total_cities + '</b></span>'
+      + '<span style="color:#22c55e;">' + d.succeeded + ' found</span>'
+      + '<span style="color:#ef4444;">' + d.failed + ' failed</span>';
+    fpRenderLog(d.log || []);
+    $progress.textContent = running
+      ? 'USA rotation running: ' + d.processed + '/' + d.total_cities + ' cities…'
+      : 'USA rotation ' + (d.status || 'done') + ': ' + d.succeeded + ' found, ' + d.failed + ' failed.';
+  }
+
+  async function fpPoll(){
+    if (!_fp.batchId) return;
+    try {
+      const r = await fetch('/admin-panel/scrapers/accela-search/finder-batch/' + _fp.batchId + '/');
+      const d = await r.json();
+      if (!d.ok) return;
+      fpRender(d);
+      if (d.finished){
+        fpStopPolling();
+        fpSetButtons(false);
+      }
+    } catch(e){ /* transient */ }
+  }
+  function fpStartPolling(){
+    fpStopPolling();
+    fpPoll();
+    _fp.timer = setInterval(fpPoll, 5000);
+  }
+  function fpStopPolling(){
+    if (_fp.timer){ clearInterval(_fp.timer); _fp.timer = null; }
+  }
+
+  $runUsa.addEventListener('click', async () => {
+    if (!confirm('Run the finder across all US states? This may take several hours. You can close the tab and come back later.')) return;
+    $runUsa.disabled = true;
+    $runUsa.textContent = 'Starting…';
+    const settings = currentSettings();
+    try {
+      const r = await fetch('/admin-panel/scrapers/accela-search/finder-batch/start/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+        body: JSON.stringify(settings),
+      });
+      const d = await r.json();
+      if (!d.ok){
+        $progress.textContent = 'Start failed: ' + (d.error || 'unknown');
+        if (d.batch_id){
+          _fp.batchId = d.batch_id;
+          fpSetButtons(true);
+          fpStartPolling();
+        }
+        $runUsa.disabled = false;
+        $runUsa.textContent = 'Run All States (USA)';
+        return;
+      }
+      _fp.batchId = d.batch_id;
+      _fp.panel.style.display = '';
+      _fp.headline.textContent = 'Finder batch #' + d.batch_id + ' — starting…';
+      _fp.log.innerHTML = '<div style="color:#475569;">Worker thread launched — building city plan…</div>';
+      _fp.stats.innerHTML = '';
+      _fp.bar.style.width = '0%';
+      _fp.pct.textContent = '0%';
+      _fp.stopBtn.style.display = '';
+      fpSetButtons(true);
+      fpStartPolling();
+    } catch (e) {
+      $progress.textContent = 'Network error: ' + e.message;
+    }
+    $runUsa.disabled = false;
+    $runUsa.textContent = 'Run All States (USA)';
+  });
+
+  $stopUsa.addEventListener('click', async () => {
+    if (!confirm('Stop the running finder batch?')) return;
+    $stopUsa.disabled = true;
+    $stopUsa.textContent = 'Stopping…';
+    try {
+      const r = await fetch('/admin-panel/scrapers/accela-search/finder-batch/stop/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrftoken},
+      });
+      const d = await r.json();
+      if (d.ok) $progress.textContent = d.msg || 'Stop requested…';
+    } catch(e){ /* ignore */ }
+  });
+
+  window.closeFinderPanel = function(){
+    _fp.panel.style.display = 'none';
+    fpStopPolling();
+  };
+  window.stopFinderBatch = async function(){
+    _fp.stopBtn.disabled = true;
+    _fp.stopBtn.textContent = 'Stopping…';
+    try {
+      const r = await fetch('/admin-panel/scrapers/accela-search/finder-batch/stop/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrftoken},
+      });
+      const d = await r.json();
+      if (d.ok) $progress.textContent = d.msg || 'Stop requested…';
+    } catch(e){ /* ignore */ }
+  };
+
+  (async function checkActiveBatch(){
+    try {
+      const r = await fetch('/admin-panel/scrapers/accela-search/finder-batch/active/');
+      const d = await r.json();
+      if (d.ok && d.batch_id){
+        _fp.batchId = d.batch_id;
+        fpSetButtons(true);
+        fpStartPolling();
+      } else if (d.ok && d.last_batch_id){
+        _fp.batchId = d.last_batch_id;
+        fpPoll();
+      }
+    } catch(e){}
+  })();
+
+  refreshCount();
+
+  // ── Save / reset Firecrawl agent settings ─────────────────────
+  const $fcSave   = document.getElementById('aps-fc-save');
+  const $fcReset  = document.getElementById('aps-fc-reset');
+  const $fcStatus = document.getElementById('aps-fc-status');
+
+  // Stash the page-load values so "Reset to defaults" rolls back to
+  // whatever was rendered (which is itself either the saved values or
+  // the built-in defaults — see core/views.py admin_scraper_accela_search_view).
+  const FC_INITIAL = {
+    prompt:  $fcPrompt.value,
+    model:   $fcModel.value,
+    credits: $fcCred.value,
+  };
+
+  function fcStatus(text, kind){
+    // kind: '', 'ok', 'err'
+    $fcStatus.textContent = text;
+    $fcStatus.style.color = kind === 'err' ? '#991b1b'
+                          : kind === 'ok'  ? '#047857'
+                          : '';
+  }
+
+  $fcSave.addEventListener('click', async () => {
+    const credits = parseInt($fcCred.value, 10);
+    const promptVal = ($fcPrompt.value || '').trim();
+    if (!promptVal){
+      fcStatus('Prompt template cannot be empty.', 'err');
+      return;
+    }
+    if (!Number.isFinite(credits) || credits < 1){
+      fcStatus('Max output tokens must be a positive integer.', 'err');
+      return;
+    }
+    $fcSave.disabled = true;
+    fcStatus('Saving…', '');
+    try {
+      const r = await fetch('{% url "admin_scraper_accela_search_save_settings" %}', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+        body:    JSON.stringify({
+          prompt_template: promptVal,
+          model:           $fcModel.value,
+          max_credits:     credits,
+        }),
+      });
+      let body = {};
+      try { body = await r.json(); } catch (e) { /* ignore */ }
+      if (!r.ok || !body.ok){
+        fcStatus(body.error || `Save failed (HTTP ${r.status}).`, 'err');
+      } else {
+        fcStatus(`Saved ${body.saved_at}.`, 'ok');
+      }
+    } catch (e) {
+      fcStatus(`Save failed: ${e.message || e}`, 'err');
+    } finally {
+      $fcSave.disabled = false;
+    }
+  });
+
+  $fcReset.addEventListener('click', () => {
+    $fcPrompt.value = FC_INITIAL.prompt;
+    $fcModel.value  = FC_INITIAL.model;
+    $fcCred.value   = FC_INITIAL.credits;
+    fcStatus('Reverted to last saved values. Click Save settings to persist.', '');
+  });
+
+  // ── Request log ───────────────────────────────────────────────
+  const $rlTbody = document.getElementById('rl-tbody');
+  const $rlTotal = document.getElementById('rl-total');
+  const $rlMore  = document.getElementById('rl-load-more');
+  let rlOffset = 0;
+  const rlLimit = 50;
+
+  function rlEsc(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function rlFormatTime(iso){
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+    } catch(e){ return iso.slice(0,19); }
+  }
+
+  function rlRenderRows(rows, append){
+    if (!append) $rlTbody.innerHTML = '';
+    if (!rows.length && !append){
+      $rlTbody.innerHTML = '<tr><td colspan="8" class="aps-empty">No finder requests yet.</td></tr>';
+      return;
+    }
+    rows.forEach(r => {
+      const ok = !r.error;
+      const statusPill = ok
+        ? '<span class="aps-pill high">OK</span>'
+        : '<span class="aps-pill error">ERR</span>';
+      const confPill = r.confidence
+        ? `<span class="aps-pill ${rlEsc(r.confidence)}">${rlEsc(r.confidence)}</span>`
+        : '—';
+      const urlCell = r.url_found
+        ? `<a href="${rlEsc(r.url_found)}" target="_blank" style="color:#1d4ed8;font-size:11px;word-break:break-all;">${rlEsc(r.url_found.replace('https://','').slice(0,50))}</a>`
+        : '<span style="color:#94a3b8;">—</span>';
+      const searchInfo = r.search_count != null ? `${r.search_count} results` : '—';
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.innerHTML = `
+        <td style="font-size:11px;white-space:nowrap;">${rlFormatTime(r.created_at)}</td>
+        <td><b>${rlEsc(r.city||'')}</b>, ${rlEsc(r.state||'')}</td>
+        <td style="font-family:monospace;font-size:11px;">${rlEsc(r.model||'—')}</td>
+        <td class="url-cell">${urlCell}</td>
+        <td>${confPill}</td>
+        <td style="font-size:11px;">${r.latency_ms != null ? r.latency_ms+'ms' : '—'}</td>
+        <td style="font-size:11px;">${(r.input_tokens||0)+(r.output_tokens||0)}</td>
+        <td>${statusPill}</td>`;
+      const detailTr = document.createElement('tr');
+      detailTr.style.display = 'none';
+      let d = '<td colspan="8" style="background:#f8fafc;padding:16px 14px;border-bottom:2px solid #e2e8f0;">';
+      if (r.error) d += `<div style="color:#991b1b;font-weight:600;margin-bottom:8px;padding:6px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;">⛔ ${rlEsc(r.error)}</div>`;
+      d += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px 16px;margin-bottom:12px;font-size:11px;">`;
+      d += `<div><b style="color:#64748b;">Confidence</b><br>${rlEsc(r.confidence||'—')}</div>`;
+      d += `<div><b style="color:#64748b;">Reason</b><br>${rlEsc(r.reason||'—')}</div>`;
+      d += `<div><b style="color:#64748b;">Search</b><br>${r.search_count||0} results in ${r.search_ms||'?'}ms</div>`;
+      d += `<div><b style="color:#64748b;">Inference</b><br>${r.inference_ms||'?'}ms</div>`;
+      d += `<div><b style="color:#64748b;">Tokens</b><br>in: ${r.input_tokens||0} / out: ${r.output_tokens||0}</div>`;
+      d += `<div><b style="color:#64748b;">Total latency</b><br>${r.latency_ms||'?'}ms</div>`;
+      d += `</div>`;
+      if (r.step_log) {
+        d += `<div style="margin-bottom:10px;"><b style="font-size:10px;text-transform:uppercase;color:#64748b;">Step-by-step log</b><pre style="background:#0f172a;color:#e2e8f0;border-radius:8px;padding:10px 12px;font-size:10.5px;max-height:300px;overflow:auto;white-space:pre-wrap;margin:4px 0 0 0;line-height:1.6;">${rlEsc(r.step_log)}</pre></div>`;
+      }
+      if (r.search_query) {
+        d += `<div style="margin-bottom:10px;"><b style="font-size:10px;text-transform:uppercase;color:#64748b;">Search query</b><pre style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font-size:11px;margin:4px 0 0 0;">${rlEsc(r.search_query)}</pre></div>`;
+      }
+      if (r.search_results && r.search_results.length) {
+        d += `<div style="margin-bottom:10px;"><b style="font-size:10px;text-transform:uppercase;color:#64748b;">Google search results (${r.search_results.length})</b>`;
+        d += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;margin:4px 0 0 0;font-size:11px;">`;
+        r.search_results.forEach((sr, i) => {
+          d += `<div style="margin-bottom:6px;padding-bottom:6px;${i < r.search_results.length-1 ? 'border-bottom:1px solid #f1f5f9;' : ''}">`;
+          d += `<div><b>${i+1}.</b> <a href="${rlEsc(sr.url||'')}" target="_blank" style="color:#1d4ed8;word-break:break-all;">${rlEsc(sr.url||'?')}</a></div>`;
+          d += `<div style="color:#475569;">${rlEsc(sr.title||'')}</div>`;
+          if (sr.description) d += `<div style="color:#94a3b8;font-size:10px;">${rlEsc(sr.description.slice(0,150))}</div>`;
+          d += `</div>`;
+        });
+        d += `</div></div>`;
+      }
+      d += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">`;
+      d += `<div><b style="font-size:10px;text-transform:uppercase;color:#64748b;">Full prompt sent to model</b><pre style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font-size:10.5px;max-height:300px;overflow:auto;white-space:pre-wrap;margin:4px 0 0 0;">${rlEsc(r.prompt||'—')}</pre></div>`;
+      d += `<div><b style="font-size:10px;text-transform:uppercase;color:#64748b;">Raw model response</b><pre style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;font-size:10.5px;max-height:300px;overflow:auto;white-space:pre-wrap;margin:4px 0 0 0;">${rlEsc(r.raw_response||'—')}</pre></div>`;
+      d += `</div>`;
+      d += `<div style="font-size:10px;color:#94a3b8;">Model: ${rlEsc(r.model||'?')} &middot; Source: ${rlEsc(r.source||'?')} &middot; ID: ${r.id||'?'}</div>`;
+      d += '</td>';
+      detailTr.innerHTML = d;
+      tr.addEventListener('click', () => {
+        detailTr.style.display = detailTr.style.display === 'none' ? '' : 'none';
+      });
+      $rlTbody.appendChild(tr);
+      $rlTbody.appendChild(detailTr);
+    });
+  }
+
+  async function rlFetch(append){
+    try {
+      const r = await fetch(`{% url "admin_finder_request_log" %}?limit=${rlLimit}&offset=${rlOffset}`);
+      const d = await r.json();
+      if (d.ok){
+        $rlTotal.textContent = `(${d.total} total)`;
+        rlRenderRows(d.rows, append);
+        $rlMore.style.display = (rlOffset + rlLimit < d.total) ? '' : 'none';
+      }
+    } catch(e){ console.error('rl fetch error', e); }
+  }
+
+  document.getElementById('rl-refresh').addEventListener('click', () => {
+    rlOffset = 0;
+    rlFetch(false);
+  });
+  $rlMore.addEventListener('click', () => {
+    rlOffset += rlLimit;
+    rlFetch(true);
+  });
+
+  rlFetch(false);
+
+})();
+</script>
+{% endblock %}

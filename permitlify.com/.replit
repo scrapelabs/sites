@@ -1,0 +1,49 @@
+modules = ["web", "python-3.11"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "DJANGO_DEBUG=1 python3 manage.py runserver 0.0.0.0:5000"
+waitForPort = 5000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[deployment]
+deploymentTarget = "static"
+publicDir = "."
+
+[userenv]
+
+[userenv.shared]
+LEMONSQUEEZY_STORE_SLUG = "permitlify"
+LEMONSQUEEZY_VARIANT_STARTER = "1553272"
+LEMONSQUEEZY_VARIANT_PRO = "1553293"
+LEMONSQUEEZY_VARIANT_AGENCY = "1553302"
+LEMONSQUEEZY_STORE_ID = "339564"
+WHOP_COMPANY_ID = "biz_ZuaWu6MxVXoVTD"
+SCRAPER_INGEST_KEY = "sk_scraper_f7Hk1DdwfrkKPteGTKWbRKDhupuW5ZtN"

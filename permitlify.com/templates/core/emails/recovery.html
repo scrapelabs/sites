@@ -1,0 +1,144 @@
+{% comment %}
+  Signup-recovery / win-back sequence email — clean, minimalist layout.
+
+  Previously this extended ``_email_base.html`` and rendered inside the
+  tall gradient hero card (purple→blue→amber bubble-glow header). That
+  marketing-style hero was removed at the user's request; the sequence
+  now uses the SAME clean single-card pattern as the login-alert
+  security email (``login_alert.html``) — just styled in brand BLUE
+  instead of security RED, since this is a friendly win-back nudge, not
+  a security notification.
+
+    - Single white card, ~540 px wide
+    - 3 px BLUE accent strip at the top (brand accent)
+    - "Permitlify" wordmark (brand blue) — no pill, no icon hero
+    - Headline (= resolved subject) → one-line subhead → body
+    - The body's CTA button is part of the admin-configured body_html
+      (already variable-substituted), so no separate CTA is added here.
+
+  STANDALONE template — does NOT extend _email_base.html, by design,
+  to match the login-alert layout.
+
+  Context (set by ``_render_recovery_html`` in core/views.py):
+    * subject     — the resolved subject line, also used as the headline.
+    * body_html   — the admin-configured HTML body (already variable-
+                    substituted). Marked |safe below.
+    * preheader   — first ~110 chars used by inbox preview.
+    * year        — current year for the footer.
+
+  Email-client compatibility:
+    * Outer layout uses <table> + inline styles for Outlook desktop.
+    * Accent strip has a solid #1d4ed8 fallback for Outlook.
+    * No remote fonts, no images, no @import.
+{% endcomment %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>{{ subject }}</title>
+<style>
+  body, table, td, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+  table, td { mso-table-lspace:0; mso-table-rspace:0; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; background:#f3f5f9; font-family:'Inter','Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif; color:#0f172a; }
+  a { color:#1d4ed8; text-decoration:none; }
+
+  .card {
+    background:#ffffff;
+    border-radius:14px;
+    box-shadow:0 1px 2px rgba(15,23,42,.04), 0 8px 24px -12px rgba(15,23,42,.10);
+    overflow:hidden;
+  }
+  .accent-strip {
+    height:3px;
+    background:#1d4ed8;
+    background:linear-gradient(90deg,#1d4ed8 0%,#2563eb 50%,#059669 100%);
+  }
+  .pad { padding:36px 40px 32px; }
+
+  .wordmark-row { margin:0 0 22px; line-height:1; }
+  .wordmark { display:inline-block; font-size:14px; font-weight:700; letter-spacing:.2px; color:#1d4ed8; vertical-align:middle; }
+  .wordmark .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#1d4ed8; vertical-align:1px; margin-right:8px; }
+
+  h1.title {
+    margin:0 0 8px;
+    font-family:'Inter','Segoe UI',-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+    font-size:24px; font-weight:700; line-height:1.25;
+    color:#0f172a; letter-spacing:-.4px;
+  }
+  p.subtitle {
+    margin:0 0 24px;
+    font-size:15px; line-height:1.55; color:#475569;
+  }
+
+  .body-text {
+    margin:0;
+    font-size:14.5px; line-height:1.65; color:#334155;
+  }
+  .body-text p { margin:0 0 12px; }
+  .body-text strong { color:#0f172a; font-weight:600; }
+  .body-text a { color:#1d4ed8; }
+
+  .footer {
+    padding:18px 12px 4px;
+    text-align:center;
+    font-size:12px; color:#94a3b8; line-height:1.6;
+  }
+  .footer a { color:#64748b; }
+  .footer .brand { font-weight:600; color:#475569; }
+
+  @media only screen and (max-width:480px) {
+    .pad { padding:28px 22px 24px !important; }
+    h1.title { font-size:20px !important; }
+    p.subtitle { font-size:14px !important; margin-bottom:20px !important; }
+    .body-text { font-size:14px !important; }
+  }
+</style>
+</head>
+<body>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f5f9;">
+  <tr>
+    <td align="center" style="padding:40px 14px 28px;">
+
+      {# preheader — first ~110 chars in inbox preview, hidden in body #}
+      <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#f3f5f9;">
+        {{ preheader }}
+      </div>
+
+      <table role="presentation" width="540" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;width:100%;">
+        <tr>
+          <td>
+            <div class="card">
+              <div class="accent-strip"></div>
+              <div class="pad">
+
+                <div class="wordmark-row">
+                  <span class="wordmark"><span class="dot"></span>Permitlify</span>
+                </div>
+
+                <h1 class="title">{{ subject }}</h1>
+                <p class="subtitle">Your free trial is still open — pick up where you left off whenever you're ready.</p>
+
+                <div class="body-text">
+                  {{ body_html|safe }}
+                </div>
+
+              </div>
+            </div>
+
+            <div class="footer">
+              © {{ year }} <span class="brand">Permitlify</span> · <a href="https://permitlify.com">permitlify.com</a><br>
+              You're receiving this because you started signing up for Permitlify.
+              Not interested? <a href="{{ unsubscribe_url|default:'https://permitlify.com/unsubscribe/' }}">Unsubscribe</a>.
+            </div>
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+</body>
+</html>

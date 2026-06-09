@@ -1,0 +1,28 @@
+name: Permitlify scraper cron
+# Pings the Permitlify cron trigger on a fixed cadence so the scrapers run
+# automatically. Schedule is in UTC. Cadence cheatsheet:
+#   */30 * * * *    every 30 minutes
+#   0 * * * *       top of every hour
+#   0 */2 * * *     every 2 hours
+#   0 6 * * *       06:00 UTC daily
+#   0 6 * * 1-5     06:00 UTC weekdays only
+# Permitlify has a concurrency guard, so overlapping fires are safely skipped.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Hit Permitlify cron endpoint
+        run: |
+          set -euo pipefail
+          response=$(curl -fsS -X POST \
+            -H "X-Scraper-Key: ${{ secrets.SCRAPER_INGEST_KEY }}" \
+            -H "User-Agent: github-actions-cron-scrapers" \
+            "https://permitlify.com/api/v1/scrapers/run-cron/")
+          echo "Response: $response"

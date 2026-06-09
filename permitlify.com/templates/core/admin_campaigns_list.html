@@ -1,0 +1,135 @@
+{% extends "core/admin_base.html" %}
+{% load static %}
+{% block title %}Email Campaigns · Admin{% endblock %}
+
+{% block content %}
+<style>
+  .camp-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:24px;align-items:start}
+  @media(max-width:1100px){.camp-grid{grid-template-columns:1fr}}
+  .camp-list{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}
+  .camp-list h2{margin:0;padding:16px 20px;border-bottom:1px solid #e2e8f0;font-size:16px}
+  .camp-row{padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .camp-row:last-child{border-bottom:0}
+  .camp-row a.name{color:#0f172a;font-weight:600;text-decoration:none}
+  .camp-row a.name:hover{color:#1d4ed8}
+  .camp-meta{color:#64748b;font-size:12px;margin-top:2px}
+  .camp-pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  .pill-draft{background:#f1f5f9;color:#475569}
+  .pill-sending{background:#dbeafe;color:#1d4ed8}
+  .pill-paused{background:#fef3c7;color:#a16207}
+  .pill-done{background:#dcfce7;color:#16a34a}
+  .camp-stats{display:flex;gap:14px;font-size:12px;color:#475569}
+  .camp-stats b{color:#0f172a}
+  .form-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px}
+  .form-card h2{margin:0 0 14px;font-size:16px}
+  .form-card label{display:block;font-size:12px;font-weight:600;color:#334155;margin:10px 0 4px}
+  .form-card input[type=text],.form-card input[type=number],.form-card textarea{
+    width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;font:inherit
+  }
+  .form-card textarea{min-height:120px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px}
+  .form-card .row{display:grid;grid-template-columns:1fr 140px;gap:12px}
+  .form-card .hint{font-size:12px;color:#64748b;margin-top:4px}
+  .btn-primary{background:#1d4ed8;color:#fff;border:0;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer;margin-top:14px}
+  .btn-primary:hover{background:#1e40af}
+  .msg{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:14px}
+  .msg.ok{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+  .msg.err{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+  .empty{padding:32px 20px;text-align:center;color:#94a3b8}
+  .warmup{background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:10px 14px;font-size:12px;color:#713f12;margin-top:14px}
+  .warmup b{color:#422006}
+</style>
+
+<div style="margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+  <div>
+    <h1 style="margin:0;font-size:22px">📣 Email Campaigns</h1>
+    <p style="color:#64748b;margin:4px 0 0;font-size:14px">
+      Bulk cold-outreach via Resend. Seed from the contractor email pool (or a CSV), set a daily cap, and a cron tick dispatches the queue.
+    </p>
+  </div>
+  <a href="/admin-panel/marketing/contractor-emails/"
+     style="background:#059669;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;white-space:nowrap">
+    📇 Contractor Email Pool
+  </a>
+</div>
+
+{% if msg %}<div class="msg ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="msg err">{{ err }}</div>{% endif %}
+
+<div style="background:#f8fbff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#334155;line-height:1.6">
+  ⏱ <b>Sending runs on a cron.</b> Once enabled, a GitHub Actions workflow (<code>.github/workflows/campaigns_cron.yml</code>) hits
+  <code>POST /api/cron/campaigns/tick/</code> every 15&nbsp;min and ships any campaign in the <code>sending</code> state,
+  bounded by each campaign's daily cap. <b>One-time setup:</b> add that workflow file to the repo + set the repo secret <code>SCRAPER_INGEST_KEY</code>.
+  Open a campaign for the full endpoint, the workflow YAML, auth, and manual-run instructions.
+</div>
+
+<div class="camp-grid">
+  <div class="camp-list">
+    <h2>All campaigns</h2>
+    {% if not campaigns %}
+      <div class="empty">No campaigns yet. Create one on the right →</div>
+    {% else %}
+      {% for c in campaigns %}
+      <div class="camp-row">
+        <div style="min-width:0;flex:1">
+          <a class="name" href="/admin-panel/marketing/campaigns/{{ c.id }}/">{{ c.name }}</a>
+          <span class="camp-pill pill-{{ c.status }}">{{ c.status }}</span>
+          <div class="camp-meta">
+            Subject: {{ c.subject|truncatechars:80 }} · cap {{ c.daily_cap }}/day
+            · created {{ c.created_at|date:"M j, Y" }}
+          </div>
+        </div>
+        <div class="camp-stats">
+          <span>📤 <b>{{ c.sent_count }}</b>/{{ c.total }}</span>
+          <span>⚠️ <b>{{ c.failed_count }}</b></span>
+          <span>🚫 <b>{{ c.bounced_count }}</b></span>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <div class="form-card">
+    <h2>New campaign</h2>
+    <form method="POST" enctype="multipart/form-data">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create">
+      <label>Internal name</label>
+      <input type="text" name="name" placeholder="Q2 cold outreach — Texas roofers" maxlength="200" required>
+
+      <label>Subject line</label>
+      <input type="text" name="subject" placeholder="See the next roofing permits filed in your area" maxlength="300" required>
+      <div class="hint">Supports {% verbatim %}<code>{{name}}</code> and <code>{{email}}</code>{% endverbatim %} placeholders.</div>
+
+      <label>HTML body</label>
+      {# {% verbatim %} keeps {{name}} as a literal placeholder string —
+         without it Django tries to render it as a template variable and
+         the whole page 500s with "Could not parse the remainder: '{{name'". #}
+      {% verbatim %}<textarea name="body_html" placeholder="<p>Hi {{name}},</p><p>I noticed...</p>" required></textarea>{% endverbatim %}
+      <div class="hint">Wrapped in the branded shell at send time (logo, footer, unsubscribe link).</div>
+
+      <div class="row">
+        <div>
+          <label>Daily cap (per 24h)</label>
+          <input type="number" name="daily_cap" value="200" min="1" max="10000">
+        </div>
+        <div>
+          <label style="display:flex;align-items:center;gap:6px;margin-top:30px;font-size:13px;font-weight:500">
+            <input type="checkbox" name="skip_existing_users" checked> Skip existing users
+          </label>
+        </div>
+      </div>
+
+      <label>Recipients CSV <span style="font-weight:400;color:#64748b">(optional now — can upload on detail page)</span></label>
+      <input type="file" name="csv_file" accept=".csv,text/csv">
+      <div class="hint">Headers: <code>email,name</code> (or no header — first column = email).</div>
+
+      <div class="warmup">
+        <b>Warm-up tip:</b> If your sending domain is new, keep daily cap at 100–200 for the first week.
+        Industry guidance: ramp 2× per week (W1 100 → W2 500 → W3 2000 → W4 5000) and keep bounce rate &lt; 2%, complaint rate &lt; 0.1%.
+      </div>
+
+      <button type="submit" class="btn-primary">Create campaign</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

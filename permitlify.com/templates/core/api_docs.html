@@ -1,0 +1,440 @@
+{% extends "core/public_base.html" %}
+{% block title %}API &amp; Developers{% endblock %}
+
+{% block extra_css %}
+.api-layout{display:grid;grid-template-columns:220px 1fr;gap:0;max-width:1200px;margin:0 auto;min-height:80vh;}
+@media(max-width:860px){.api-layout{grid-template-columns:1fr;}}
+.api-sidebar{border-right:1px solid var(--b1);padding:32px 0;position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto;}
+@media(max-width:860px){.api-sidebar{display:none;}}
+.api-sidebar h5{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:1.2px;padding:0 20px;margin:20px 0 8px;}
+.api-sidebar h5:first-child{margin-top:0;}
+.api-sidebar a{display:block;font-size:13.5px;color:var(--tx2);text-decoration:none;padding:7px 20px;border-right:2px solid transparent;transition:all .15s;}
+.api-sidebar a:hover,.api-sidebar a.active{color:var(--bl);background:var(--pd);border-right-color:var(--bl);}
+.api-main{padding:40px 48px 80px;min-width:0;}
+@media(max-width:860px){.api-main{padding:32px 20px 80px;}}
+
+.api-section{margin-bottom:64px;}
+.api-section h2{font-size:26px;font-weight:800;color:var(--tx);letter-spacing:-.5px;margin-bottom:12px;padding-top:8px;}
+.api-section h3{font-size:18px;font-weight:700;color:var(--tx);margin:40px 0 12px;padding-top:8px;}
+.api-section p{font-size:15px;color:var(--tx2);line-height:1.8;margin-bottom:14px;}
+.api-section ul{padding-left:20px;margin-bottom:16px;}
+.api-section li{font-size:15px;color:var(--tx2);line-height:1.8;margin-bottom:6px;}
+
+.method-badge{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.5px;margin-right:8px;}
+.method-badge.get{background:#dbeafe;color:#1d4ed8;}
+.method-badge.post{background:#dcfce7;color:#15803d;}
+.endpoint-row{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:14px 18px;margin-bottom:24px;flex-wrap:wrap;}
+.endpoint-path{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--tx);font-weight:500;}
+.endpoint-desc{font-size:13px;color:var(--tx3);margin-left:auto;}
+
+.code-block{background:#0f172a;border-radius:14px;padding:20px 24px;margin:16px 0 24px;overflow-x:auto;position:relative;}
+.code-block pre{font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;color:#e2e8f0;margin:0;}
+.code-block .copy-btn{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#94a3b8;font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:all .18s;}
+.code-block .copy-btn:hover{background:rgba(255,255,255,.15);color:#fff;}
+.code-block .copy-btn.copied{color:#4ade80;}
+.tok-green{color:#4ade80;}
+.tok-blue{color:#60a5fa;}
+.tok-yellow{color:#fbbf24;}
+.tok-purple{color:#c084fc;}
+.tok-red{color:#f87171;}
+.tok-gray{color:#64748b;}
+
+.param-table{width:100%;border-collapse:collapse;margin:16px 0 28px;font-size:14px;}
+.param-table th{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--tx3);padding:10px 14px;border-bottom:2px solid var(--b1);text-align:left;}
+.param-table td{padding:11px 14px;border-bottom:1px solid var(--b1);color:var(--tx2);vertical-align:top;}
+.param-table td code{background:var(--bg3);border-radius:5px;padding:2px 6px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx);}
+.param-table td .opt{font-size:11px;color:var(--tx3);font-family:'JetBrains Mono',monospace;}
+.param-table td .req{font-size:11px;color:var(--ac);font-family:'JetBrains Mono',monospace;}
+
+.key-box{display:flex;align-items:center;gap:12px;background:var(--pd);border:1px solid rgba(29,78,216,.2);border-radius:12px;padding:14px 18px;margin:20px 0;}
+.key-box code{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--bl);background:none;flex:1;}
+.key-box .lbl{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--bl3);font-weight:600;white-space:nowrap;}
+
+.lang-tabs{display:flex;gap:4px;margin-bottom:-1px;flex-wrap:wrap;}
+.lang-tab{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;padding:8px 14px;border-radius:8px 8px 0 0;border:1px solid var(--b1);border-bottom:none;cursor:pointer;color:var(--tx3);background:var(--bg2);transition:all .15s;}
+.lang-tab.active,.lang-tab:hover{color:var(--tx);background:#0f172a;border-color:#0f172a;}
+.lang-content{display:none;}
+.lang-content.active{display:block;}
+
+.status-table{width:100%;border-collapse:collapse;font-size:14px;}
+.status-table td{padding:10px 14px;border-bottom:1px solid var(--b1);color:var(--tx2);}
+.status-table td:first-child{font-family:'JetBrains Mono',monospace;font-weight:600;width:90px;}
+.s200{color:#15803d;}.s400{color:#b45309;}.s401{color:#dc2626;}.s404{color:#7c3aed;}
+
+.hero-api{background:var(--bg2);border-bottom:1px solid var(--b1);padding:48px 24px 40px;}
+.hero-api-inner{max-width:1200px;margin:0 auto;}
+.hero-api .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--bl);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:14px;}
+.hero-api h1{font-size:clamp(26px,4vw,42px);font-weight:800;color:var(--tx);letter-spacing:-1.5px;line-height:1.1;margin-bottom:14px;}
+.hero-api .lead{font-size:16px;color:var(--tx2);max-width:580px;line-height:1.7;}
+.hero-api .meta-row{display:flex;gap:24px;margin-top:20px;flex-wrap:wrap;}
+.hero-api .meta-row span{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--tx3);display:flex;align-items:center;gap:6px;}
+.hero-api .meta-row span strong{color:var(--tx);}
+@media(max-width:600px){
+  .api-layout{padding:0 !important;}
+  .api-main{padding:24px 16px 60px !important;}
+  .hero-api{padding:32px 16px 28px;}
+  .param-table-wrap{display:block;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .param-table,.status-table{width:max-content;min-width:100%;}
+  .endpoint-row{flex-direction:column;align-items:flex-start;gap:6px;}
+  .endpoint-desc{margin-left:0 !important;font-size:12px;}
+  .key-box{flex-wrap:wrap;gap:8px;}
+  .key-box code{font-size:12px;word-break:break-all;min-width:0;flex:1 1 auto;}
+  .api-section h2{font-size:20px;}
+  .api-section h3{font-size:16px;}
+  .code-block{padding:14px;border-radius:10px;width:100%;box-sizing:border-box;}
+  .code-block pre{font-size:12px;}
+  .code-block .copy-btn{top:8px;right:8px;font-size:10px;padding:3px 8px;}
+  .hero-api .meta-row span{font-size:11px;word-break:break-word;}
+}
+{% endblock %}
+
+{% block content %}
+<div class="hero-api">
+  <div class="hero-api-inner">
+    <div class="eyebrow">Developer Documentation</div>
+    <h1>Permitlify REST API</h1>
+    <p class="lead">Integrate live permit data and AI scores directly into your CRM, workflow, or custom application. All responses are JSON.</p>
+    <div class="meta-row">
+      <span><strong>Base URL</strong> &nbsp;https://permitlify.com/api/v1/</span>
+      <span><strong>Version</strong> &nbsp;v1</span>
+      <span><strong>Auth</strong> &nbsp;API Key</span>
+      <span><strong>Format</strong> &nbsp;JSON</span>
+    </div>
+  </div>
+</div>
+
+<div class="api-layout" style="padding:0 24px;">
+  <!-- Sidebar -->
+  <nav class="api-sidebar">
+    <h5>Getting Started</h5>
+    <a href="#authentication" class="active">Authentication</a>
+    <a href="#base-url">Base URL</a>
+    <a href="#errors">Errors</a>
+    <a href="#rate-limits">Rate Limits</a>
+    <h5>Endpoints</h5>
+    <a href="#permits">GET /permits/</a>
+    <a href="#permit-detail">GET /permits/:id/</a>
+    <a href="#cities">GET /cities/</a>
+    <a href="#score">POST /score/</a>
+    <h5>Code Examples</h5>
+    <a href="#examples-curl">cURL</a>
+    <a href="#examples-python">Python</a>
+    <a href="#examples-js">JavaScript</a>
+    <h5>Resources</h5>
+    <a href="{% url 'pricing' %}">API Pricing</a>
+    <a href="{% url 'contact' %}">Request Access</a>
+    <a href="{% url 'support' %}">Support</a>
+  </nav>
+
+  <!-- Main content -->
+  <div class="api-main">
+
+    <!-- Authentication -->
+    <div class="api-section" id="authentication">
+      <div class="sec-label">Getting Started</div>
+      <h2>Authentication</h2>
+      <p>The Permitlify API uses API key authentication. Pass your key in one of two ways:</p>
+      <ul>
+        <li><strong>Query parameter:</strong> append <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--bg3);padding:2px 6px;border-radius:4px;">?api_key=YOUR_KEY</code> to any request</li>
+        <li><strong>Authorization header:</strong> set <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--bg3);padding:2px 6px;border-radius:4px;">Authorization: Bearer YOUR_KEY</code></li>
+      </ul>
+      <p>API access is available on the <a href="{% url 'pricing' %}" style="color:var(--bl);">Agency plan</a>. Use the demo key below to test all endpoints right now — it returns sample data.</p>
+      <div class="key-box">
+        <span class="lbl">DEMO KEY</span>
+        <code id="demo-key-val">{{ demo_key }}</code>
+        <button onclick="copyKey()" style="background:var(--bl);color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Copy</button>
+      </div>
+    </div>
+
+    <!-- Base URL -->
+    <div class="api-section" id="base-url">
+      <h2>Base URL</h2>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="tok-green">https://permitlify.com/api/v1/</span></pre>
+      </div>
+      <p>All endpoints are relative to this base URL. All requests must be made over HTTPS. HTTP requests will be rejected.</p>
+    </div>
+
+    <!-- Errors -->
+    <div class="api-section" id="errors">
+      <h2>Errors</h2>
+      <p>The API uses standard HTTP status codes. Error responses always return a JSON object with <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--bg3);padding:2px 6px;border-radius:4px;">error</code> and <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--bg3);padding:2px 6px;border-radius:4px;">code</code> fields.</p>
+      <div class="param-table-wrap">
+      <table class="status-table">
+        <tr><td class="s200">200</td><td>OK — Request succeeded.</td></tr>
+        <tr><td class="s400">400</td><td>Bad Request — Invalid parameters or malformed JSON body.</td></tr>
+        <tr><td class="s401">401</td><td>Unauthorized — Missing or invalid API key.</td></tr>
+        <tr><td class="s404">404</td><td>Not Found — The requested resource doesn't exist.</td></tr>
+      </table>
+      </div>
+      <div class="code-block">
+        <pre><span class="tok-gray">// Example error response</span>
+<span class="tok-blue">{</span>
+  <span class="tok-yellow">"error"</span>: <span class="tok-green">"Invalid or missing API key."</span>,
+  <span class="tok-yellow">"code"</span>:  <span class="tok-green">"unauthorized"</span>,
+  <span class="tok-yellow">"docs"</span>:  <span class="tok-green">"https://permitlify.com/developers/"</span>
+<span class="tok-blue">}</span></pre>
+      </div>
+    </div>
+
+    <!-- Rate Limits -->
+    <div class="api-section" id="rate-limits">
+      <h2>Rate Limits</h2>
+      <p>Agency plan accounts are limited to <strong>1,000 requests per hour</strong> per API key. If you exceed this, you'll receive a <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--bg3);padding:2px 6px;border-radius:4px;">429 Too Many Requests</code> response. The response will include a <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--bg3);padding:2px 6px;border-radius:4px;">Retry-After</code> header indicating when you can retry.</p>
+      <p>Need higher limits? Contact <a href="mailto:api@permitlify.com" style="color:var(--bl);">api@permitlify.com</a> for enterprise access.</p>
+    </div>
+
+    <!-- GET /permits/ -->
+    <div class="api-section" id="permits">
+      <div class="sec-label">Endpoints</div>
+      <h2>List permits</h2>
+      <div class="endpoint-row">
+        <span class="method-badge get">GET</span>
+        <span class="endpoint-path">/api/v1/permits/</span>
+        <span class="endpoint-desc">Returns a paginated list of permits</span>
+      </div>
+      <p>Returns all permits accessible to your account. Supports optional filtering by trade, city, score, and tier.</p>
+
+      <h3>Query Parameters</h3>
+      <div class="param-table-wrap">
+      <table class="param-table">
+        <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>api_key</code><br><span class="req">required*</span></td><td>string</td><td>Your API key (or pass via Authorization header).</td></tr>
+          <tr><td><code>trade</code><br><span class="opt">optional</span></td><td>string</td><td>Filter by trade. Values: <code>Roofing</code>, <code>HVAC</code>, <code>Electrical</code>, <code>Plumbing</code>.</td></tr>
+          <tr><td><code>city</code><br><span class="opt">optional</span></td><td>string</td><td>Filter by city name, e.g. <code>Fort Worth</code>.</td></tr>
+          <tr><td><code>min_score</code><br><span class="opt">optional</span></td><td>integer</td><td>Only return permits with AI score ≥ this value (0–99).</td></tr>
+          <tr><td><code>tier</code><br><span class="opt">optional</span></td><td>string</td><td>Filter by tier. Values: <code>hot</code>, <code>warm</code>, <code>cool</code>.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3>Response</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="tok-blue">{</span>
+  <span class="tok-yellow">"count"</span>: <span class="tok-purple">2</span>,
+  <span class="tok-yellow">"results"</span>: <span class="tok-blue">[</span>
+    <span class="tok-blue">{</span>
+      <span class="tok-yellow">"score"</span>:   <span class="tok-purple">92</span>,
+      <span class="tok-yellow">"tier"</span>:    <span class="tok-green">"hot"</span>,
+      <span class="tok-yellow">"address"</span>: <span class="tok-green">"4821 Ridgemont Dr"</span>,
+      <span class="tok-yellow">"number"</span>:  <span class="tok-green">"FW-2026-04192"</span>,
+      <span class="tok-yellow">"trade"</span>:   <span class="tok-green">"Roofing"</span>,
+      <span class="tok-yellow">"value"</span>:   <span class="tok-green">"$18,500"</span>,
+      <span class="tok-yellow">"city"</span>:    <span class="tok-green">"Fort Worth"</span>,
+      <span class="tok-yellow">"filed"</span>:   <span class="tok-green">"Today, 8:14 AM"</span>
+    <span class="tok-blue">}</span>,
+    <span class="tok-gray">// ...</span>
+  <span class="tok-blue">]</span>,
+  <span class="tok-yellow">"meta"</span>: <span class="tok-blue">{</span> <span class="tok-yellow">"api_version"</span>: <span class="tok-green">"v1"</span>, <span class="tok-yellow">"plan"</span>: <span class="tok-green">"agency"</span> <span class="tok-blue">}</span>
+<span class="tok-blue">}</span></pre>
+      </div>
+
+      <p><strong>Try it now</strong> — live request with the demo key:</p>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="tok-green">curl</span> <span class="tok-blue">"https://permitlify.com/api/v1/permits/?api_key={{ demo_key }}&amp;min_score=70"</span></pre>
+      </div>
+    </div>
+
+    <!-- GET /permits/:number/ -->
+    <div class="api-section" id="permit-detail">
+      <h2>Get permit detail</h2>
+      <div class="endpoint-row">
+        <span class="method-badge get">GET</span>
+        <span class="endpoint-path">/api/v1/permits/<span style="color:var(--bl);">{number}</span>/</span>
+        <span class="endpoint-desc">Returns a single permit by its permit number</span>
+      </div>
+      <p>Retrieve full details for a specific permit using its unique permit number (e.g. <code style="font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--bg3);padding:2px 6px;border-radius:4px;">FW-2026-04192</code>).</p>
+
+      <h3>Path Parameters</h3>
+      <div class="param-table-wrap">
+      <table class="param-table">
+        <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>number</code><br><span class="req">required</span></td><td>string</td><td>The permit number returned from the list endpoint.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="tok-green">curl</span> <span class="tok-blue">"https://permitlify.com/api/v1/permits/FW-2026-04192/?api_key={{ demo_key }}"</span></pre>
+      </div>
+    </div>
+
+    <!-- GET /cities/ -->
+    <div class="api-section" id="cities">
+      <h2>List cities</h2>
+      <div class="endpoint-row">
+        <span class="method-badge get">GET</span>
+        <span class="endpoint-path">/api/v1/cities/</span>
+        <span class="endpoint-desc">Returns monitored cities with permit counts</span>
+      </div>
+      <p>Returns all cities currently monitored by Permitlify, along with today's total permit count for each city.</p>
+
+      <h3>Response</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="tok-blue">{</span>
+  <span class="tok-yellow">"count"</span>: <span class="tok-purple">5</span>,
+  <span class="tok-yellow">"results"</span>: <span class="tok-blue">[</span>
+    <span class="tok-blue">{</span> <span class="tok-yellow">"name"</span>: <span class="tok-green">"Fort Worth"</span>, <span class="tok-yellow">"state"</span>: <span class="tok-green">"TX"</span>, <span class="tok-yellow">"permit_count"</span>: <span class="tok-purple">13</span> <span class="tok-blue">}</span>,
+    <span class="tok-blue">{</span> <span class="tok-yellow">"name"</span>: <span class="tok-green">"Arlington"</span>,  <span class="tok-yellow">"state"</span>: <span class="tok-green">"TX"</span>, <span class="tok-yellow">"permit_count"</span>: <span class="tok-purple">8</span>  <span class="tok-blue">}</span>,
+    <span class="tok-gray">// ...</span>
+  <span class="tok-blue">]</span>,
+  <span class="tok-yellow">"meta"</span>: <span class="tok-blue">{</span> <span class="tok-yellow">"api_version"</span>: <span class="tok-green">"v1"</span> <span class="tok-blue">}</span>
+<span class="tok-blue">}</span></pre>
+      </div>
+    </div>
+
+    <!-- POST /score/ -->
+    <div class="api-section" id="score">
+      <h2>Score a permit</h2>
+      <div class="endpoint-row">
+        <span class="method-badge post">POST</span>
+        <span class="endpoint-path">/api/v1/score/</span>
+        <span class="endpoint-desc">AI-scores a permit from your own data</span>
+      </div>
+      <p>Submit a permit's key fields and receive an AI-generated lead score (0–100) and tier. Useful for scoring permits you source from your own data pipelines.</p>
+
+      <h3>Request Body</h3>
+      <div class="param-table-wrap">
+      <table class="param-table">
+        <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>trade</code><br><span class="req">required</span></td><td>string</td><td>Trade type. E.g. <code>"Roofing"</code>, <code>"HVAC"</code>, <code>"Electrical"</code>, <code>"Plumbing"</code>.</td></tr>
+          <tr><td><code>value</code><br><span class="req">required</span></td><td>string | number</td><td>Estimated job value. E.g. <code>"$18,500"</code> or <code>18500</code>.</td></tr>
+          <tr><td><code>city</code><br><span class="opt">optional</span></td><td>string</td><td>City name, used for market-level scoring adjustments.</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="tok-green">curl</span> <span class="tok-blue">-X POST "https://permitlify.com/api/v1/score/?api_key={{ demo_key }}"</span> \
+  <span class="tok-blue">-H "Content-Type: application/json"</span> \
+  <span class="tok-blue">-d '{"trade": "Roofing", "value": "$18,500", "city": "Fort Worth"}'</span></pre>
+      </div>
+
+      <h3>Response</h3>
+      <div class="code-block">
+        <pre><span class="tok-blue">{</span>
+  <span class="tok-yellow">"score"</span>: <span class="tok-purple">92</span>,
+  <span class="tok-yellow">"tier"</span>:  <span class="tok-green">"hot"</span>,
+  <span class="tok-yellow">"inputs"</span>: <span class="tok-blue">{</span>
+    <span class="tok-yellow">"trade"</span>: <span class="tok-green">"Roofing"</span>,
+    <span class="tok-yellow">"value"</span>: <span class="tok-green">"$18,500"</span>,
+    <span class="tok-yellow">"city"</span>:  <span class="tok-green">"Fort Worth"</span>
+  <span class="tok-blue">}</span>,
+  <span class="tok-yellow">"meta"</span>: <span class="tok-blue">{</span>
+    <span class="tok-yellow">"api_version"</span>: <span class="tok-green">"v1"</span>,
+    <span class="tok-yellow">"model"</span>: <span class="tok-green">"permitlify-score-v2"</span>
+  <span class="tok-blue">}</span>
+<span class="tok-blue">}</span></pre>
+      </div>
+    </div>
+
+    <!-- Code Examples -->
+    <div class="api-section" id="examples-curl">
+      <div class="sec-label">Code Examples</div>
+      <h2>Full examples</h2>
+
+      <h3 id="examples-curl">cURL</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="tok-gray"># List all hot roofing permits in Fort Worth</span>
+<span class="tok-green">curl</span> <span class="tok-blue">"https://permitlify.com/api/v1/permits/?api_key={{ demo_key }}&amp;trade=Roofing&amp;tier=hot&amp;city=Fort+Worth"</span>
+
+<span class="tok-gray"># Score a permit</span>
+<span class="tok-green">curl</span> <span class="tok-blue">-X POST "https://permitlify.com/api/v1/score/?api_key={{ demo_key }}"</span> \
+  <span class="tok-blue">-H "Content-Type: application/json"</span> \
+  <span class="tok-blue">-d '{"trade":"HVAC","value":"$9,200","city":"Arlington"}'</span></pre>
+      </div>
+
+      <h3 id="examples-python">Python</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="tok-purple">import</span> requests
+
+API_KEY <span class="tok-blue">=</span> <span class="tok-green">"{{ demo_key }}"</span>
+BASE    <span class="tok-blue">=</span> <span class="tok-green">"https://permitlify.com/api/v1"</span>
+
+<span class="tok-gray"># Fetch hot permits, score ≥ 80</span>
+resp <span class="tok-blue">=</span> requests.<span class="tok-yellow">get</span>(
+    <span class="tok-blue">f"{BASE}/permits/"</span>,
+    params<span class="tok-blue">=</span>{<span class="tok-green">"api_key"</span>: API_KEY, <span class="tok-green">"tier"</span>: <span class="tok-green">"hot"</span>, <span class="tok-green">"min_score"</span>: <span class="tok-purple">80</span>}
+)
+permits <span class="tok-blue">=</span> resp.<span class="tok-yellow">json</span>()[<span class="tok-green">"results"</span>]
+
+<span class="tok-purple">for</span> p <span class="tok-purple">in</span> permits:
+    <span class="tok-yellow">print</span>(<span class="tok-blue">f"Score {p['score']} — {p['trade']} at {p['address']}, {p['city']}"</span>)
+
+<span class="tok-gray"># Score a custom permit</span>
+score_resp <span class="tok-blue">=</span> requests.<span class="tok-yellow">post</span>(
+    <span class="tok-blue">f"{BASE}/score/"</span>,
+    params<span class="tok-blue">=</span>{<span class="tok-green">"api_key"</span>: API_KEY},
+    json<span class="tok-blue">=</span>{<span class="tok-green">"trade"</span>: <span class="tok-green">"Roofing"</span>, <span class="tok-green">"value"</span>: <span class="tok-green">"$22,000"</span>, <span class="tok-green">"city"</span>: <span class="tok-green">"Dallas"</span>}
+)
+<span class="tok-yellow">print</span>(score_resp.<span class="tok-yellow">json</span>())</pre>
+      </div>
+
+      <h3 id="examples-js">JavaScript (fetch)</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="tok-purple">const</span> API_KEY <span class="tok-blue">=</span> <span class="tok-green">'{{ demo_key }}'</span>;
+<span class="tok-purple">const</span> BASE    <span class="tok-blue">=</span> <span class="tok-green">'https://permitlify.com/api/v1'</span>;
+
+<span class="tok-gray">// List permits with min score 75</span>
+<span class="tok-purple">const</span> res <span class="tok-blue">=</span> <span class="tok-purple">await</span> <span class="tok-yellow">fetch</span>(
+  <span class="tok-blue">`${BASE}/permits/?api_key=${API_KEY}&amp;min_score=75`</span>
+);
+<span class="tok-purple">const</span> data <span class="tok-blue">=</span> <span class="tok-purple">await</span> res.<span class="tok-yellow">json</span>();
+console.<span class="tok-yellow">log</span>(data.results);
+
+<span class="tok-gray">// Score a permit</span>
+<span class="tok-purple">const</span> score <span class="tok-blue">=</span> <span class="tok-purple">await</span> <span class="tok-yellow">fetch</span>(<span class="tok-blue">`${BASE}/score/?api_key=${API_KEY}`</span>, {
+  method: <span class="tok-green">'POST'</span>,
+  headers: { <span class="tok-green">'Content-Type'</span>: <span class="tok-green">'application/json'</span> },
+  body: JSON.<span class="tok-yellow">stringify</span>({ trade: <span class="tok-green">'HVAC'</span>, value: <span class="tok-green">'$11,500'</span>, city: <span class="tok-green">'Austin'</span> })
+});
+console.<span class="tok-yellow">log</span>(<span class="tok-purple">await</span> score.<span class="tok-yellow">json</span>());</pre>
+      </div>
+    </div>
+
+    <div class="cta-strip">
+      <h2>Ready to integrate?</h2>
+      <p>API access is included on the Agency plan. Get in touch to unlock your production key.</p>
+      <a class="btn-white" href="{% url 'contact' %}">Request API access</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function copyKey(){
+  navigator.clipboard.writeText(document.getElementById('demo-key-val').textContent.trim());
+}
+function copyCode(btn){
+  var pre=btn.closest('.code-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText);
+  btn.textContent='Copied!';btn.classList.add('copied');
+  setTimeout(function(){btn.textContent='Copy';btn.classList.remove('copied');},2000);
+}
+// Sidebar active link on scroll
+var sections=document.querySelectorAll('.api-section[id]');
+var links=document.querySelectorAll('.api-sidebar a');
+window.addEventListener('scroll',function(){
+  var y=window.scrollY+120;
+  sections.forEach(function(s){
+    if(s.offsetTop<=y&&s.offsetTop+s.offsetHeight>y){
+      links.forEach(function(l){l.classList.remove('active');});
+      var a=document.querySelector('.api-sidebar a[href="#'+s.id+'"]');
+      if(a)a.classList.add('active');
+    }
+  });
+});
+</script>
+{% endblock %}

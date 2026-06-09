@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Contact — GoldenProxies{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto pt-24 sm:pt-28 pb-20 px-4">
+  <div class="text-center mb-10">
+    <h1 class="font-serif text-4xl font-bold text-gray-900 mb-3">Get in Touch</h1>
+    <p class="text-gray-500">Have a question or need enterprise pricing? We'd love to hear from you.</p>
+  </div>
+  <div class="glass-card rounded-3xl p-6 sm:p-10 shadow-xl shadow-[#D4AF37]/8">
+    <form method="post" class="space-y-5">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">First Name</label>
+          <input type="text" name="first_name" placeholder="Alice" class="w-full px-4 py-3 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Last Name</label>
+          <input type="text" name="last_name" placeholder="Johnson" class="w-full px-4 py-3 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition">
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Email</label>
+        <input type="email" name="email" placeholder="alice@company.com" class="w-full px-4 py-3 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Subject</label>
+        <input type="text" name="subject" placeholder="Enterprise pricing, custom plan..." class="w-full px-4 py-3 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Message</label>
+        <textarea name="message" rows="5" placeholder="Tell us about your use case..." class="w-full px-4 py-3 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition resize-none"></textarea>
+      </div>
+      <button type="submit" class="gold-btn w-full py-3.5 rounded-xl text-sm tracking-wide transition-all shadow-md">
+        Send Message
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

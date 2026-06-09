@@ -1,0 +1,670 @@
+{% extends 'core/base.html' %}
+{% block nav_api %}active{% endblock %}
+{% block title %}API Portal — Permitlify{% endblock %}
+
+{% block content %}
+{% include "core/_locked_banner.html" %}
+<style>
+.ap-wrap{max-width:900px;margin:0 auto;padding:28px 20px 60px;}
+.ap-hero{margin-bottom:28px;}
+.ap-hero h1{font-size:22px;font-weight:700;color:var(--tx);margin:0 0 4px;}
+.ap-hero p{font-size:14px;color:var(--tx2);margin:0;}
+
+/* upgrade wall */
+.ap-lock{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:72px 24px;gap:16px;}
+.ap-lock-icon{width:64px;height:64px;background:linear-gradient(135deg,#f3f4f6,#e5e7eb);border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.ap-lock-icon svg{width:28px;height:28px;color:#9ca3af;}
+.ap-lock h2{font-size:20px;font-weight:700;color:var(--tx);margin:0;}
+.ap-lock p{font-size:14px;color:var(--tx2);max-width:400px;margin:0;}
+.ap-lock .btn-pri{padding:11px 28px;font-size:14px;font-weight:600;background:var(--pr);color:#fff;border:none;border-radius:10px;cursor:pointer;text-decoration:none;}
+.ap-lock .feat-list{display:flex;flex-direction:column;gap:8px;text-align:left;background:var(--sur2);border:1px solid var(--b1);border-radius:12px;padding:16px 20px;min-width:260px;}
+.ap-lock .feat-list li{font-size:13px;color:var(--tx2);list-style:none;display:flex;align-items:center;gap:8px;}
+.ap-lock .feat-list li::before{content:"✓";color:var(--pr);font-weight:700;}
+
+/* section cards */
+.ap-card{background:var(--sur);border:1px solid var(--b1);border-radius:14px;margin-bottom:22px;overflow:hidden;}
+.ap-card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--b1);}
+.ap-card-head h2{font-size:15px;font-weight:700;color:var(--tx);margin:0;}
+.ap-card-body{padding:20px;}
+
+/* keys table */
+.key-list{display:flex;flex-direction:column;gap:10px;}
+.key-row{display:flex;align-items:center;gap:12px;padding:13px 16px;background:var(--bg);border:1px solid var(--b1);border-radius:10px;}
+.key-row.revoked{opacity:.5;}
+.key-info{flex:1;min-width:0;}
+.key-name{font-size:13px;font-weight:600;color:var(--tx);}
+.key-meta{font-size:11.5px;color:var(--tx3);margin-top:2px;}
+.key-val{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx2);background:var(--sur2);border:1px solid var(--b1);border-radius:6px;padding:4px 10px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+.key-badges{display:flex;gap:6px;align-items:center;flex-shrink:0;}
+.badge-active{font-size:10px;background:#dcfce7;color:#16a34a;border-radius:5px;padding:2px 7px;font-weight:600;}
+.badge-revoked{font-size:10px;background:#fee2e2;color:#dc2626;border-radius:5px;padding:2px 7px;font-weight:600;}
+.badge-calls{font-size:10px;background:var(--sur2);color:var(--tx3);border:1px solid var(--b1);border-radius:5px;padding:2px 7px;}
+.btn-revoke{font-size:11.5px;color:var(--re);background:none;border:1px solid var(--re);border-radius:6px;padding:3px 10px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn-revoke:hover{background:var(--re);color:#fff;}
+
+/* create key form */
+.create-key-form{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;}
+.create-key-form input{flex:1;min-width:160px;padding:9px 13px;border:1px solid var(--b1);border-radius:9px;font-size:13.5px;background:var(--bg);color:var(--tx);outline:none;}
+.create-key-form input:focus{border-color:var(--pr);box-shadow:0 0 0 3px rgba(99,102,241,.12);}
+.btn-create{padding:9px 18px;background:var(--pr);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.btn-create:disabled{opacity:.5;cursor:not-allowed;}
+
+/* new-key reveal */
+.new-key-reveal{display:none;margin-top:14px;padding:14px 16px;background:var(--bg);border:1px solid var(--pr);border-radius:10px;}
+.new-key-reveal p{font-size:13px;color:var(--tx2);margin:0 0 8px;}
+.new-key-reveal code{font-family:'JetBrains Mono',monospace;font-size:12.5px;color:var(--tx);word-break:break-all;}
+.btn-copy-new{margin-top:10px;font-size:12px;background:var(--sur2);border:1px solid var(--b1);border-radius:6px;padding:5px 12px;cursor:pointer;color:var(--tx2);}
+
+/* playground tabs */
+.pg-tabs{display:flex;gap:4px;background:var(--sur2);border:1px solid var(--b1);border-radius:10px;padding:4px;flex-wrap:wrap;}
+.pg-tab{padding:7px 14px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;color:var(--tx2);border:none;background:none;transition:all .15s;}
+.pg-tab.active{background:var(--sur);color:var(--tx);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.pg-panel{display:none;}
+.pg-panel.active{display:block;}
+.pg-field{margin-bottom:12px;}
+.pg-field label{display:block;font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
+.pg-field input,.pg-field select,.pg-field textarea{width:100%;padding:9px 12px;border:1px solid var(--b1);border-radius:8px;font-size:13.5px;background:var(--bg);color:var(--tx);outline:none;box-sizing:border-box;}
+.pg-field input:focus,.pg-field select:focus,.pg-field textarea:focus{border-color:var(--pr);box-shadow:0 0 0 3px rgba(99,102,241,.1);}
+.pg-field textarea{font-family:'JetBrains Mono',monospace;font-size:12px;resize:vertical;min-height:90px;}
+.pg-row{display:flex;gap:10px;flex-wrap:wrap;}
+.pg-row .pg-field{flex:1;min-width:140px;}
+.pg-note{font-size:12px;color:var(--tx3);margin-bottom:12px;}
+.pg-tier-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.btn-tier{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--b1);background:var(--sur2);color:var(--tx2);transition:all .15s;}
+.btn-tier.active{border-color:transparent;color:#fff;}
+.btn-tier.active.t-all{background:var(--pr);}
+.btn-tier.active.t-hot{background:#dc2626;}
+.btn-tier.active.t-warm{background:#d97706;}
+.btn-tier.active.t-cool{background:#2563eb;}
+.pg-section-label{font-size:11px;font-weight:700;color:var(--tx3);letter-spacing:.5px;text-transform:uppercase;margin:14px 0 6px;}
+.btn-run{padding:10px 22px;background:var(--pr);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-run:disabled{opacity:.5;cursor:not-allowed;}
+.pg-response{margin-top:14px;display:none;}
+.pg-response-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.pg-response-head span{font-size:12px;font-weight:600;color:var(--tx2);}
+.status-pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;}
+.status-ok{background:#dcfce7;color:#16a34a;}
+.status-err{background:#fee2e2;color:#dc2626;}
+.pg-json{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:12px;overflow-x:auto;white-space:pre;max-height:320px;overflow-y:auto;}
+
+/* stats */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
+.stat-box{background:var(--bg);border:1px solid var(--b1);border-radius:10px;padding:14px 16px;}
+.stat-box .sv{font-size:26px;font-weight:800;color:var(--tx);}
+.stat-box .sl{font-size:12px;color:var(--tx3);margin-top:2px;}
+.ep-list{display:flex;flex-direction:column;gap:8px;}
+.ep-row{display:flex;align-items:center;gap:12px;}
+.ep-name{font-size:13px;color:var(--tx2);width:130px;flex-shrink:0;}
+.ep-bar-wrap{flex:1;background:var(--sur2);border-radius:6px;height:7px;overflow:hidden;}
+.ep-bar{height:100%;background:var(--pr);border-radius:6px;transition:width .5s;}
+.ep-cnt{font-size:12px;color:var(--tx3);width:36px;text-align:right;}
+.chart-wrap{height:110px;display:flex;align-items:flex-end;gap:3px;margin-bottom:6px;}
+.chart-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.chart-bar{width:100%;background:var(--pr);border-radius:3px 3px 0 0;min-height:2px;transition:height .4s;}
+.chart-bar.zero{background:var(--sur2);}
+.chart-label{font-size:9.5px;color:var(--tx3);white-space:nowrap;}
+
+/* key active highlight on copy */
+.copied-flash{animation:flashGreen .6s ease;}
+@keyframes flashGreen{0%{background:#dcfce7}100%{background:var(--bg)}}
+
+/* toast */
+#ap-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f8fafc;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:opacity .25s;pointer-events:none;}
+#ap-toast.show{opacity:1;}
+
+@media(max-width:640px){
+  .ap-wrap{padding:20px 14px 48px;}
+  .ap-hero h1{font-size:19px;}
+
+  /* Cards */
+  .ap-card{border-radius:12px;margin-bottom:16px;}
+  .ap-card-head{padding:13px 14px;flex-wrap:wrap;gap:6px;}
+  .ap-card-body{padding:14px;}
+
+  /* Key rows */
+  .key-row{flex-wrap:wrap;gap:8px;padding:11px 12px;}
+  .key-info{flex:1 1 100%;}
+  .key-val{max-width:100%;width:100%;font-size:11px;padding:5px 10px;}
+  .key-badges{flex-wrap:wrap;}
+  .btn-revoke{font-size:11px;padding:4px 10px;}
+
+  /* New key reveal */
+  .new-key-reveal{padding:12px 14px;}
+  .new-key-reveal code{font-size:11.5px;word-break:break-all;}
+
+  /* Create form — stack vertically */
+  .create-key-form{flex-direction:column;gap:8px;}
+  .create-key-form input{min-width:0;width:100%;box-sizing:border-box;}
+  .btn-create{width:100%;padding:10px;}
+
+  /* Upgrade wall */
+  .ap-lock{padding:44px 16px;gap:14px;}
+  .ap-lock .feat-list{width:100%;min-width:0;}
+
+  /* Playground tabs — horizontal scroll */
+  .pg-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:4px;}
+  .pg-tabs::-webkit-scrollbar{display:none;}
+  .pg-tab{flex-shrink:0;padding:7px 12px;font-size:12px;}
+  .pg-row{flex-direction:column;}
+  .pg-field input,.pg-field select,.pg-field textarea{font-size:13px;}
+  .btn-run{width:100%;padding:11px;}
+
+  /* Stats */
+  .stats-grid{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
+  .stat-box .sv{font-size:22px;}
+  .stat-box{padding:12px 14px;}
+  .chart-wrap{height:90px;}
+  .chart-label{font-size:9px;}
+
+  /* Endpoint bars */
+  .ep-name{font-size:12px;width:80px;}
+  .ep-cnt{font-size:11px;}
+}
+</style>
+
+<div class="ap-wrap">
+  <div class="ap-hero">
+    <h1>API Portal</h1>
+    <p>Manage your API keys, test endpoints live, and monitor usage.</p>
+  </div>
+
+  {% if plan != 'agency' %}
+  <!-- Upgrade wall -->
+  <div class="ap-card">
+    <div class="ap-lock">
+      <div class="ap-lock-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      </div>
+      <h2>API Access — Agency Plan</h2>
+      <p>Generate real API keys, test all endpoints directly in this portal, and track your usage. Requires an Agency subscription.</p>
+      <ul class="feat-list">
+        <li>Up to 5 live API keys</li>
+        <li>Full access: permits, cities, scoring</li>
+        <li>Per-key usage analytics</li>
+        <li>Live interactive playground</li>
+      </ul>
+      <a href="{% url 'pricing' %}" class="btn-pri">Upgrade to Agency</a>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- ── API Keys ─────────────────────────────────────── -->
+  <div class="ap-card">
+    <div class="ap-card-head">
+      <h2>API Keys</h2>
+      <span style="font-size:12px;color:var(--tx3);">{{ api_keys|length }}/5 keys</span>
+    </div>
+    <div class="ap-card-body">
+      <div class="key-list" id="keyList">
+        {% for k in api_keys %}
+        <div class="key-row {% if not k.active %}revoked{% endif %}" id="keyrow-{{ forloop.counter0 }}">
+          <div class="key-info">
+            <div class="key-name">{{ k.name }}</div>
+            <div class="key-meta">
+              Created {{ k.created|slice:":10" }}
+              {% if k.last_used %}&nbsp;·&nbsp;Last used {{ k.last_used|slice:":10" }}{% endif %}
+            </div>
+          </div>
+          <div class="key-val" title="Click to copy" onclick="copyKey('{{ k.key }}', this)">{{ k.key|slice:":28" }}…</div>
+          <div class="key-badges">
+            {% if k.active %}<span class="badge-active">Active</span>{% else %}<span class="badge-revoked">Revoked</span>{% endif %}
+            <span class="badge-calls">{{ k.calls }} calls</span>
+          </div>
+          {% if k.active %}
+          <form method="POST" action="{% url 'api_key_revoke' %}" style="margin:0;" onsubmit="return confirm('Revoke this key? Apps using it will stop working immediately.');">
+            {% csrf_token %}
+            <input type="hidden" name="key" value="{{ k.key }}">
+            <button type="submit" class="btn-revoke">Revoke</button>
+          </form>
+          {% endif %}
+        </div>
+        {% empty %}
+        <p id="noKeysMsg" style="font-size:13px;color:var(--tx3);margin:0;">No API keys yet. Create one below.</p>
+        {% endfor %}
+      </div>
+
+      {% if new_key_val %}
+      <div class="new-key-reveal" style="display:block;margin-top:14px;" id="newKeyReveal">
+        <p><strong>Key "{{ new_key_name }}" created — save it now, it won't be shown again.</strong></p>
+        <code id="newKeyVal">{{ new_key_val }}</code>
+        <br>
+        <button class="btn-copy-new" onclick="copyNewKey()">Copy Key</button>
+      </div>
+      {% endif %}
+
+      {% if api_keys|length < 5 %}
+      <form method="POST" action="{% url 'api_key_create' %}" class="create-key-form" style="margin-top:14px;">
+        {% csrf_token %}
+        <input type="text" name="name" id="newKeyName" placeholder="Key name (e.g. Production)" maxlength="60">
+        <button type="submit" class="btn-create">+ Create Key</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Playground ─────────────────────────────────────── -->
+  <div class="ap-card">
+    <div class="ap-card-head">
+      <h2>Live Playground</h2>
+      <span style="font-size:12px;color:var(--tx3);">Uses your first active key</span>
+    </div>
+    <div class="ap-card-body">
+      <div class="pg-tabs" style="margin-bottom:18px;">
+        <button class="pg-tab active" onclick="switchTab('permits', this)">GET /permits/</button>
+        <button class="pg-tab" onclick="switchTab('permit_detail', this)">GET /permits/:id</button>
+        <button class="pg-tab" onclick="switchTab('cities', this)">GET /cities/</button>
+        <button class="pg-tab" onclick="switchTab('score', this)">POST /score/</button>
+      </div>
+
+      <!-- GET /permits/ -->
+      <div class="pg-panel active" id="panel-permits">
+        <p class="pg-note">Returns permits for your plan cities. All filters are optional — combine any you like.</p>
+
+        <div class="pg-section-label">Location</div>
+        <div class="pg-row">
+          <div class="pg-field">
+            <label>state</label>
+            <select id="p-state" onchange="onPgState()">
+              <option value="">All States</option>
+            </select>
+          </div>
+          <div class="pg-field">
+            <label>city</label>
+            <select id="p-city">
+              <option value="">All Cities</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pg-section-label">Permit Details</div>
+        <div class="pg-row">
+          <div class="pg-field">
+            <label>trade</label>
+            <select id="p-trade">
+              <option value="">Any Trade</option>
+              <option value="roofing">Roofing</option>
+              <option value="hvac">HVAC</option>
+              <option value="plumbing">Plumbing</option>
+              <option value="electrical">Electrical</option>
+              <option value="solar">Solar</option>
+              <option value="civil">Civil / Construction</option>
+            </select>
+          </div>
+          <div class="pg-field">
+            <label>status</label>
+            <select id="p-status">
+              <option value="">Any Status</option>
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+              <option value="review">In Review</option>
+              <option value="expired">Expired</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pg-section-label">Score</div>
+        <div class="pg-tier-row">
+          <button class="btn-tier t-all active" onclick="setPgTier('',this)">All</button>
+          <button class="btn-tier t-hot" onclick="setPgTier('hot',this)">🔥 Hot 80+</button>
+          <button class="btn-tier t-warm" onclick="setPgTier('warm',this)">☀ Warm 60–79</button>
+          <button class="btn-tier t-cool" onclick="setPgTier('cool',this)">❄ Cool &lt;60</button>
+        </div>
+        <div class="pg-row">
+          <div class="pg-field"><label>min_score</label><input type="number" id="p-min-score" placeholder="0" min="0" max="100"></div>
+          <div class="pg-field"><label>max_score</label><input type="number" id="p-max-score" placeholder="100" min="0" max="100"></div>
+        </div>
+
+        <div class="pg-section-label">Date Range</div>
+        <div class="pg-row">
+          <div class="pg-field"><label>issued_after</label><input type="date" id="p-issued-after"></div>
+          <div class="pg-field"><label>expires_before</label><input type="date" id="p-expires-before"></div>
+        </div>
+
+        <div class="pg-section-label">Contact / Keyword</div>
+        <div class="pg-row">
+          <div class="pg-field"><label>owner</label><input type="text" id="p-owner" placeholder="Search owner name…"></div>
+          <div class="pg-field"><label>keyword</label><input type="text" id="p-keyword" placeholder="PW26-… or any keyword"></div>
+        </div>
+
+        <div class="pg-section-label">Pagination</div>
+        <div class="pg-row">
+          <div class="pg-field"><label>limit</label><input type="number" id="p-limit" placeholder="50" min="1" max="200" value="50"></div>
+          <div class="pg-field"><label>offset</label><input type="number" id="p-offset" placeholder="0" min="0" value="0"></div>
+        </div>
+
+        <button class="btn-run" onclick="runPermits()">Run Request</button>
+        <div class="pg-response" id="res-permits"></div>
+      </div>
+
+      <!-- GET /permits/:id -->
+      <div class="pg-panel" id="panel-permit_detail">
+        <p class="pg-note">Fetch a single permit by its ID.</p>
+        <div class="pg-field"><label>permit id</label><input type="text" id="pd-number" placeholder="e.g. PW26-12643" value="PW26-12643"></div>
+        <button class="btn-run" onclick="runPermitDetail()">Run Request</button>
+        <div class="pg-response" id="res-permit_detail"></div>
+      </div>
+
+      <!-- GET /cities/ -->
+      <div class="pg-panel" id="panel-cities">
+        <p class="pg-note">Returns all supported cities and their permit counts. No parameters required.</p>
+        <button class="btn-run" onclick="runCities()">Run Request</button>
+        <div class="pg-response" id="res-cities"></div>
+      </div>
+
+      <!-- POST /score/ -->
+      <div class="pg-panel" id="panel-score">
+        <p class="pg-note">Score a permit lead using all available data. More detail = more accurate score. All fields except <strong>trade</strong> are optional.</p>
+
+        <div class="pg-section-label">Description</div>
+        <div class="pg-field">
+          <label>description</label>
+          <textarea id="s-desc" placeholder="e.g. Full shingle replacement on 2,400 sqft residential home. Hail damage from April storm. Homeowner wants work started ASAP." rows="3"></textarea>
+        </div>
+
+        <div class="pg-section-label">Permit Details</div>
+        <div class="pg-row">
+          <div class="pg-field">
+            <label>permit type</label>
+            <input type="text" id="s-permit-type" placeholder="e.g. Residential Roofing" value="Residential Roofing">
+          </div>
+          <div class="pg-field">
+            <label>trade <span style="color:var(--pr)">*</span></label>
+            <select id="s-trade">
+              <option value="roofing">Roofing</option>
+              <option value="hvac">HVAC</option>
+              <option value="electrical">Electrical</option>
+              <option value="plumbing">Plumbing</option>
+              <option value="solar">Solar</option>
+              <option value="civil">Civil / Construction</option>
+            </select>
+          </div>
+          <div class="pg-field">
+            <label>status</label>
+            <select id="s-status">
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+              <option value="review">In Review</option>
+              <option value="expired">Expired</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pg-section-label">Value & Dates</div>
+        <div class="pg-row">
+          <div class="pg-field"><label>value ($)</label><input type="number" id="s-value" placeholder="e.g. 18500" value="18500"></div>
+          <div class="pg-field"><label>issued date</label><input type="date" id="s-issued"></div>
+          <div class="pg-field"><label>expires date</label><input type="date" id="s-expires"></div>
+        </div>
+
+        <div class="pg-section-label">Location</div>
+        <div class="pg-row">
+          <div class="pg-field"><label>city</label><input type="text" id="s-city" placeholder="e.g. Fort Worth" value="Fort Worth"></div>
+          <div class="pg-field"><label>state</label><input type="text" id="s-state" placeholder="e.g. TX" value="TX" style="max-width:80px;"></div>
+        </div>
+
+        <div class="pg-section-label">Owner & Project</div>
+        <div class="pg-row">
+          <div class="pg-field"><label>owner</label><input type="text" id="s-owner" placeholder="e.g. Sarah T. Monroe" value="Sarah T. Monroe"></div>
+          <div class="pg-field"><label>project / address</label><input type="text" id="s-project" placeholder="e.g. 3421 Magnolia Ave" value="3421 Magnolia Ave"></div>
+        </div>
+
+        <button class="btn-run" onclick="runScore()">Run Request</button>
+        <div class="pg-response" id="res-score"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Stats ─────────────────────────────────────── -->
+  <div class="ap-card">
+    <div class="ap-card-head">
+      <h2>Usage Stats</h2>
+    </div>
+    <div class="ap-card-body">
+      <div class="stats-grid">
+        <div class="stat-box"><div class="sv">{{ total_calls }}</div><div class="sl">Total API Calls</div></div>
+        <div class="stat-box"><div class="sv">{{ today_calls }}</div><div class="sl">Today</div></div>
+        <div class="stat-box"><div class="sv">{{ api_keys|length }}</div><div class="sl">Active Keys</div></div>
+        <div class="stat-box"><div class="sv">{{ ep_totals|length }}</div><div class="sl">Endpoints Used</div></div>
+      </div>
+
+      <!-- 7-day chart -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:10px;">Calls — Last 7 Days</div>
+        <div class="chart-wrap" id="callChart"></div>
+      </div>
+
+      <!-- Per-endpoint breakdown -->
+      {% if ep_totals %}
+      <div style="font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:10px;">By Endpoint</div>
+      <div class="ep-list">
+        {% for ep, cnt in ep_totals.items %}
+        <div class="ep-row">
+          <span class="ep-name">/{{ ep }}/</span>
+          <div class="ep-bar-wrap">
+            <div class="ep-bar" style="width:0%;" data-cnt="{{ cnt }}"></div>
+          </div>
+          <span class="ep-cnt">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="font-size:13px;color:var(--tx3);">No API calls yet. Use the playground above to get started.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+
+<div id="ap-toast"></div>
+
+<script>
+var CHART_DATA   = {{ chart_data|default:"[]"|safe }};
+var PLAN_CITIES  = {{ plan_cities_json|default:"[]"|safe }};
+var ACTIVE_KEY   = null;
+var _pgTier      = '';
+(function(){
+  var keys = {{ api_keys_json|default:"[]"|safe }};
+  for(var i=0;i<keys.length;i++){
+    if(keys[i].active){ACTIVE_KEY=keys[i].key;break;}
+  }
+  // Populate state/city dropdowns (only present for agency users)
+  var stateEl = document.getElementById('p-state');
+  if(stateEl && PLAN_CITIES.length){
+    var states = [];
+    PLAN_CITIES.forEach(function(c){ if(c.state && states.indexOf(c.state)<0) states.push(c.state); });
+    states.sort().forEach(function(s){
+      var o=document.createElement('option'); o.value=s; o.textContent=s; stateEl.appendChild(o);
+    });
+    _populatePgCities('');
+  }
+})();
+
+// ── Toast ──────────────────────────────────────────────────────
+function toast(msg){
+  var el=document.getElementById('ap-toast');
+  el.textContent=msg;el.classList.add('show');
+  setTimeout(function(){el.classList.remove('show');},2200);
+}
+
+// ── Key copy ──────────────────────────────────────────────────
+function copyKey(key, el){
+  navigator.clipboard.writeText(key).then(function(){
+    toast('Key copied to clipboard');
+    el.classList.add('copied-flash');
+    setTimeout(function(){el.classList.remove('copied-flash');},700);
+  });
+}
+function copyNewKey(){
+  var v=document.getElementById('newKeyVal').textContent;
+  navigator.clipboard.writeText(v).then(function(){toast('Key copied!');});
+}
+
+// ── Playground tabs ───────────────────────────────────────────
+function switchTab(name, btn){
+  document.querySelectorAll('.pg-tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.pg-panel').forEach(function(p){p.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+// ── Permits filter helpers ────────────────────────────────────
+function _populatePgCities(filterState){
+  var el=document.getElementById('p-city');
+  el.innerHTML='<option value="">All Cities</option>';
+  PLAN_CITIES.forEach(function(c){
+    if(!filterState||c.state===filterState){
+      var o=document.createElement('option');
+      o.value=c.name; o.textContent=c.name+(c.state?' ('+c.state+')':'');
+      el.appendChild(o);
+    }
+  });
+}
+function onPgState(){
+  var st=document.getElementById('p-state').value;
+  _populatePgCities(st);
+}
+function setPgTier(tier, btn){
+  _pgTier=tier;
+  document.querySelectorAll('.btn-tier').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+}
+
+// ── Response renderer ─────────────────────────────────────────
+function showResponse(panelId, status, data){
+  var el=document.getElementById('res-'+panelId);
+  var ok=status>=200&&status<300;
+  el.innerHTML='<div class="pg-response-head"><span>Response</span><span class="status-pill '+(ok?'status-ok':'status-err')+'">'+status+(ok?' OK':' Error')+'</span></div>'
+    +'<div class="pg-json">'+syntaxHighlight(JSON.stringify(data,null,2))+'</div>';
+  el.style.display='block';
+}
+function syntaxHighlight(json){
+  return json.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,function(m){
+      var cls='color:#93c5fd';
+      if(/^"/.test(m)){cls=/:$/.test(m)?'color:#6ee7b7':'color:#fcd34d';}
+      else if(/true|false/.test(m)){cls='color:#f9a8d4';}
+      else if(/null/.test(m)){cls='color:#94a3b8';}
+      return '<span style="'+cls+'">'+m+'</span>';
+    });
+}
+function apiKey(){return ACTIVE_KEY||'';}
+
+// ── Run: GET /permits/ ────────────────────────────────────────
+function runPermits(){
+  if(!apiKey()){toast('No active API key found. Create one first.');return;}
+  var params=new URLSearchParams({api_key:apiKey()});
+  var state   = document.getElementById('p-state').value;
+  var city    = document.getElementById('p-city').value;
+  var trade   = document.getElementById('p-trade').value;
+  var status  = document.getElementById('p-status').value;
+  var minSc   = document.getElementById('p-min-score').value.trim();
+  var maxSc   = document.getElementById('p-max-score').value.trim();
+  var owner   = document.getElementById('p-owner').value.trim();
+  var kw      = document.getElementById('p-keyword').value.trim();
+  var iAfter  = document.getElementById('p-issued-after').value;
+  var eBefore = document.getElementById('p-expires-before').value;
+  var limit   = document.getElementById('p-limit').value.trim();
+  var offset  = document.getElementById('p-offset').value.trim();
+  if(state)   params.set('state', state);
+  if(city)    params.set('city', city);
+  if(trade)   params.set('trade', trade);
+  if(status)  params.set('status', status);
+  if(_pgTier) params.set('tier', _pgTier);
+  if(minSc)   params.set('min_score', minSc);
+  if(maxSc)   params.set('max_score', maxSc);
+  if(owner)   params.set('owner', owner);
+  if(kw)      params.set('keyword', kw);
+  if(iAfter)  params.set('issued_after', iAfter);
+  if(eBefore) params.set('expires_before', eBefore);
+  if(limit && limit!='50')  params.set('limit', limit);
+  if(offset && offset!='0') params.set('offset', offset);
+  fetch('/api/v1/permits/?'+params.toString())
+    .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(obj){showResponse('permits',obj.s,obj.d);})
+    .catch(function(e){showResponse('permits',0,{error:String(e)});});
+}
+
+// ── Run: GET /permits/:id ─────────────────────────────────────
+function runPermitDetail(){
+  if(!apiKey()){toast('No active API key found. Create one first.');return;}
+  var num=document.getElementById('pd-number').value.trim();
+  if(!num){toast('Enter a permit number');return;}
+  fetch('/api/v1/permits/'+encodeURIComponent(num)+'/?api_key='+encodeURIComponent(apiKey()))
+    .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(obj){showResponse('permit_detail',obj.s,obj.d);})
+    .catch(function(e){showResponse('permit_detail',0,{error:String(e)});});
+}
+
+// ── Run: GET /cities/ ─────────────────────────────────────────
+function runCities(){
+  if(!apiKey()){toast('No active API key found. Create one first.');return;}
+  fetch('/api/v1/cities/?api_key='+encodeURIComponent(apiKey()))
+    .then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(obj){showResponse('cities',obj.s,obj.d);})
+    .catch(function(e){showResponse('cities',0,{error:String(e)});});
+}
+
+// ── Run: POST /score/ ─────────────────────────────────────────
+function runScore(){
+  if(!apiKey()){toast('No active API key found. Create one first.');return;}
+  var body={
+    trade:       document.getElementById('s-trade').value,
+    value:       parseFloat(document.getElementById('s-value').value)||0,
+    city:        document.getElementById('s-city').value.trim(),
+    state:       document.getElementById('s-state').value.trim(),
+    description: document.getElementById('s-desc').value.trim(),
+    permit_type: document.getElementById('s-permit-type').value.trim(),
+    status:      document.getElementById('s-status').value,
+    owner:       document.getElementById('s-owner').value.trim(),
+    project:     document.getElementById('s-project').value.trim(),
+    issued_date: document.getElementById('s-issued').value,
+    expires_date:document.getElementById('s-expires').value,
+  };
+  fetch('/api/v1/score/?api_key='+encodeURIComponent(apiKey()),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  }).then(function(r){return r.json().then(function(d){return{s:r.status,d:d};});})
+    .then(function(obj){showResponse('score',obj.s,obj.d);})
+    .catch(function(e){showResponse('score',0,{error:String(e)});});
+}
+
+// ── Chart ─────────────────────────────────────────────────────
+(function(){
+  var wrap=document.getElementById('callChart');
+  if(!wrap||!CHART_DATA.length)return;
+  var max=Math.max.apply(null,CHART_DATA.map(function(d){return d.calls;}));
+  if(max===0)max=1;
+  CHART_DATA.forEach(function(d){
+    var pct=Math.round((d.calls/max)*100);
+    var labelParts=d.date.split('-');
+    var label=labelParts[1]+'/'+labelParts[2];
+    var col=document.createElement('div');
+    col.className='chart-bar-col';
+    var bar=document.createElement('div');
+    bar.className='chart-bar'+(d.calls===0?' zero':'');
+    bar.style.height=Math.max(pct,d.calls===0?3:5)+'%';
+    bar.title=d.calls+' calls on '+d.date;
+    var lbl=document.createElement('div');
+    lbl.className='chart-label';lbl.textContent=label;
+    col.appendChild(bar);col.appendChild(lbl);
+    wrap.appendChild(col);
+  });
+})();
+
+// ── EP bar widths (relative to max endpoint count) ──────────
+(function(){
+  var bars=document.querySelectorAll('.ep-bar');
+  var max=0;
+  bars.forEach(function(b){var v=parseInt(b.getAttribute('data-cnt'))||0;if(v>max)max=v;});
+  if(max===0)return;
+  bars.forEach(function(b){
+    var v=parseInt(b.getAttribute('data-cnt'))||0;
+    b.style.width=Math.round((v/max)*100)+'%';
+  });
+})();
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+</script>
+{% endblock %}

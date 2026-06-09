@@ -1,0 +1,106 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Support Dashboard · Admin · Permitlify{% endblock %}
+{% block page_title %}Support Dashboard{% endblock %}
+{% block content %}
+<style>
+:root{--tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;--sur:#fff;--sur2:#f8fafc;--b1:rgba(0,0,0,.06);--pr:#1d4ed8;}
+.admsup-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;}
+.admsup-title{font-size:20px;font-weight:700;color:var(--tx);font-family:'DM Sans',sans-serif;}
+.admsup-sub{font-size:13px;color:var(--tx2);margin-top:3px;}
+.filter-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
+.ftab{padding:7px 16px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--tx2);background:var(--sur);border:1px solid var(--b1);text-decoration:none;transition:all .15s;font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:5px;}
+.ftab:hover{border-color:var(--pr);color:var(--pr);}
+.ftab.active{background:var(--pr);color:#fff;border-color:var(--pr);}
+.ftab .cnt{font-size:10px;background:rgba(255,255,255,.22);padding:1px 5px;border-radius:10px;}
+.ftab:not(.active) .cnt{background:var(--sur2);color:var(--tx3);}
+.tkt-table{background:var(--sur);border:1px solid var(--b1);border-radius:16px;overflow:hidden;}
+.tkt-table table{width:100%;border-collapse:collapse;}
+.tkt-table th{padding:10px 16px;font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;background:var(--sur2);border-bottom:1px solid var(--b1);text-align:left;white-space:nowrap;}
+.tkt-table td{padding:13px 16px;font-size:13px;color:var(--tx);border-bottom:1px solid var(--b1);vertical-align:middle;}
+.tkt-table tr:last-child td{border-bottom:none;}
+.tkt-table tr:hover td{background:var(--sur2);}
+.tkt-table tr{cursor:pointer;}
+.tkbadge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;}
+.tkbadge-open{background:#dbeafe;color:#1d4ed8;}
+.tkbadge-in_progress{background:#ffedd5;color:#c2410c;}
+.tkbadge-resolved{background:#dcfce7;color:#15803d;}
+.tkbadge-closed{background:#f1f5f9;color:#64748b;}
+.prio-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10.5px;font-weight:700;gap:3px;}
+.prio-urgent{background:#fef2f2;color:#dc2626;}
+.prio-high{background:#fff7ed;color:#c2410c;}
+.prio-normal{background:#f8fafc;color:#64748b;}
+.prio-low{background:#f0fdf4;color:#15803d;}
+.tkt-id{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3);}
+.tkt-subject-cell{font-weight:600;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tkt-msg-count{font-size:11.5px;color:var(--tx2);}
+.empty-cell{padding:56px;text-align:center;color:var(--tx3);font-size:13.5px;}
+</style>
+
+<div class="admsup-header">
+  <div>
+    <div class="admsup-title">Help Desk</div>
+    <div class="admsup-sub">Manage and respond to user support tickets</div>
+  </div>
+</div>
+
+<div class="filter-tabs">
+  <a class="ftab {% if not status_filter %}active{% endif %}" href="{% url 'admin_support' %}">
+    All <span class="cnt">{{ counts.all }}</span>
+  </a>
+  <a class="ftab {% if status_filter == 'open' %}active{% endif %}" href="{% url 'admin_support' %}?status=open">
+    Open <span class="cnt">{{ counts.open }}</span>
+  </a>
+  <a class="ftab {% if status_filter == 'in_progress' %}active{% endif %}" href="{% url 'admin_support' %}?status=in_progress">
+    In Progress <span class="cnt">{{ counts.in_progress }}</span>
+  </a>
+  <a class="ftab {% if status_filter == 'resolved' %}active{% endif %}" href="{% url 'admin_support' %}?status=resolved">
+    Resolved <span class="cnt">{{ counts.resolved }}</span>
+  </a>
+  <a class="ftab {% if status_filter == 'closed' %}active{% endif %}" href="{% url 'admin_support' %}?status=closed">
+    Closed <span class="cnt">{{ counts.closed }}</span>
+  </a>
+</div>
+
+<div class="tkt-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Ticket ID</th>
+        <th>Subject</th>
+        <th>User</th>
+        <th>Status</th>
+        <th>Priority</th>
+        <th>Messages</th>
+        <th>Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tickets %}
+      <tr onclick="window.location='{% url 'admin_support_ticket' t.id %}'">
+        <td class="tkt-id">{{ t.ticket_id }}</td>
+        <td class="tkt-subject-cell">{{ t.subject }}</td>
+        <td>
+          <div style="font-weight:600;font-size:13px;">{{ t.user_name }}</div>
+          <div style="font-size:11px;color:var(--tx3);">{{ t.user_email }}</div>
+        </td>
+        <td>
+          <span class="tkbadge tkbadge-{{ t.status }}">
+            {% if t.status == 'open' %}● Open{% elif t.status == 'in_progress' %}⟳ In Progress{% elif t.status == 'resolved' %}✓ Resolved{% else %}✕ Closed{% endif %}
+          </span>
+        </td>
+        <td>
+          <span class="prio-badge prio-{{ t.priority }}">
+            {% if t.priority == 'urgent' %}🔴{% elif t.priority == 'high' %}🟠{% elif t.priority == 'low' %}🟢{% else %}⚪{% endif %}
+            {{ t.priority|title }}
+          </span>
+        </td>
+        <td class="tkt-msg-count">{{ t.msg_count }}</td>
+        <td style="font-size:12px;color:var(--tx2);">{{ t.updated_fmt }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="empty-cell">No tickets found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

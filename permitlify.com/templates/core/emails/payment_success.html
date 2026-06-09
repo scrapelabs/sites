@@ -1,0 +1,142 @@
+{% comment %}
+  Payment receipt email — clean standalone, GREEN-tinted.
+  Same shape as login_alert / welcome — wordmark + green pill +
+  receipt-style details tile + green CTA.
+{% endcomment %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>Payment received — your Permitlify {{ plan_label }} plan is active</title>
+<style>
+  body, table, td, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+  table, td { mso-table-lspace:0; mso-table-rspace:0; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; background:#f3f5f9; font-family:'Inter','Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif; color:#0f172a; }
+  a { color:#1d4ed8; text-decoration:none; }
+
+  .card { background:#ffffff; border-radius:14px; box-shadow:0 1px 2px rgba(15,23,42,.04), 0 8px 24px -12px rgba(15,23,42,.10); overflow:hidden; }
+  .accent-strip { height:3px; background:#16a34a; background:linear-gradient(90deg,#16a34a 0%,#22c55e 50%,#84cc16 100%); }
+  .pad { padding:36px 40px 32px; }
+
+  .wordmark-row { margin:0 0 22px; line-height:1; }
+  .wordmark { display:inline-block; font-size:14px; font-weight:700; letter-spacing:.2px; color:#1d4ed8; vertical-align:middle; }
+  .wordmark .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#1d4ed8; vertical-align:1px; margin-right:8px; }
+  .action-pill { display:inline-block; vertical-align:middle; margin-left:10px; padding:4px 9px 4px 7px; border-radius:999px; background:#f0fdf4; border:1px solid #bbf7d0; font-size:11px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:#15803d; }
+  .action-pill svg { vertical-align:-2px; margin-right:4px; }
+
+  h1.title { margin:0 0 8px; font-size:24px; font-weight:700; line-height:1.25; color:#0f172a; letter-spacing:-.4px; }
+  p.subtitle { margin:0 0 24px; font-size:15px; line-height:1.55; color:#475569; }
+
+  .details-tile { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:18px 20px; }
+  .details-tile .label { font-size:11px; font-weight:800; letter-spacing:1.4px; color:#15803d; text-transform:uppercase; margin:0 0 10px; }
+  .details-tile table { width:100%; border-collapse:collapse; }
+  .details-tile td { padding:5px 0; font-size:13.5px; line-height:1.5; vertical-align:top; }
+  .details-tile td.k { color:#166534; font-weight:600; width:118px; padding-right:14px; white-space:nowrap; }
+  .details-tile td.v { color:#0f172a; word-break:break-word; }
+  .details-tile td.v.amt { font-weight:700; font-size:15px; color:#15803d; }
+  .details-tile td.v.mono { font-family:'SF Mono','JetBrains Mono','Menlo','Consolas','Courier New',monospace; font-size:12.5px; color:#334155; }
+
+  .body-text { margin:24px 0 0; font-size:14.5px; line-height:1.65; color:#334155; }
+  .body-text p { margin:0 0 12px; }
+  .body-text strong { color:#0f172a; font-weight:600; }
+
+  .cta-row { margin:22px 0 4px; }
+  .cta { display:inline-block; background:#16a34a; color:#ffffff !important; padding:12px 22px; border-radius:10px; text-decoration:none; font-weight:700; font-size:14.5px; letter-spacing:.1px; box-shadow:0 1px 2px rgba(22,163,74,.25), 0 4px 12px -4px rgba(22,163,74,.35); }
+
+  .hint { margin-top:24px; padding:14px 16px; background:#f8fafc; border:1px solid #eef2f7; border-radius:10px; font-size:13px; line-height:1.6; color:#64748b; }
+  .hint strong { color:#0f172a; font-weight:600; }
+  .hint a { color:#1d4ed8; font-weight:600; }
+
+  .footer { padding:18px 12px 4px; text-align:center; font-size:12px; color:#94a3b8; line-height:1.6; }
+  .footer a { color:#64748b; }
+  .footer .brand { font-weight:600; color:#475569; }
+
+  @media only screen and (max-width:480px) {
+    .pad { padding:28px 22px 24px !important; }
+    h1.title { font-size:20px !important; }
+    p.subtitle { font-size:14px !important; margin-bottom:20px !important; }
+    .details-tile { padding:16px 16px !important; }
+    .details-tile td.k { width:100px !important; padding-right:10px !important; font-size:12.5px !important; }
+    .details-tile td.v { font-size:13px !important; }
+    .details-tile td.v.amt { font-size:14px !important; }
+    .details-tile td.v.mono { font-size:11.5px !important; }
+    .body-text { font-size:14px !important; }
+    .cta { display:block !important; text-align:center !important; }
+    .action-pill { margin-left:6px !important; padding:3px 7px !important; }
+  }
+</style>
+</head>
+<body>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f5f9;">
+  <tr>
+    <td align="center" style="padding:40px 14px 28px;">
+
+      <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#f3f5f9;">
+        Thanks for your payment of {{ amount_display }} — your {{ plan_label }} plan is active and ready to use.
+      </div>
+
+      <table role="presentation" width="540" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;width:100%;">
+        <tr>
+          <td>
+            <div class="card">
+              <div class="accent-strip"></div>
+              <div class="pad">
+
+                <div class="wordmark-row">
+                  <span class="wordmark"><span class="dot"></span>Permitlify</span>
+                  <span class="action-pill">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#15803d" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Payment received
+                  </span>
+                </div>
+
+                <h1 class="title">You're on Permitlify {{ plan_label }}</h1>
+                <p class="subtitle">Thanks for upgrading. Every feature on your new plan is unlocked the moment this email lands &mdash; no extra steps.</p>
+
+                <div class="details-tile">
+                  <div class="label">Receipt</div>
+                  <table cellpadding="0" cellspacing="0" border="0" role="presentation">
+                    <tr><td class="k">Plan</td>          <td class="v">Permitlify {{ plan_label }}</td></tr>
+                    <tr><td class="k">Amount charged</td><td class="v amt">{{ amount_display }}</td></tr>
+                    <tr><td class="k">Billing email</td> <td class="v">{{ billing_email }}</td></tr>
+                    <tr><td class="k">Activated</td>     <td class="v">{{ paid_at_pretty }}</td></tr>
+                    <tr><td class="k">Next charge</td>   <td class="v">{{ next_charge_pretty }}</td></tr>
+                    {% if membership_id %}<tr><td class="k">Reference</td><td class="v mono">{{ membership_id }}</td></tr>{% endif %}
+                  </table>
+                </div>
+
+                <div class="body-text">
+                  <p>Hi <strong>{{ first_name }}</strong>, we've received your payment of <strong>{{ amount_display }}</strong> for the <strong>Permitlify {{ plan_label }}</strong> plan. Your account is upgraded and every feature on the plan is live.</p>
+                  <p style="color:#64748b;">Manage your subscription, switch plans, or download invoices any time from your billing page:</p>
+                </div>
+
+                <div class="cta-row">
+                  <a class="cta" href="{{ billing_url }}">Manage billing</a>
+                </div>
+
+                <div class="hint">
+                  Need an invoice with extra fields, a different billing address, or a VAT/EIN/TVA number on the receipt? Reply to this email and Billing will handle it.
+                </div>
+
+              </div>
+            </div>
+
+            <div class="footer">
+              &copy; {{ year }} <span class="brand">Permitlify</span> &middot; <a href="https://permitlify.com">permitlify.com</a><br>
+              You're receiving this because you have an active Permitlify subscription.<br>
+              Billing questions: <a href="mailto:billing@permitlify.com">billing@permitlify.com</a>.
+            </div>
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+</body>
+</html>

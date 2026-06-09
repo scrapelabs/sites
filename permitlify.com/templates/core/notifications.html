@@ -1,0 +1,373 @@
+{% extends "core/base.html" %}
+{% block title %}Notifications — Permitlify{% endblock %}
+{% block nav_notifications %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+.notif-type{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+.notif-type::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;}
+.nt-alert  {background:var(--rd);color:var(--re);border:1px solid rgba(220,38,38,.2);}
+.nt-digest {background:var(--bd);color:var(--bl);border:1px solid rgba(59,130,246,.22);}
+.nt-report {background:var(--pd);color:var(--pr);border:1px solid rgba(29,78,216,.2);}
+.nt-system {background:var(--sur2);color:var(--tx3);border:1px solid var(--b2);}
+.ns-sent   {background:var(--gd);color:#16a34a;border:1px solid rgba(34,197,94,.22);}
+.ns-opened {background:var(--pd);color:var(--pr);border:1px solid rgba(29,78,216,.22);}
+.ns-failed {background:var(--rd);color:var(--re);border:1px solid rgba(220,38,38,.2);}
+
+.ch-row{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid var(--b1);}
+.ch-row:last-child{border:none;padding-bottom:0;}
+.ch-ico{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;}
+.ch-ico svg{width:17px;height:17px;}
+.ch-name{font-size:13.5px;font-weight:600;color:var(--tx);}
+.ch-desc{font-size:12px;color:var(--tx3);margin-top:2px;}
+.ch-st{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 10px;border-radius:20px;font-weight:600;flex-shrink:0;}
+.ch-st.on {background:var(--gd);color:#16a34a;border:1px solid rgba(34,197,94,.2);}
+.ch-st.off{background:var(--sur2);color:var(--tx3);border:1px solid var(--b2);}
+
+.exp-btn{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--tx2);background:var(--sur2);border:1px solid var(--b2);border-radius:9px;padding:7px 13px;cursor:pointer;transition:all .18s;font-family:'DM Sans',sans-serif;text-decoration:none;}
+.exp-btn:hover{border-color:var(--pr);color:var(--pr);background:#fff;}
+.exp-btn svg{width:13px;height:13px;}
+
+.pb{width:30px;height:30px;border-radius:8px;border:1px solid var(--b2);background:var(--sur2);font-size:12px;font-weight:600;color:var(--tx2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;font-family:'JetBrains Mono',monospace;text-decoration:none;}
+.pb:hover{border-color:var(--pr);color:var(--pr);}
+.pb.active{background:var(--grad);border-color:transparent;color:#fff;box-shadow:var(--sh-pr);}
+
+.filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.fb{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;padding:6px 13px;border-radius:8px;border:1px solid var(--b2);background:var(--sur2);color:var(--tx2);cursor:pointer;transition:all .18s;text-decoration:none;display:inline-block;}
+.fb:hover,.fb.active{background:var(--pd);border-color:rgba(29,78,216,.25);color:var(--pr);}
+
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+@media(max-width:960px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:500px){.stats-row{grid-template-columns:1fr 1fr;}}
+
+.mark-btn{font-size:10px;font-weight:600;color:var(--tx3);background:transparent;border:1px solid var(--b2);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;white-space:nowrap;}
+.mark-btn:hover{border-color:var(--pr);color:var(--pr);}
+.mark-btn.done{opacity:.45;cursor:default;pointer-events:none;}
+
+.webhook-input{width:100%;margin-top:8px;background:var(--sur2);border:1px solid var(--b2);border-radius:8px;padding:8px 11px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--tx);outline:none;transition:border-color .18s;}
+.webhook-input:focus{border-color:var(--pr);}
+.webhook-save-btn{margin-top:6px;font-size:11px;font-weight:600;color:var(--pr);background:var(--pd);border:1px solid rgba(29,78,216,.22);border-radius:7px;padding:5px 12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.webhook-save-btn:hover{background:var(--pr);color:#fff;}
+
+#notif-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:#fff;font-size:13px;font-weight:500;padding:11px 22px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.22);z-index:9999;opacity:0;transition:all .3s;pointer-events:none;font-family:'DM Sans',sans-serif;}
+#notif-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+{% endblock %}
+
+{% block content %}
+{% include "core/_locked_banner.html" %}
+<div id="notif-toast"></div>
+<div class="page-title">Notifications</div>
+<div class="page-desc">Alert history, delivery status, and channel preferences.</div>
+
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Total Sent</div>
+    <div class="stat-num">{{ alerts_sent }}</div>
+    <div class="stat-sub up">All time</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">This Week</div>
+    <div class="stat-num">{{ alerts_week }}</div>
+    <div class="stat-sub {% if alerts_week_delta >= 0 %}up{% else %}dn{% endif %}">{% if alerts_week_delta >= 0 %}+{% endif %}{{ alerts_week_delta }} vs last week</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Open Rate</div>
+    <div class="stat-num">{{ open_rate }}%</div>
+    <div class="stat-sub up">Above industry avg</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Channels Active</div>
+    <div class="stat-num">{{ channels_active }}</div>
+    <div class="stat-sub pr">Email + more</div>
+  </div>
+</div>
+
+<!-- Notification Log -->
+<div class="section-card" style="margin-bottom:18px;">
+  <div class="section-head">
+    <div>
+      <div class="section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Notification Log
+      </div>
+      <div class="section-sub">Recent alerts and digests delivered to your channels</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="filters">
+        <a class="fb {% if type_filter == 'all' %}active{% endif %}" href="?type=all&page=1">All</a>
+        <a class="fb {% if type_filter == 'alert' %}active{% endif %}" href="?type=alert&page=1">Hot Alerts</a>
+        <a class="fb {% if type_filter == 'digest' %}active{% endif %}" href="?type=digest&page=1">Digests</a>
+        <a class="fb {% if type_filter == 'report' %}active{% endif %}" href="?type=report&page=1">Reports</a>
+        <a class="fb {% if type_filter == 'system' %}active{% endif %}" href="?type=system&page=1">System</a>
+      </div>
+      <a href="{% url 'notifications_export_csv' %}?type={{ type_filter }}" class="exp-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </a>
+    </div>
+  </div>
+  <div class="tw-scroll">
+    <table class="tbl" id="notifTable">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Subject</th>
+          <th>Recipient</th>
+          <th>Channel</th>
+          <th>Status</th>
+          <th>Sent</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in notifications %}
+        <tr id="nrow-{{ n.id }}">
+          <td>
+            <span class="notif-type nt-{{ n.type_key }}">{{ n.type_label }}</span>
+          </td>
+          <td>
+            <div class="pt">{{ n.subject }}</div>
+            <div class="pd">{{ n.preview }}</div>
+          </td>
+          <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx2);">{{ n.recipient }}</span></td>
+          <td>
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--tx2);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="13" height="13">
+                {% if n.channel == 'Email' %}<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>{% elif n.channel == 'Webhook' %}<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>{% else %}<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>{% endif %}
+              </svg>
+              {{ n.channel }}
+            </span>
+          </td>
+          <td>
+            <span class="notif-type ns-{{ n.status_key }}" id="nst-{{ n.id }}">{{ n.status_label }}</span>
+          </td>
+          <td style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--tx3);white-space:nowrap;">{{ n.sent_at_display }}</td>
+          <td>
+            {% if n.status_key == 'sent' %}
+            <button class="mark-btn" data-id="{{ n.id }}" onclick="markOpened(this)">Mark Opened</button>
+            {% else %}
+            <button class="mark-btn done" disabled>{% if n.status_key == 'opened' %}Opened{% else %}Failed{% endif %}</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center;padding:40px;color:var(--tx3);font-size:13px;">No notifications yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <div class="pager-info">Showing {{ notifications|length }} of {{ total_count }} notification{{ total_count|pluralize }}</div>
+    <div class="pager-btns" style="display:flex;gap:6px;align-items:center;">
+      {% if page > 1 %}
+        <a href="?type={{ type_filter }}&page={{ page|add:"-1" }}" class="pb">‹</a>
+      {% else %}
+        <span class="pb" style="opacity:.35;cursor:default;">‹</span>
+      {% endif %}
+      {% for p in page_range %}
+        <a href="?type={{ type_filter }}&page={{ p }}" class="pb {% if p == page %}active{% endif %}">{{ p }}</a>
+      {% endfor %}
+      {% if page < page_count %}
+        <a href="?type={{ type_filter }}&page={{ page|add:"1" }}" class="pb">›</a>
+      {% else %}
+        <span class="pb" style="opacity:.35;cursor:default;">›</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Preferences + Channels -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+
+  <!-- Delivery Preferences -->
+  <div class="section-card">
+    <div class="section-head">
+      <div>
+        <div class="section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2M12 20v2M20 12h2M2 12h2M17.66 17.66l-1.41-1.41M6.34 6.34L4.93 4.93"/></svg>
+          Delivery Preferences
+        </div>
+        <div class="section-sub">Choose what you receive and when</div>
+      </div>
+      <span id="pref-saving" style="font-size:11px;color:var(--tx3);display:none;">Saving…</span>
+    </div>
+    <div class="section-body" style="padding-top:0;">
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="t">Daily Email Digest</div>
+          <div class="s">One email every morning with the day's AI-scored permits for your plan. Included on every plan.</div>
+        </div>
+        <label class="sw"><input type="checkbox" data-pref="daily_digest" onchange="savePref(this)" {% if notif_prefs.daily_digest %}checked{% endif %}><div class="sw-track"></div><div class="sw-thumb"></div></label>
+      </div>
+
+      <div style="margin-top:14px;padding:16px;border:1px solid var(--bd);border-radius:12px;background:var(--bg2);">
+        <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:4px;">Delivery time</div>
+        <div style="font-size:12px;color:var(--tx3);margin-bottom:12px;">Pick the local clock time you want the digest to arrive each weekday.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <input type="time" id="digestTime" value="{{ digest_schedule.time }}" style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:var(--bg);color:var(--tx);">
+          <select id="digestTz" style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font-family:inherit;font-size:14px;background:var(--bg);color:var(--tx);min-width:240px;">
+            {% for tz_id, tz_label in digest_timezones %}
+              <option value="{{ tz_id }}" {% if digest_schedule.tz == tz_id %}selected{% endif %}>{{ tz_label }}</option>
+            {% endfor %}
+          </select>
+          <button class="webhook-save-btn" type="button" onclick="saveDigestSchedule(this)">Save time</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Channels -->
+  <div class="section-card">
+    <div class="section-head">
+      <div>
+        <div class="section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.63a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .84h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16l-.08.92z"/></svg>
+          Active Channels
+        </div>
+        <div class="section-sub">Where your notifications are delivered</div>
+      </div>
+    </div>
+    <div class="section-body" style="padding-top:0;">
+      <!-- Email (always active) -->
+      <div class="ch-row">
+        <div class="ch-ico" style="background:rgba(29,78,216,.1);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div class="ch-name">Email</div>
+          <div class="ch-desc">{{ user_email }}</div>
+        </div>
+        <span class="ch-st on">Active</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var CSRF = '{{ csrf_token }}';
+
+function toast(msg) {
+  var el = document.getElementById('notif-toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); }, 2500);
+}
+
+/* ── Preference toggles ──────────────────────────── */
+function savePref(chk) {
+  var key = chk.getAttribute('data-pref');
+  var val = chk.checked ? '1' : '0';
+  document.getElementById('pref-saving').style.display = '';
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append(key, val);
+  fetch('{% url "save_notif_prefs" %}', {method:'POST', body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      document.getElementById('pref-saving').style.display = 'none';
+      if (d.ok) toast('Preference saved');
+      else toast('Error saving preference');
+    })
+    .catch(function(){ document.getElementById('pref-saving').style.display='none'; toast('Error saving preference'); });
+}
+
+/* ── Mark notification opened ────────────────────── */
+function markOpened(btn) {
+  var id = btn.getAttribute('data-id');
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fetch('/notifications/' + id + '/mark-opened/', {method:'POST', body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok) {
+        var stEl = document.getElementById('nst-' + id);
+        if (stEl) { stEl.className = 'notif-type ns-opened'; stEl.textContent = 'Opened'; }
+        btn.className = 'mark-btn done';
+        btn.disabled = true;
+        btn.textContent = 'Opened';
+        toast('Marked as opened');
+      }
+    });
+}
+
+/* ── Delivery time + timezone save ───────────────── */
+function saveDigestSchedule(btn) {
+  var t  = document.getElementById('digestTime').value || '';
+  var tz = document.getElementById('digestTz').value   || '';
+  var orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('digest_time', t);
+  fd.append('digest_tz',   tz);
+  fetch('{% url "save_notif_prefs" %}', {method:'POST', body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false;
+      btn.textContent = orig;
+      toast(d.ok ? 'Delivery time saved' : (d.error || 'Error saving delivery time'));
+    })
+    .catch(function(){
+      btn.disabled = false;
+      btn.textContent = orig;
+      toast('Network error saving delivery time');
+    });
+}
+
+/* ── Channel test dispatch ───────────────────────── */
+function sendTestChannel(key, btn) {
+  var orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('key', key);
+  fetch('{% url "notif_test" %}', {method:'POST', body:fd})
+    .then(function(r){ return r.json().then(function(d){ return {status:r.status, body:d}; }); })
+    .then(function(res){
+      btn.disabled = false;
+      btn.textContent = orig;
+      if (res.body && res.body.ok) {
+        toast(res.body.detail || 'Test message sent');
+      } else {
+        toast((res.body && (res.body.error || res.body.detail)) || ('Error ' + res.status));
+      }
+    })
+    .catch(function(){
+      btn.disabled = false;
+      btn.textContent = orig;
+      toast('Network error sending test');
+    });
+}
+
+/* ── Channel URL save ────────────────────────────── */
+function saveChannel(key, inputId) {
+  var val = document.getElementById(inputId).value.trim();
+  var stMap = {};
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('key', key);
+  fd.append('value', val);
+  fetch('{% url "save_notif_channel" %}', {method:'POST', body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok) {
+        var stEl = document.getElementById(stMap[key]);
+        if (stEl) {
+          if (val) { stEl.className = 'ch-st on'; stEl.textContent = 'Active'; }
+          else      { stEl.className = 'ch-st off'; stEl.textContent = 'Inactive'; }
+        }
+        toast(val ? 'Channel saved and active' : 'Channel removed');
+      } else {
+        toast(d.error || 'Error saving channel');
+      }
+    });
+}
+</script>
+{% endblock %}

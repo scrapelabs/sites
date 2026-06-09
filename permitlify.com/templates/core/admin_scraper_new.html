@@ -1,0 +1,142 @@
+{% extends "core/admin_base.html" %}
+{% block title %}New Scraper{% endblock %}
+{% block page_title %}New Scraper{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; Configure an Accela permit URL{% endblock %}
+
+{% block extra_head %}
+<style>
+.nw-wrap{max-width:760px;}
+.nw-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.nw-head{padding:18px 22px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(29,78,216,.04),rgba(5,150,105,.04));}
+.nw-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14.5px;color:var(--text);}
+.nw-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.55;}
+.nw-body{padding:18px 22px;}
+.nw-field{margin-bottom:16px;}
+.nw-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+@media (max-width:640px){.nw-row{grid-template-columns:1fr;}}
+.nw-label{display:block;font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:5px;letter-spacing:.02em;}
+.nw-label span{font-weight:400;color:var(--muted);margin-left:4px;}
+.nw-input,.nw-select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);background:#fff;outline:none;font-family:inherit;box-sizing:border-box;transition:border .15s,box-shadow .15s;}
+.nw-input:focus,.nw-select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.nw-input.mono{font-family:'JetBrains Mono',monospace;font-size:12px;}
+.nw-select{
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;
+  padding-right:32px;cursor:pointer;
+}
+.nw-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 22px;background:var(--bg);border-top:1px solid var(--border);}
+.nw-save{padding:9px 22px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:var(--sh-grad);}
+.nw-save:hover{opacity:.92;transform:translateY(-1px);}
+.nw-cancel{color:var(--muted);text-decoration:none;font-size:12.5px;font-weight:600;}
+.nw-cancel:hover{color:var(--text);}
+.nw-err{padding:11px 14px;margin-bottom:14px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:8px;font-size:12.5px;}
+.nw-preview{margin-top:12px;padding:12px 14px;background:var(--bg);border:1px dashed var(--border);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);line-height:1.7;display:none;}
+.nw-preview.show{display:block;}
+.nw-preview b{color:var(--text);font-weight:700;}
+.nw-help{margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.6;}
+.nw-help code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nw-wrap">
+  <a href="/admin-panel/scrapers/" style="font-size:12px;color:var(--muted);text-decoration:none;display:inline-block;margin-bottom:14px;">← Back to scrapers</a>
+
+  <div class="nw-card">
+    <div class="nw-head">
+      <div class="nw-title">Configure a new Accela scraper</div>
+      <div class="nw-sub">Paste any Accela URL — we&rsquo;ll auto-detect the agency, module, and CAP IDs when present (CapDetail URLs unlock backfill; CapHome / list / report URLs work for single runs).</div>
+    </div>
+    <form method="post" action="/admin-panel/scrapers/new/">
+      {% csrf_token %}
+      <div class="nw-body">
+        {% if err %}<div class="nw-err">{{ err }}</div>{% endif %}
+
+        <div class="nw-field">
+          <label class="nw-label" for="nw-name">Scraper name <span>(internal label)</span></label>
+          <input type="text" class="nw-input" id="nw-name" name="name" value="{{ name_in }}" placeholder="e.g. Tacoma Building Permits" required maxlength="200">
+        </div>
+
+        <div class="nw-row">
+          <div>
+            <label class="nw-label" for="nw-state">State <span>(used to filter the scrapers list)</span></label>
+            <select class="nw-select" id="nw-state" name="state" onchange="refreshCityList()">
+              <option value="">— Select a state —</option>
+              {% for code, label in us_states %}
+                <option value="{{ code }}" {% if code == state_in %}selected{% endif %}>{{ label }} ({{ code }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="nw-label" for="nw-city">City <span>(optional, free-text or pick from list)</span></label>
+            <input type="text" class="nw-input" id="nw-city" name="city" value="{{ city_in }}" list="nw-citylist" placeholder="e.g. Tacoma" maxlength="120">
+            <datalist id="nw-citylist">
+              {# Filled in by JS from CITIES_BY_STATE on state change #}
+            </datalist>
+          </div>
+        </div>
+
+        <div class="nw-field">
+          <label class="nw-label" for="nw-url">Accela URL <span>(must be a full https:// URL on accela.com)</span></label>
+          <input type="url" class="nw-input mono" id="nw-url" name="url" value="{{ url_in }}" placeholder="https://aca-prod.accela.com/UG/Cap/CapDetail.aspx?Module=Building&capID1=…" required oninput="previewUrl()">
+          <div class="nw-preview" id="nw-prev">
+            <div>agency_code: <b id="pv-agency">—</b></div>
+            <div>module: <b id="pv-module">—</b></div>
+            <div>capID1 / 2 / 3: <b id="pv-caps">—</b></div>
+          </div>
+          <div class="nw-help">
+            Any Accela URL works — paste a permit detail page for backfill, or a list / home / report page for single runs.
+            Example: <code>https://aca-prod.accela.com/UG/Cap/CapDetail.aspx?Module=Building&amp;capID1=26367&amp;capID2=00000&amp;capID3=00061&amp;agencyCode=UG</code>
+          </div>
+        </div>
+      </div>
+      <div class="nw-foot">
+        <a class="nw-cancel" href="/admin-panel/scrapers/">Cancel</a>
+        <button class="nw-save" type="submit">Create scraper →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+window.NW_CITIES_BY_STATE = {{ cities_by_state_json|safe }};
+
+function previewUrl() {
+  const v = document.getElementById('nw-url').value.trim();
+  const box = document.getElementById('nw-prev');
+  if (!v || !v.startsWith('http')) { box.classList.remove('show'); return; }
+  try {
+    const u = new URL(v);
+    // Mirror the server check: exact `accela.com` or true subdomain.
+    const h = (u.hostname || '').toLowerCase();
+    if (h !== 'accela.com' && !h.endsWith('.accela.com')) {
+      box.classList.remove('show'); return;
+    }
+    const q = u.searchParams;
+    document.getElementById('pv-agency').textContent = q.get('agencyCode') || '—';
+    document.getElementById('pv-module').textContent = q.get('Module') || '—';
+    document.getElementById('pv-caps').textContent =
+      (q.get('capID1') || '?') + ' / ' + (q.get('capID2') || '?') + ' / ' + (q.get('capID3') || '?');
+    box.classList.add('show');
+  } catch (e) {
+    box.classList.remove('show');
+  }
+}
+
+function refreshCityList(){
+  const st = (document.getElementById('nw-state').value || '').toUpperCase();
+  const list = document.getElementById('nw-citylist');
+  const cities = (st && window.NW_CITIES_BY_STATE[st]) || [];
+  list.innerHTML = '';
+  for (const c of cities){
+    const opt = document.createElement('option');
+    opt.value = c;
+    list.appendChild(opt);
+  }
+}
+
+previewUrl();
+refreshCityList();
+</script>
+{% endblock %}

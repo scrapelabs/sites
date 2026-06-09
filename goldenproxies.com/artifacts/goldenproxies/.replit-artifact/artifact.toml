@@ -1,0 +1,25 @@
+kind = "web"
+previewPath = "/"
+title = "GoldenProxies"
+version = "1.0.0"
+id = "artifacts/goldenproxies"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24289
+
+[services.development]
+run = "bash /home/runner/workspace/artifacts/goldenproxies-django/start.sh"
+
+[services.production]
+run = "bash /home/runner/workspace/artifacts/goldenproxies-django/start.sh"
+
+[services.env]
+PORT = "24289"
+BASE_PATH = "/"

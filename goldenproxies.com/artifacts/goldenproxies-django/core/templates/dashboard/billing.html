@@ -1,0 +1,241 @@
+{% extends "dashboard/base.html" %}
+{% block page_title %}Billing & Subscription{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-5xl mx-auto space-y-6">
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="glass-card px-4 py-3 rounded-xl text-sm font-medium
+      {% if msg.tags == 'success' %}border-green-400/40 text-green-700 bg-green-50/60
+      {% elif msg.tags == 'error' %}border-red-400/40 text-red-700 bg-red-50/60
+      {% else %}border-[#D4AF37]/40 text-[#8A6800]{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- Current Plan Card -->
+  <div class="glass-card rounded-2xl p-6">
+    <div class="flex items-start justify-between gap-4 flex-wrap">
+      <div>
+        <h2 class="text-lg font-bold text-gray-900 mb-1">Current Plan</h2>
+        <div class="flex items-center gap-3 flex-wrap">
+          <span class="text-2xl font-extrabold
+            {% if profile.plan == 'agency' %}text-purple-700
+            {% elif profile.plan == 'pro' %}text-[#D4AF37]
+            {% elif profile.plan == 'starter' %}text-gray-700
+            {% else %}text-gray-400{% endif %}">
+            {{ profile.plan_display }}
+          </span>
+          {% if profile.has_active_subscription %}
+            {% if profile.whop_cancelled %}
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300">Cancels at period end</span>
+            {% elif profile.whop_paused %}
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-300">Paused</span>
+            {% else %}
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">Active</span>
+            {% endif %}
+          {% elif profile.plan == 'free' %}
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-300">Free</span>
+          {% endif %}
+        </div>
+        {% if whop_info and whop_info.renews_at %}
+          <p class="text-sm text-gray-500 mt-1">
+            {% if whop_info.cancelled %}Access ends{% else %}Renews{% endif %}
+            on {{ whop_info.renews_at }}
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="flex gap-2 flex-wrap">
+        {% if profile.has_active_subscription and not profile.whop_cancelled %}
+          <a href="/billing/portal/" class="glass-btn text-sm px-4 py-2 rounded-xl">Manage on Whop</a>
+          <form method="post" action="/billing/cancel/" onsubmit="return confirm('Cancel subscription? You keep access until period end.')">
+            {% csrf_token %}
+            <button type="submit" class="glass-btn-danger text-sm px-4 py-2 rounded-xl">Cancel</button>
+          </form>
+        {% endif %}
+        {% if profile.plan == 'free' or profile.whop_cancelled %}
+          <a href="#plans" class="gold-btn text-sm px-5 py-2 rounded-xl">Choose a Plan →</a>
+        {% elif profile.plan == 'starter' %}
+          <a href="#plans" class="gold-btn text-sm px-5 py-2 rounded-xl">Upgrade →</a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if profile.plan != 'free' %}
+    <div class="mt-4 pt-4 border-t border-[#D4AF37]/15 grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Residential Bandwidth</p>
+        <p class="text-sm font-semibold text-gray-800">{{ features.residential_gb|default:"—" }} GB</p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Datacenter IPs</p>
+        <p class="text-sm font-semibold text-gray-800">{{ features.datacenter_ips|default:"—" }}</p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">IPv6 IPs</p>
+        <p class="text-sm font-semibold text-gray-800">{{ features.ipv6_ips|default:"—" }}</p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Threads</p>
+        <p class="text-sm font-semibold text-gray-800">{{ features.threads|default:"—" }}</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Plans Grid -->
+  <div id="plans">
+    <h2 class="text-base font-bold text-gray-900 mb-3">
+      {% if profile.plan == 'free' %}Choose a Plan{% else %}Change Plan{% endif %}
+    </h2>
+
+    <!-- Billing Toggle -->
+    <div class="flex items-center gap-3 mb-5" id="billingToggle">
+      <span class="text-sm font-medium text-gray-700" id="labelMonthly">Monthly</span>
+      <button onclick="toggleBilling()" id="toggleBtn"
+        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-gray-200 focus:outline-none">
+        <span id="toggleDot" class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform translate-x-1"></span>
+      </button>
+      <span class="text-sm font-medium text-gray-500" id="labelAnnual">Annual <span class="text-green-600 font-semibold text-xs">(save ~20%)</span></span>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {% for plan_key, plan_info in plans.items %}
+      <div class="glass-card rounded-2xl p-5 flex flex-col relative
+        {% if plan_key == profile.plan and not profile.whop_cancelled %}ring-2 ring-[#D4AF37]/60{% endif %}
+        {% if plan_key == 'pro' %}border-[#D4AF37]/30{% endif %}">
+
+        {% if plan_key == 'pro' %}
+        <div class="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span class="bg-gradient-to-r from-[#D4AF37] to-[#B8962E] text-white text-[11px] font-bold px-3 py-1 rounded-full shadow">Most Popular</span>
+        </div>
+        {% endif %}
+
+        <div class="mb-4">
+          <h3 class="font-bold text-gray-900 text-base mb-1">{{ plan_info.label }}</h3>
+          <div class="flex items-end gap-1 mb-3">
+            <span class="text-2xl font-extrabold text-gray-900 monthly-price">
+              ${% if plan_key == 'starter' %}{{ pricing.starter_monthly }}{% elif plan_key == 'pro' %}{{ pricing.pro_monthly }}{% else %}{{ pricing.agency_monthly }}{% endif %}
+            </span>
+            <span class="text-2xl font-extrabold text-gray-900 annual-price hidden">
+              ${% if plan_key == 'starter' %}{{ pricing.starter_annual }}{% elif plan_key == 'pro' %}{{ pricing.pro_annual }}{% else %}{{ pricing.agency_annual }}{% endif %}
+            </span>
+            <span class="text-sm text-gray-400 mb-1">/mo</span>
+          </div>
+          <ul class="space-y-1.5 text-sm text-gray-600">
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-[#D4AF37] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              {{ plan_info.residential_gb }} GB Residential
+            </li>
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-[#D4AF37] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              {{ plan_info.datacenter_ips }} Datacenter IPs
+            </li>
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-[#D4AF37] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              {{ plan_info.ipv6_ips }} IPv6 IPs
+            </li>
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-[#D4AF37] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              {{ plan_info.threads }} Threads
+            </li>
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-[#D4AF37] flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+              {{ plan_info.countries }} Countries
+            </li>
+          </ul>
+        </div>
+
+        <div class="mt-auto">
+          {% if plan_key == profile.plan and not profile.whop_cancelled %}
+            <div class="text-center py-2 text-sm font-semibold text-[#D4AF37]">✓ Current Plan</div>
+          {% else %}
+            <a href="/billing/checkout/{{ plan_key }}/monthly/"
+               class="monthly-checkout block text-center
+               {% if plan_key == 'pro' %}gold-btn{% else %}glass-btn{% endif %}
+               py-2 rounded-xl text-sm font-semibold w-full">
+              Get {{ plan_info.label }}
+            </a>
+            <a href="/billing/checkout/{{ plan_key }}/annual/"
+               class="annual-checkout hidden block text-center
+               {% if plan_key == 'pro' %}gold-btn{% else %}glass-btn{% endif %}
+               py-2 rounded-xl text-sm font-semibold w-full">
+              Get {{ plan_info.label }} Annual
+            </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Invoice History -->
+  {% if invoices %}
+  <div class="glass-card rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold text-gray-900">Billing History</h2>
+      <span class="text-xs text-gray-400">{{ invoices|length }} invoice{{ invoices|length|pluralize }}</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[#D4AF37]/15">
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2 pr-4">Invoice</th>
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2 pr-4">Plan</th>
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2 pr-4">Date</th>
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2 pr-4">Amount</th>
+            <th class="text-left text-xs text-gray-400 font-semibold pb-2">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#D4AF37]/10">
+          {% for inv in invoices %}
+          <tr>
+            <td class="py-2.5 pr-4 font-mono text-gray-600 text-xs">{{ inv.invoice_id }}</td>
+            <td class="py-2.5 pr-4 text-gray-700">{{ inv.plan_label }}</td>
+            <td class="py-2.5 pr-4 text-gray-500">{{ inv.date }}</td>
+            <td class="py-2.5 pr-4 font-semibold text-gray-800">{{ inv.amount }}</td>
+            <td class="py-2.5">
+              <span class="px-2 py-0.5 rounded-full text-xs font-semibold
+                {% if inv.status == 'paid' %}bg-green-100 text-green-700 border border-green-300
+                {% else %}bg-gray-100 text-gray-600{% endif %}">
+                {{ inv.status|title }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+let isAnnual = false;
+function toggleBilling() {
+  isAnnual = !isAnnual;
+  const btn = document.getElementById('toggleBtn');
+  const dot = document.getElementById('toggleDot');
+  const lm  = document.getElementById('labelMonthly');
+  const la  = document.getElementById('labelAnnual');
+  if (isAnnual) {
+    btn.classList.replace('bg-gray-200','bg-[#D4AF37]');
+    dot.classList.replace('translate-x-1','translate-x-6');
+    lm.classList.replace('text-gray-700','text-gray-400');
+    la.classList.replace('text-gray-500','text-gray-700');
+  } else {
+    btn.classList.replace('bg-[#D4AF37]','bg-gray-200');
+    dot.classList.replace('translate-x-6','translate-x-1');
+    lm.classList.replace('text-gray-400','text-gray-700');
+    la.classList.replace('text-gray-700','text-gray-500');
+  }
+  document.querySelectorAll('.monthly-price,.annual-price').forEach(el => el.classList.toggle('hidden'));
+  document.querySelectorAll('.monthly-checkout,.annual-checkout').forEach(el => el.classList.toggle('hidden'));
+}
+</script>
+
+{% endblock %}

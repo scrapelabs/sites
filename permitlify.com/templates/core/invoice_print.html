@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Permitlify — Invoice {{ inv_id }}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --pr:#1d4ed8;--pr2:#3b82f6;--ac:#059669;--ac2:#10b981;
+  --grad:linear-gradient(135deg,#0f172a 0%,#1d4ed8 55%,#059669 100%);
+  --grad-soft:linear-gradient(135deg,#1d4ed8 0%,#059669 100%);
+  --tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;--tx4:#cbd5e1;
+  --sur:#fff;--sur2:#f8fafc;--sur3:#f1f5f9;
+  --b1:rgba(15,23,42,.07);--b2:rgba(15,23,42,.12);
+  --gr:#16a34a;--gd:rgba(34,197,94,.12);
+  --ye:#d97706;--yd:rgba(217,119,6,.12);
+  --re:#dc2626;--rd:rgba(220,38,38,.1);
+}
+html,body{height:100%;}
+body{
+  font-family:'DM Sans',sans-serif;color:var(--tx);min-height:100vh;
+  padding:36px 22px 60px;-webkit-font-smoothing:antialiased;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  background:#eef2f7;
+  background-image:
+    radial-gradient(900px 500px at 12% -8%, rgba(29,78,216,.18), transparent 65%),
+    radial-gradient(800px 500px at 100% 5%, rgba(16,185,129,.16), transparent 65%),
+    radial-gradient(700px 400px at 50% 110%, rgba(59,130,246,.10), transparent 70%),
+    linear-gradient(180deg,#eef2f7 0%,#e2e8f0 100%);
+  background-attachment:fixed;
+}
+
+/* ── Action bar (hidden on print) ─────────────────────────────── */
+.actions{
+  max-width:880px;margin:0 auto 18px;display:flex;
+  justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.actions-left a{
+  color:#334155;text-decoration:none;font-size:13px;font-weight:600;
+  display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:10px;
+  background:rgba(255,255,255,.7);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.6);transition:all .18s;
+}
+.actions-left a:hover{background:#fff;color:var(--pr);transform:translateY(-1px);}
+.actions-right{display:flex;gap:8px;}
+.btn{
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
+  padding:10px 18px;border-radius:10px;border:none;cursor:pointer;
+  transition:all .2s;display:inline-flex;align-items:center;gap:7px;text-decoration:none;
+}
+.btn svg{width:14px;height:14px;}
+.btn.primary{background:var(--grad-soft);color:#fff;box-shadow:0 6px 18px -4px rgba(29,78,216,.5);}
+.btn.primary:hover{transform:translateY(-1px);box-shadow:0 8px 22px -4px rgba(29,78,216,.55);}
+.btn.secondary{background:rgba(255,255,255,.85);color:#334155;border:1px solid rgba(255,255,255,.7);backdrop-filter:blur(10px);}
+.btn.secondary:hover{background:#fff;color:var(--pr);}
+
+/* ── Invoice paper ────────────────────────────────────────────── */
+.paper{
+  max-width:880px;margin:0 auto;background:var(--sur);
+  border-radius:22px;
+  box-shadow:0 30px 80px -30px rgba(15,23,42,.35),0 8px 24px -8px rgba(15,23,42,.12);
+  overflow:hidden;position:relative;
+  animation:rise .55s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes rise{from{opacity:0;transform:translateY(18px) scale(.985);}to{opacity:1;transform:none;}}
+
+/* ── Diagonal "PAID" stamp (paper-side, only when paid) ───── */
+.paper.paid::after{
+  content:'';position:absolute;top:46%;left:50%;
+  width:300px;height:300px;margin:-150px 0 0 -150px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'><circle cx='120' cy='120' r='102' fill='none' stroke='%2316a34a' stroke-width='4'/><circle cx='120' cy='120' r='114' fill='none' stroke='%2316a34a' stroke-width='2' stroke-dasharray='4 6'/><text x='120' y='138' text-anchor='middle' font-family='Plus Jakarta Sans, sans-serif' font-weight='800' font-size='52' letter-spacing='4' fill='%2316a34a'>PAID</text></svg>");
+  background-repeat:no-repeat;background-size:contain;
+  opacity:.10;pointer-events:none;transform:rotate(-14deg);z-index:2;
+}
+.paper.upcoming::after{
+  content:'UPCOMING';position:absolute;top:42%;left:50%;
+  transform:translate(-50%,-50%) rotate(-14deg);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:96px;font-weight:800;
+  color:#3b82f6;opacity:.07;letter-spacing:8px;pointer-events:none;z-index:2;white-space:nowrap;
+}
+.paper.failed::after{
+  content:'RETRIED';position:absolute;top:42%;left:50%;
+  transform:translate(-50%,-50%) rotate(-14deg);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:96px;font-weight:800;
+  color:var(--re);opacity:.08;letter-spacing:8px;pointer-events:none;z-index:2;white-space:nowrap;
+}
+
+/* ── Hero header (dark gradient) ─────────────────────────────── */
+.hero{
+  position:relative;overflow:hidden;color:#fff;
+  background:var(--grad);padding:36px 44px 32px;
+}
+.hero::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(700px 220px at 100% -20%, rgba(16,185,129,.45), transparent 60%),
+    radial-gradient(500px 200px at 0% 130%, rgba(59,130,246,.45), transparent 60%);
+  pointer-events:none;
+}
+.hero-inner{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;gap:24px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:14px;}
+.brand-mark{
+  width:48px;height:48px;border-radius:13px;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;backdrop-filter:blur(8px);
+}
+.brand-mark svg{width:24px;height:24px;color:#fff;}
+.brand-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;color:#fff;letter-spacing:-.5px;line-height:1;}
+.brand-name span{color:#bef264;}
+.brand-sub{font-size:11.5px;color:rgba(255,255,255,.7);margin-top:5px;font-family:'JetBrains Mono',monospace;letter-spacing:.3px;}
+
+.doc-title{text-align:right;flex-shrink:0;min-width:200px;}
+.doc-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:2px;font-weight:600;}
+.doc-num{font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;color:#fff;letter-spacing:-.6px;margin-top:5px;}
+.doc-status{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;
+  padding:6px 13px;border-radius:99px;margin-top:10px;letter-spacing:.5px;
+}
+.doc-status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
+.doc-status.paid{background:rgba(190,242,100,.18);color:#bef264;border:1px solid rgba(190,242,100,.4);}
+.doc-status.upcoming{background:rgba(147,197,253,.18);color:#93c5fd;border:1px solid rgba(147,197,253,.4);}
+.doc-status.failed{background:rgba(252,165,165,.18);color:#fca5a5;border:1px solid rgba(252,165,165,.4);}
+
+/* Hero metrics ribbon — total amount large + period quick-glance */
+.hero-ribbon{
+  position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;
+  gap:18px;flex-wrap:wrap;margin-top:26px;padding-top:22px;border-top:1px solid rgba(255,255,255,.14);
+}
+.hero-amt-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1.6px;font-weight:600;}
+.hero-amt{font-family:'Plus Jakarta Sans',sans-serif;font-size:42px;font-weight:800;color:#fff;letter-spacing:-1.4px;line-height:1;margin-top:6px;}
+.hero-amt small{font-size:18px;font-weight:600;color:rgba(255,255,255,.55);margin-left:6px;letter-spacing:0;}
+.hero-period{text-align:right;font-size:12.5px;color:rgba(255,255,255,.85);line-height:1.6;}
+.hero-period b{color:#fff;font-weight:700;}
+
+/* ── Meta grid (Bill To / From / Details) ────────────────────── */
+.meta{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px;
+  padding:30px 44px 8px;position:relative;z-index:3;
+}
+.meta-block .k{
+  font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx3);
+  text-transform:uppercase;letter-spacing:1.4px;margin-bottom:10px;font-weight:600;
+}
+.meta-block .v{font-size:13.5px;color:var(--tx);line-height:1.65;}
+.meta-block .v b{font-weight:700;color:var(--tx);}
+.meta-block .v span{color:var(--tx2);}
+.meta-kv{display:flex;gap:8px;margin-bottom:4px;font-size:13px;}
+.meta-kv-key{color:var(--tx3);min-width:54px;font-weight:500;}
+.meta-kv-val{color:var(--tx);font-weight:600;}
+
+/* ── Line items ──────────────────────────────────────────────── */
+.items{padding:18px 44px 0;position:relative;z-index:3;}
+.items-head{
+  display:grid;grid-template-columns:1fr 80px 110px 120px;gap:12px;
+  padding:14px 0;border-bottom:2px solid var(--tx);
+  font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;
+  letter-spacing:1.2px;color:var(--tx3);font-weight:600;
+}
+.items-head .r{text-align:right;}
+.item{
+  display:grid;grid-template-columns:1fr 80px 110px 120px;gap:12px;
+  padding:20px 0;border-bottom:1px solid var(--b1);align-items:start;
+}
+.item .desc .t{font-size:14.5px;color:var(--tx);font-weight:700;}
+.item .desc .s{font-size:12.5px;color:var(--tx3);margin-top:5px;line-height:1.55;}
+.item .qty,.item .rate,.item .amt{font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--tx2);text-align:right;padding-top:2px;}
+.item .amt{color:var(--tx);font-weight:700;}
+.item .qty{text-align:center;}
+
+/* ── Totals ──────────────────────────────────────────────────── */
+.totals{padding:22px 44px 0;display:flex;justify-content:flex-end;position:relative;z-index:3;}
+.totals-inner{width:300px;}
+.t-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;color:var(--tx2);}
+.t-row .v{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--tx);}
+.t-row.credits .v{color:var(--tx3);}
+.t-row.grand{border-top:2px solid var(--tx);margin-top:10px;padding-top:16px;font-size:15px;font-weight:700;color:var(--tx);align-items:baseline;}
+.t-row.grand .v{
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.6px;
+  background:var(--grad-soft);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+/* ── Payment info ────────────────────────────────────────────── */
+.pay-info{
+  margin:28px 44px 0;padding:18px 22px;
+  background:linear-gradient(135deg,rgba(29,78,216,.05) 0%,rgba(16,185,129,.05) 100%);
+  border:1px solid var(--b1);border-radius:14px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:relative;z-index:3;
+}
+.pay-badge{
+  width:46px;height:46px;border-radius:12px;background:#fff;
+  border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  box-shadow:0 2px 6px rgba(15,23,42,.05);
+}
+.pay-badge svg{width:22px;height:22px;color:var(--pr);}
+.pay-info .pt{font-size:13px;color:var(--tx2);flex:1;line-height:1.55;}
+.pay-info .pt b{color:var(--tx);font-weight:700;}
+.pay-info .pt .rc{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3);margin-top:3px;display:block;letter-spacing:.2px;}
+
+/* ── Footer ──────────────────────────────────────────────────── */
+.paper-foot{
+  background:var(--sur2);border-top:1px solid var(--b1);margin-top:30px;
+  padding:26px 44px 30px;display:flex;justify-content:space-between;gap:22px;flex-wrap:wrap;position:relative;z-index:3;
+}
+.foot-note{font-size:12.5px;color:var(--tx2);line-height:1.7;max-width:430px;}
+.foot-note b{color:var(--tx);font-weight:700;}
+.foot-note a{color:var(--pr);text-decoration:none;font-weight:600;}
+.foot-note a:hover{text-decoration:underline;}
+.foot-sig{text-align:right;font-size:11px;color:var(--tx3);font-family:'JetBrains Mono',monospace;line-height:1.9;}
+.foot-sig b{color:var(--tx2);font-weight:600;}
+
+/* ── Print ───────────────────────────────────────────────────── */
+@media print{
+  body{background:#fff;padding:0;background-image:none;}
+  .actions{display:none;}
+  .paper{box-shadow:none;border-radius:0;max-width:none;animation:none;}
+  .hero{padding:30px 36px 26px;}
+  .meta,.items,.totals,.pay-info,.paper-foot{padding-left:36px;padding-right:36px;}
+  @page{margin:0.4in;size:letter;}
+}
+@media(max-width:780px){
+  body{padding:18px 12px 40px;}
+  .hero{padding:28px 22px 24px;}
+  .meta{grid-template-columns:1fr 1fr;padding:24px 22px 4px;gap:22px;}
+  .items,.totals,.pay-info,.paper-foot{padding-left:22px;padding-right:22px;}
+  .pay-info{margin-left:22px;margin-right:22px;}
+  .items-head,.item{grid-template-columns:1fr 70px 100px;}
+  .item .qty,.items-head .r.qty{display:none;}
+  .hero-amt{font-size:34px;}
+  .doc-num{font-size:20px;}
+}
+@media(max-width:520px){
+  .meta{grid-template-columns:1fr;}
+  .doc-title{text-align:left;min-width:0;width:100%;}
+  .hero-period{text-align:left;width:100%;}
+}
+</style>
+</head>
+<body>
+
+<div class="actions">
+  <div class="actions-left">
+    <a href="/settings/#billing">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to Billing
+    </a>
+  </div>
+  <div class="actions-right">
+    <a class="btn secondary" href="mailto:{{ user_email }}?subject=Invoice {{ inv_id }} from Permitlify&body=Please find your invoice {{ inv_id }} attached.">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      Email
+    </a>
+    <a class="btn primary" href="/settings/invoices/{{ inv_id }}/download/">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download PDF
+    </a>
+  </div>
+</div>
+
+{% with status_lower=inv_status|lower %}
+<div class="paper {% if status_lower == 'paid' %}paid{% elif status_lower == 'upcoming' or status_lower == 'pending' %}upcoming{% elif status_lower == 'failed' %}failed{% endif %}">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-inner">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L4 6 v6 c0 4 3.5 8 8 10 4.5 -2 8 -6 8 -10 V6z"/></svg>
+        </div>
+        <div>
+          <div class="brand-name">Permit<span>lify</span></div>
+          <div class="brand-sub">permitlify.com &nbsp;·&nbsp; billing@permitlify.com</div>
+        </div>
+      </div>
+      <div class="doc-title">
+        <div class="doc-label">Invoice</div>
+        <div class="doc-num">{{ inv_id }}</div>
+        {% if status_lower == 'paid' %}
+          <div class="doc-status paid">Paid</div>
+        {% elif status_lower == 'upcoming' or status_lower == 'pending' %}
+          <div class="doc-status upcoming">Upcoming</div>
+        {% elif status_lower == 'failed' %}
+          <div class="doc-status failed">Failed → Retried</div>
+        {% else %}
+          <div class="doc-status paid">{{ inv_status|title }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="hero-ribbon">
+      <div>
+        <div class="hero-amt-label">Amount {% if status_lower == 'paid' %}Paid{% else %}Due{% endif %}</div>
+        <div class="hero-amt">${{ inv_amount }}<small>.00 USD</small></div>
+      </div>
+      <div class="hero-period">
+        <div class="hero-amt-label">Billing Period</div>
+        <div style="margin-top:6px;"><b>{{ inv_period|default:inv_date }}</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meta -->
+  <div class="meta">
+    <div class="meta-block">
+      <div class="k">Billed To</div>
+      <div class="v">
+        {% if company %}<b>{{ company }}</b><br>{% endif %}
+        {{ user_name }}<br>
+        {% if bill_street %}<span>{{ bill_street }}</span><br>{% endif %}
+        {% if bill_city %}<span>{{ bill_city }}{% if bill_state_zip %} {{ bill_state_zip }}{% endif %}</span><br>{% endif %}
+        {% if bill_ein %}<span>EIN: {{ bill_ein }}</span><br>{% endif %}
+        <span>{{ user_email }}</span>
+      </div>
+    </div>
+    <div class="meta-block">
+      <div class="k">From</div>
+      <div class="v">
+        <b>Permitlify, Inc.</b><br>
+        <span>2101 E 5th Street</span><br>
+        <span>Austin, TX 78702</span><br>
+        <span>Tax ID: 88-4102837</span>
+      </div>
+    </div>
+    <div class="meta-block">
+      <div class="k">Details</div>
+      <div class="v">
+        <div class="meta-kv"><span class="meta-kv-key">Issued</span><span class="meta-kv-val">{{ inv_date }}</span></div>
+        <div class="meta-kv"><span class="meta-kv-key">Due</span><span class="meta-kv-val">{{ inv_due }}</span></div>
+        <div class="meta-kv"><span class="meta-kv-key">Terms</span><span class="meta-kv-val">Auto-charge</span></div>
+        <div class="meta-kv"><span class="meta-kv-key">Currency</span><span class="meta-kv-val">USD</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Line items -->
+  <div class="items">
+    <div class="items-head">
+      <div>Description</div>
+      <div class="r qty" style="text-align:center;">Qty</div>
+      <div class="r">Rate</div>
+      <div class="r">Amount</div>
+    </div>
+    <div class="item">
+      <div class="desc">
+        <div class="t">Permitlify {{ user_plan }} — Subscription</div>
+        <div class="s">{{ plan_features }}</div>
+      </div>
+      <div class="qty">1</div>
+      <div class="rate">${{ inv_amount }}.00</div>
+      <div class="amt">${{ inv_amount }}.00</div>
+    </div>
+  </div>
+
+  <!-- Totals -->
+  <div class="totals">
+    <div class="totals-inner">
+      <div class="t-row"><span>Subtotal</span><span class="v">${{ inv_amount }}.00</span></div>
+      <div class="t-row"><span>Tax (0%)</span><span class="v">$0.00</span></div>
+      <div class="t-row credits"><span>Credits applied</span><span class="v">– $0.00</span></div>
+      <div class="t-row grand"><span>Total</span><span class="v">${{ inv_amount }}.00</span></div>
+    </div>
+  </div>
+
+  <!-- Payment info -->
+  {% if status_lower == 'paid' %}
+  <div class="pay-info">
+    <div class="pay-badge" title="Whop">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+    </div>
+    <div class="pt">
+      <b>Paid via Whop</b> &nbsp;·&nbsp; Auto-charged on {{ inv_date }}
+      <span class="rc">Reference: {{ inv_id }} &nbsp;·&nbsp; Secure payment processor</span>
+    </div>
+  </div>
+  {% elif status_lower == 'upcoming' or status_lower == 'pending' %}
+  <div class="pay-info">
+    <div class="pay-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+    <div class="pt">
+      <b>Scheduled</b> &nbsp;·&nbsp; Auto-charge on {{ inv_date }} via Whop
+      <span class="rc">Auto-renews · Cancel anytime from Settings → Billing</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Footer -->
+  <div class="paper-foot">
+    <div class="foot-note">
+      <b>Thank you for your business.</b><br>
+      Questions? Email <a href="mailto:billing@permitlify.com">billing@permitlify.com</a>.
+      Manage or cancel anytime from Settings&nbsp;→&nbsp;Billing.
+    </div>
+    <div class="foot-sig">
+      <b>Generated</b> {{ inv_date }}<br>
+      permitlify.com/invoices/{{ inv_num_short }}
+    </div>
+  </div>
+
+</div>
+{% endwith %}
+
+</body>
+</html>

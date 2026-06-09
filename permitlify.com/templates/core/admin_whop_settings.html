@@ -1,0 +1,490 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Whop Integration{% endblock %}
+{% block page_title %}Whop Integration{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; API credentials & checkout URL management{% endblock %}
+
+{% block extra_head %}
+<style>
+.ws-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+@media(max-width:1100px){.ws-grid{grid-template-columns:1fr;}}
+
+.ws-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.ws-card-head{display:flex;align-items:center;gap:12px;padding:20px 22px 16px;border-bottom:1px solid var(--border);}
+.ws-ico{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(99,102,241,.1);}
+.ws-ico-url{background:rgba(5,150,105,.1);}
+.ws-card-label{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14.5px;color:var(--text);}
+.ws-card-desc{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.5;}
+.ws-badge{font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;padding:3px 9px;border-radius:20px;margin-left:auto;flex-shrink:0;}
+.ws-badge.set{background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.2);}
+.ws-badge.unset{background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);}
+
+.ws-body{padding:18px 22px;}
+.ws-field{margin-bottom:14px;}
+.ws-field:last-of-type{margin-bottom:0;}
+.ws-label{display:block;font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:5px;letter-spacing:.02em;}
+.ws-label span{font-weight:400;color:var(--muted);margin-left:4px;}
+.ws-input-wrap{position:relative;}
+.ws-input{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--text);background:#fff;outline:none;transition:border .15s;box-sizing:border-box;}
+.ws-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.ws-input-url{padding-right:80px;}
+.ws-copy-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);cursor:pointer;padding:3px 8px;font-family:inherit;}
+.ws-copy-btn:hover{color:var(--text);}
+.ws-current{font-size:11px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.ws-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--bg);border-top:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+.ws-save-btn{padding:8px 20px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .18s,transform .18s,box-shadow .18s;display:flex;align-items:center;gap:6px;box-shadow:var(--sh-grad);}
+.ws-save-btn:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 4px 16px rgba(29,78,216,.35);}
+.ws-save-btn:active{transform:translateY(0);opacity:.88;}
+.ws-status{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:5px;opacity:0;transition:opacity .3s;}
+.ws-status.show{opacity:1;}
+.ws-status.ok{color:#16a34a;}
+.ws-status.err{color:#dc2626;}
+
+.ws-notice{background:#eff6ff;border:1px solid #bfdbfe;border-radius:11px;padding:13px 16px;display:flex;gap:11px;align-items:flex-start;margin-bottom:22px;}
+.ws-notice-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.ws-notice-text{font-size:12px;color:#1e3a5f;line-height:1.6;}
+.ws-notice-text strong{color:#1e40af;}
+.ws-notice-text a{color:#1d4ed8;text-decoration:none;}
+.ws-notice-text a:hover{text-decoration:underline;}
+
+.pid-tab{padding:10px 20px;border:none;background:none;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;transition:all .15s;}
+.pid-tab:hover{color:var(--text);}
+/* CSS-driven tab visibility — controlled via data-tab attribute on #card-plan_ids */
+#card-plan_ids[data-tab="prod"] #pane-prod { display: block !important; }
+#card-plan_ids[data-tab="prod"] #pane-dev  { display: none  !important; }
+#card-plan_ids[data-tab="dev"]  #pane-dev  { display: block !important; }
+#card-plan_ids[data-tab="dev"]  #pane-prod { display: none  !important; }
+#card-plan_ids[data-tab="prod"] #tab-prod  { color: var(--blue); border-bottom-color: var(--blue); }
+#card-plan_ids[data-tab="dev"]  #tab-dev   { color: var(--blue); border-bottom-color: var(--blue); }
+
+#toastGlobal{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;font-size:12.5px;font-weight:500;padding:11px 18px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;font-family:'DM Sans',sans-serif;}
+#toastGlobal.ok{background:#16a34a;}
+#toastGlobal.err{background:#dc2626;}
+#toastGlobal.show{opacity:1;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="toastGlobal"></div>
+
+<div class="ws-notice">
+  <div class="ws-notice-icon">ℹ️</div>
+  <div class="ws-notice-text">
+    <strong>Changes saved here take effect immediately</strong> — no server restart needed.
+    Get your credentials from the <a href="https://whop.com/dashboard/biz_ZuaWu6MxVXoVTD/developer/" target="_blank">Whop Developer Dashboard</a>.
+    Register your webhook at <strong>/billing/webhook/</strong> and subscribe to
+    <code>membership.went_valid</code>, <code>membership.went_invalid</code>, and <code>membership.cancelled</code>.
+  </div>
+</div>
+
+<div class="ws-grid">
+
+  <!-- ── API Credentials ───────────────────────────── -->
+  <div class="ws-card" id="card-credentials">
+    <div class="ws-card-head">
+      <div class="ws-ico">
+        <svg viewBox="0 0 20 20" fill="#6366f1"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clip-rule="evenodd"/></svg>
+      </div>
+      <div>
+        <div class="ws-card-label">API Credentials</div>
+        <div class="ws-card-desc">API key, webhook secret, and company ID</div>
+      </div>
+      {% with all_set=creds|length %}
+      <span class="ws-badge set">{{ all_set }} fields</span>
+      {% endwith %}
+    </div>
+    <form class="ws-body" id="form-credentials">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="credentials">
+      {% for cred in creds %}
+      <div class="ws-field">
+        <label class="ws-label">
+          {{ cred.label }}
+          {% if cred.set %}<span style="color:#16a34a">✓ set</span>{% else %}<span style="color:#dc2626">not set</span>{% endif %}
+        </label>
+        <div class="ws-input-wrap">
+          <input type="{{ cred.type }}" name="{{ cred.key }}" id="cred-{{ cred.key }}" value="{{ cred.value }}" placeholder="Enter {{ cred.label|lower }}…" class="ws-input{% if cred.type == 'password' %} ws-input-url{% endif %}" autocomplete="off" spellcheck="false">
+          {% if cred.type == 'password' %}
+          <button type="button" class="ws-copy-btn" data-target="cred-{{ cred.key }}" onclick="toggleCredVisibility(this)" aria-label="Show or hide {{ cred.label }}">Show</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </form>
+    <div class="ws-footer">
+      <div class="ws-status" id="status-credentials"></div>
+      <button class="ws-save-btn" onclick="saveSection('credentials')">
+        Save Credentials
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Webhook Info ──────────────────────────────── -->
+  <div class="ws-card">
+    <div class="ws-card-head">
+      <div class="ws-ico" style="background:rgba(220,38,38,.08);">
+        <svg viewBox="0 0 20 20" fill="#dc2626"><path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </div>
+      <div>
+        <div class="ws-card-label">Webhook Setup</div>
+        <div class="ws-card-desc">Register this URL in your Whop developer dashboard</div>
+      </div>
+    </div>
+    <div class="ws-body">
+      <div class="ws-field">
+        <label class="ws-label">Webhook Endpoint</label>
+        <div class="ws-input-wrap">
+          <input type="text" class="ws-input ws-input-url" id="webhookUrl" value="{{ request.scheme }}://{{ request.get_host }}/billing/webhook/" readonly>
+          <button class="ws-copy-btn" onclick="copyField('webhookUrl')">Copy</button>
+        </div>
+      </div>
+      <div class="ws-field" style="margin-top:16px;">
+        <label class="ws-label">Required Events</label>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+          {% for ev in webhook_events %}
+          <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text);">
+            <span style="color:#16a34a;font-size:10px;">●</span>{{ ev }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="ws-field" style="margin-top:16px;">
+        <a href="https://whop.com/dashboard/biz_ZuaWu6MxVXoVTD/developer/" target="_blank"
+           style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#1d4ed8;text-decoration:none;font-weight:600;">
+          Open Whop Developer Dashboard
+          <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Plan IDs (Direct Checkout) ────────────────────── -->
+<div class="ws-card" style="margin-top:20px;" id="card-plan_ids" data-tab="{{ whop_mode }}">
+  <div class="ws-card-head" style="flex-wrap:wrap;gap:10px;">
+    <div class="ws-ico" style="background:rgba(234,179,8,.1);">
+      <svg viewBox="0 0 20 20" fill="#ca8a04"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"/><path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z" clip-rule="evenodd"/></svg>
+    </div>
+    <div style="flex:1;">
+      <div class="ws-card-label">Plan IDs <span style="font-size:10px;font-weight:600;background:rgba(234,179,8,.15);color:#92400e;border:1px solid rgba(234,179,8,.3);border-radius:20px;padding:2px 8px;margin-left:6px;">Direct to Card</span></div>
+      <div class="ws-card-desc">Format: <code style="font-size:10.5px;">plan_XXXXXXXX</code> — found in Whop dashboard. Checkout goes directly to card, no company page.</div>
+    </div>
+    <!-- Active Mode Toggle -->
+    <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+      <span style="font-size:11.5px;color:var(--muted);">Active:</span>
+      <button id="modeBtn" type="button" style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;{% if whop_mode == 'dev' %}background:#fef3c7;color:#92400e;border:1.5px solid #fbbf24;{% else %}background:#dcfce7;color:#15803d;border:1.5px solid #4ade80;{% endif %}"  >
+        <span id="modeBtnLabel">{% if whop_mode == 'dev' %}🔶 Dev Mode{% else %}🟢 Prod Mode{% endif %}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab Switcher -->
+  <div style="display:flex;border-bottom:1px solid var(--border);padding:0 22px;">
+    <button class="pid-tab {% if whop_mode == 'prod' %}pid-tab-active{% endif %}" id="tab-prod" type="button">
+      🟢 Production
+    </button>
+    <button class="pid-tab {% if whop_mode == 'dev' %}pid-tab-active{% endif %}" id="tab-dev" type="button">
+      🔶 Developer / Test
+    </button>
+  </div>
+
+  <!-- Prod Tab -->
+  <div id="pane-prod">
+    <form class="ws-body" id="form-plan_ids_prod">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="plan_ids_prod">
+      <div class="ws-notice" style="margin-bottom:16px;padding:10px 14px;background:#f0fdf4;border-color:#bbf7d0;">
+        <div class="ws-notice-icon">🟢</div>
+        <div class="ws-notice-text" style="color:#166534;">Live plan IDs — real charges. Use these when you go live.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        {% for pid in plan_ids_prod %}
+        <div class="ws-field" style="margin-bottom:0;">
+          <label class="ws-label">{{ pid.label }} {% if pid.set %}<span style="color:#16a34a">✓</span>{% endif %}</label>
+          <input type="text" name="whop_plan_id_{{ pid.key }}" value="{{ pid.value }}" placeholder="plan_…" class="ws-input" autocomplete="off">
+        </div>
+        {% endfor %}
+      </div>
+    </form>
+    <div class="ws-footer">
+      <div class="ws-status" id="status-plan_ids_prod"></div>
+      <button class="ws-save-btn" onclick="saveSection('plan_ids_prod')">
+        Save Production IDs
+      </button>
+    </div>
+  </div>
+
+  <!-- Dev Tab -->
+  <div id="pane-dev">
+    <form class="ws-body" id="form-plan_ids_dev">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="plan_ids_dev">
+      <div class="ws-notice" style="margin-bottom:16px;padding:10px 14px;background:#fffbeb;border-color:#fde68a;">
+        <div class="ws-notice-icon">🔶</div>
+        <div class="ws-notice-text" style="color:#92400e;">Developer/Test plan IDs — no real charges. Enable Developer Mode in your Whop dashboard to get these.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        {% for pid in plan_ids_dev %}
+        <div class="ws-field" style="margin-bottom:0;">
+          <label class="ws-label">{{ pid.label }} {% if pid.set %}<span style="color:#16a34a">✓</span>{% endif %}</label>
+          <input type="text" name="whop_plan_id_dev_{{ pid.key }}" value="{{ pid.value }}" placeholder="plan_…" class="ws-input" autocomplete="off">
+        </div>
+        {% endfor %}
+      </div>
+    </form>
+    <div class="ws-footer">
+      <div class="ws-status" id="status-plan_ids_dev"></div>
+      <button class="ws-save-btn" onclick="saveSection('plan_ids_dev')">
+        Save Dev/Test IDs
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Checkout URLs ──────────────────────────────────── -->
+<div class="ws-card" style="margin-top:20px;" id="card-checkout_urls">
+  <div class="ws-card-head">
+    <div class="ws-ico ws-ico-url">
+      <svg viewBox="0 0 20 20" fill="#059669"><path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+    </div>
+    <div>
+      <div class="ws-card-label">Checkout URLs</div>
+      <div class="ws-card-desc">Whop checkout links per plan and billing period — update when you add or rename products</div>
+    </div>
+  </div>
+  <form class="ws-body" id="form-checkout_urls">
+    {% csrf_token %}
+    <input type="hidden" name="section" value="checkout_urls">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      {% for url_item in checkout_urls %}
+      <div class="ws-field" style="margin-bottom:0;">
+        <label class="ws-label">{{ url_item.label }}</label>
+        <div class="ws-input-wrap">
+          <input type="url" name="whop_checkout_{{ url_item.key }}" value="{{ url_item.url }}" class="ws-input ws-input-url" placeholder="https://whop.com/permitlify/…" id="url_{{ url_item.key }}">
+          <button type="button" class="ws-copy-btn" onclick="copyField('url_{{ url_item.key }}')">Copy</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </form>
+  <div class="ws-footer">
+    <div class="ws-status" id="status-checkout_urls"></div>
+    <button class="ws-save-btn" onclick="saveSection('checkout_urls')">
+      Save URLs
+    </button>
+  </div>
+</div>
+
+<!-- ── Resync user from Whop ──────────────────────────────────────── -->
+<div class="ws-card" id="card-resync" style="margin-top:24px;">
+  <div class="ws-card-head">
+    <div class="ws-ico" style="background:rgba(217,119,6,.1);">
+      <svg viewBox="0 0 20 20" fill="#d97706"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+    </div>
+    <div>
+      <div class="ws-card-label">Resync User from Whop</div>
+      <div class="ws-card-desc">Fix a user whose plan in our DB doesn't match Whop. Looks up all their memberships and applies the highest-tier active one.</div>
+    </div>
+  </div>
+  <div class="ws-body">
+    <div class="ws-field">
+      <label class="ws-label">User Email</label>
+      <input type="email" class="ws-input" id="resyncEmail" placeholder="user@example.com" autocomplete="off">
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="ws-save-btn" type="button" onclick="resyncLookup()" style="background:#fff;color:var(--blue);border:1px solid var(--blue);box-shadow:none;">Look up</button>
+      <button class="ws-save-btn" type="button" onclick="resyncApplyAuto()">Apply highest-tier active</button>
+    </div>
+    <div id="resyncResult" style="margin-top:18px;display:none;font-family:'JetBrains Mono',monospace;font-size:11.5px;"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toast(msg, type='ok'){
+  const t=document.getElementById('toastGlobal');
+  t.textContent=msg; t.className='show '+type;
+  setTimeout(()=>t.className='',3200);
+}
+
+function saveSection(section){
+  const form  = document.getElementById('form-'+section);
+  const status= document.getElementById('status-'+section);
+  const fd    = new FormData(form);
+  status.className='ws-status';
+  fetch('/admin-panel/whop-settings/',{
+    method:'POST',
+    headers:{'X-Requested-With':'XMLHttpRequest','X-CSRFToken':fd.get('csrfmiddlewaretoken')},
+    body:fd
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.ok){
+      status.textContent='✓ Saved';
+      status.className='ws-status show ok';
+      toast('Saved successfully');
+    } else {
+      status.textContent='✗ '+(d.error||'Error');
+      status.className='ws-status show err';
+      toast(d.error||'Save failed','err');
+    }
+    setTimeout(()=>status.className='ws-status',4000);
+  })
+  .catch(()=>{
+    status.textContent='✗ Request failed';
+    status.className='ws-status show err';
+    toast('Request failed','err');
+  });
+}
+
+function copyField(id){
+  const el=document.getElementById(id);
+  navigator.clipboard.writeText(el.value).then(()=>toast('Copied to clipboard'));
+}
+
+function toggleCredVisibility(btn){
+  const id = btn.getAttribute('data-target');
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(el.type === 'password'){ el.type = 'text';     btn.textContent = 'Hide'; }
+  else                       { el.type = 'password'; btn.textContent = 'Show'; }
+}
+
+function getCSRF(){
+  const el = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  return el ? el.value : '';
+}
+
+function showTab(tab){
+  var card = document.getElementById('card-plan_ids');
+  if(card) card.setAttribute('data-tab', tab);
+}
+
+let _currentMode = '{{ whop_mode }}';
+
+function switchMode(){
+  const newMode = (_currentMode === 'prod') ? 'dev' : 'prod';
+  const fd = new FormData();
+  fd.append('section', 'whop_mode');
+  fd.append('whop_mode', newMode);
+  fd.append('csrfmiddlewaretoken', getCSRF());
+  fetch('/admin-panel/whop-settings/', {
+    method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'},
+    body: fd
+  })
+  .then(r => r.json())
+  .then(d => {
+    if(d.ok){
+      _currentMode = newMode;
+      const btn   = document.getElementById('modeBtn');
+      const label = document.getElementById('modeBtnLabel');
+      showTab(newMode);
+      if(newMode === 'dev'){
+        label.textContent = '🔶 Dev Mode';
+        btn.style.background = '#fef3c7';
+        btn.style.color = '#92400e';
+        btn.style.borderColor = '#fbbf24';
+        toast('Switched to Dev Mode — test plan IDs active', 'err');
+      } else {
+        label.textContent = '🟢 Prod Mode';
+        btn.style.background = '#dcfce7';
+        btn.style.color = '#15803d';
+        btn.style.borderColor = '#4ade80';
+        toast('Switched to Production Mode — live plan IDs active');
+      }
+    } else {
+      toast('Failed to switch mode', 'err');
+    }
+  })
+  .catch(() => toast('Request failed', 'err'));
+}
+
+// Script is at bottom of body — DOM is ready, attach listeners directly
+(function(){
+  const tProd = document.getElementById('tab-prod');
+  const tDev  = document.getElementById('tab-dev');
+  const mBtn  = document.getElementById('modeBtn');
+  if(tProd) tProd.addEventListener('click', function(){ showTab('prod'); });
+  if(tDev)  tDev.addEventListener('click',  function(){ showTab('dev');  });
+  if(mBtn)  mBtn.addEventListener('click',  switchMode);
+})();
+
+// ── Resync user from Whop ───────────────────────────────────────────
+function _esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function _renderResync(d){
+  const out = document.getElementById('resyncResult');
+  out.style.display = 'block';
+  if(!d.ok){
+    out.innerHTML = '<div style="color:#dc2626;padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;">✗ '+_esc(d.error||'Unknown error')+'</div>';
+    return;
+  }
+  const userBlock = d.user_found
+    ? '<div style="padding:10px;background:#f0f9ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:12px;"><strong>User in our DB:</strong> id='+d.user_id+', current plan=<code>'+_esc(d.current_plan||'(none)')+'</code>, bound mem=<code>'+_esc(d.current_membership_id||'(none)')+'</code></div>'
+    : '<div style="padding:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin-bottom:12px;color:#991b1b;"><strong>⚠ No user found in our DB with this email.</strong> Whop lookup still ran below for reference.</div>';
+  let table = '';
+  if(d.memberships && d.memberships.length){
+    table = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;">'
+      + '<thead><tr style="background:#f9fafb;text-align:left;"><th style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">Membership ID</th><th style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">Plan ID</th><th style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">Detected</th><th style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">Valid</th><th style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">Cancel</th><th style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">Actions</th></tr></thead><tbody>';
+    for(const m of d.memberships){
+      const isBest = (m.id === d.best_membership_id);
+      const tierColor = m.detected_plan === 'agency' ? '#7c3aed' : (m.detected_plan === 'pro' ? '#2563eb' : (m.detected_plan === 'starter' ? '#059669' : '#6b7280'));
+      table += '<tr'+(isBest?' style="background:#fef9c3;"':'')+'>'
+        + '<td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;">'+_esc(m.id)+(isBest?' ★':'')+'</td>'
+        + '<td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;">'+_esc(m.plan_id)+'</td>'
+        + '<td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;color:'+tierColor+';font-weight:600;">'+_esc(m.detected_plan||'(none)')+'</td>'
+        + '<td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;">'+(m.valid?'<span style="color:#16a34a;">✓</span>':'<span style="color:#dc2626;">✗</span>')+'</td>'
+        + '<td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;">'+(m.cancel_at_period_end?'<span style="color:#d97706;">at period end</span>':'')+'</td>'
+        + '<td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;">'+(d.user_found?'<button class="ws-save-btn" type="button" onclick="resyncApplyId(\''+_esc(m.id)+'\')" style="padding:3px 10px;font-size:10.5px;box-shadow:none;">Apply this</button>':'')+'</td>'
+        + '</tr>';
+    }
+    table += '</tbody></table></div>';
+  } else {
+    table = '<div style="padding:10px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;color:#92400e;">No memberships returned by Whop for this email.</div>';
+  }
+  let bestLine = '';
+  if(d.best_membership_id){
+    bestLine = '<div style="margin:10px 0 6px;color:#374151;">★ Highest-tier active: <code>'+_esc(d.best_plan)+'</code> on <code>'+_esc(d.best_membership_id)+'</code></div>';
+  }
+  let appliedLine = '';
+  if(d.applied){
+    appliedLine = '<div style="margin-top:12px;padding:10px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;color:#14532d;"><strong>✓ Applied.</strong> User is now: plan=<code>'+_esc(d.applied.plan||'(unchanged)')+'</code>, mem=<code>'+_esc(d.applied.whop_membership_id)+'</code></div>';
+  }
+  out.innerHTML = userBlock + bestLine + table + appliedLine;
+}
+
+function _resyncCall(action){
+  const email = document.getElementById('resyncEmail').value.trim();
+  if(!email){ toast('Enter an email first','err'); return; }
+  const out = document.getElementById('resyncResult');
+  out.style.display = 'block';
+  out.innerHTML = '<div style="color:#6b7280;padding:10px;">Looking up '+_esc(email)+' in Whop…</div>';
+  const fd = new FormData();
+  fd.append('email', email);
+  fd.append('action', action);
+  fd.append('csrfmiddlewaretoken', getCSRF());
+  fetch('/admin-panel/whop-resync-user/', {
+    method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'},
+    body: fd
+  })
+  .then(r => r.json().then(d => ({ok:r.ok, d})))
+  .then(({ok, d}) => {
+    _renderResync(d);
+    if(action !== 'preview' && d.applied) toast('Plan applied','ok');
+  })
+  .catch(() => {
+    out.innerHTML = '<div style="color:#dc2626;padding:10px;">Request failed.</div>';
+    toast('Request failed','err');
+  });
+}
+
+function resyncLookup(){       _resyncCall('preview'); }
+function resyncApplyAuto(){    _resyncCall('apply');   }
+function resyncApplyId(memId){ _resyncCall('apply_id:'+memId); }
+</script>
+{% endblock extra_scripts %}

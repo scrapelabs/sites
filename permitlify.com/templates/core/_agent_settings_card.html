@@ -1,0 +1,145 @@
+{% comment %}
+  DigitalOcean Inference settings card (shared partial).
+  Used on both:
+    /admin-panel/scrapers/             (the list page)
+    /admin-panel/scrapers/<sid>/       (the per-scraper detail page)
+
+  The toggle at the top globally switches scraper Run-now between the
+  agent-driven pipeline and the legacy fallback. Prompt / model name /
+  credit cap are persisted in system_settings via
+  /admin-panel/scrapers/agent/settings/.
+
+  Required context vars (set by the parent view):
+    agent_use_on              bool
+    agent_default_model       str   (free-text — any model id from
+                                     DigitalOcean Serverless Inference)
+    agent_settings_saved_at   str (may be empty)
+
+  NOTE: The prompt template + max-credits inputs were removed in 2026-05.
+  The reference parser prompt is used verbatim from
+  ACCELA_SCRAPER_AGENT_DEFAULT_PROMPT (project policy: no prompt edits),
+  and DO Serverless Inference has no per-run credit cap, so the
+  "Max credits / run" field would only mislead.
+
+  NOTE: do NOT use multi-line hash-comments for blocks like this —
+  Django's hash-comment syntax is single-line only and a multi-line
+  one leaks to the page as visible text. Use comment/endcomment.
+{% endcomment %}
+<div class="dt-card" id="agentCard"
+     style="margin-top:18px;padding:18px;background:var(--card);border:1px solid var(--border);border-radius:14px;">
+  <div class="dt-head" style="margin-bottom:8px;padding:0;border:0;">
+    <h3 style="margin:0;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13px;color:var(--text);">DigitalOcean Inference settings</h3>
+  </div>
+  <div style="font-size:12.5px;color:var(--muted);margin:-4px 0 14px;max-width:780px;">
+    These knobs apply to every <b>Run now</b> across every scraper. The
+    agent receives one prompt and is responsible for browsing the list,
+    opening each detail page, and returning structured rows. Use
+    <code>{url}</code>, <code>{city}</code>, <code>{state}</code>,
+    <code>{date_from}</code>, <code>{date_to}</code> in the prompt — they
+    are substituted before the call. Inference runs on
+    <a href="https://cloud.digitalocean.com/model-studio/serverless-inference" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600;text-decoration:none;">DigitalOcean Serverless Inference</a>;
+    base URL + temperature + max tokens + top-p are configured in
+    <a href="/admin-panel/scraper-settings/" style="color:var(--blue);font-weight:600;text-decoration:none;">Scraper Settings</a>.
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+    <label style="font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="ag-use" {% if agent_use_on %}checked{% endif %}>
+      Use DigitalOcean agent for Run now
+    </label>
+    <span style="font-size:11.5px;color:var(--muted);">
+      When off, scrapers fall back to the legacy direct-HTTP path.
+    </span>
+  </div>
+  <div>
+    <label for="ag-model" style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:6px;">Model</label>
+    <input id="ag-model" type="text" value="{{ agent_default_model }}" spellcheck="false" autocomplete="off"
+           placeholder="openai-gpt-oss-20b"
+           style="width:100%;max-width:480px;padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:12.5px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+    <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">
+      Any model id from your DigitalOcean Inference catalogue.
+      Examples: <code>openai-gpt-oss-20b</code> (cheapest, ~$0.0001/page),
+      <code>openai-gpt-oss-120b</code>, <code>llama3.3-70b-instruct</code>,
+      <code>anthropic-claude-3-5-sonnet</code>.
+    </div>
+  </div>
+  <div style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.5;">
+    Prompt template and per-run credit budget are intentionally fixed —
+    the reference parser prompt is used verbatim and DO Serverless
+    Inference has no per-run cap. Only the model + on/off toggle are
+    admin-configurable here.
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;">
+    <div id="ag-status" style="font-size:12px;color:var(--muted);">
+      {% if agent_settings_saved_at %}
+        Last saved {{ agent_settings_saved_at }}.
+      {% else %}
+        Using built-in defaults — click <b>Save settings</b> to persist your edits.
+      {% endif %}
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" id="ag-reset"
+              style="padding:7px 14px;font-size:12.5px;font-weight:600;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text);cursor:pointer;">Reset to last saved</button>
+      <button type="button" id="ag-save"
+              style="padding:7px 14px;font-size:12.5px;font-weight:600;border:1px solid var(--border);border-radius:6px;background:var(--text);color:var(--bg);cursor:pointer;">Save settings</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Shared agent-settings card JS — POSTs JSON to the global save
+  // endpoint. Same contract whether the card is on the list page or
+  // a per-scraper detail page; the settings themselves are global
+  // (system_settings table), not per-scraper.
+  var $model   = document.getElementById('ag-model');
+  var $use     = document.getElementById('ag-use');
+  var $status  = document.getElementById('ag-status');
+  var $save    = document.getElementById('ag-save');
+  var $reset   = document.getElementById('ag-reset');
+  if (!$model || !$save) return;
+  var csrftoken = (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+  var INITIAL = {
+    model: $model.value,
+    use:   $use.checked,
+  };
+  function setStatus(text, kind){
+    $status.textContent = text;
+    $status.style.color = kind === 'err' ? '#991b1b'
+                        : kind === 'ok'  ? '#047857'
+                        : '';
+  }
+  $save.addEventListener('click', async function(){
+    var modelVal = ($model.value || '').trim();
+    if (!modelVal){ setStatus('Model name cannot be empty.', 'err'); return; }
+    $save.disabled = true;
+    setStatus('Saving…', '');
+    try {
+      var r = await fetch('{% url "admin_scraper_agent_save_settings" %}', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+        body:    JSON.stringify({
+          model:     modelVal,
+          use_agent: !!$use.checked,
+        }),
+      });
+      var body = {};
+      try { body = await r.json(); } catch (e) {}
+      if (!r.ok || !body.ok){
+        setStatus(body.error || ('Save failed (HTTP ' + r.status + ').'), 'err');
+      } else {
+        INITIAL = {model: modelVal, use: !!$use.checked};
+        setStatus('Saved ' + (body.saved_at || '') + '.', 'ok');
+      }
+    } catch (e){
+      setStatus('Save failed: ' + (e.message || e), 'err');
+    } finally {
+      $save.disabled = false;
+    }
+  });
+  $reset.addEventListener('click', function(){
+    $model.value = INITIAL.model;
+    $use.checked = INITIAL.use;
+    setStatus('Reverted to last saved values. Click Save settings to persist.', '');
+  });
+})();
+</script>

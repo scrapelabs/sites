@@ -1,0 +1,370 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Cities Manager{% endblock %}
+{% block page_title %}Cities Manager{% endblock %}
+{% block page_meta %} · {{ city_count }} supported cities{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div id="adminToast" class="toast toast-ok">✅ {{ msg }}</div>
+{% endif %}
+{% if error %}
+<div id="adminToast" class="toast toast-fail">❌ {{ error }}</div>
+{% endif %}
+
+<!-- KPI row -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+  <div class="kpi-card blue">
+    <div class="kpi-label">Supported Cities</div>
+    <div class="kpi-value">{{ city_count }}</div>
+    <div class="kpi-sub">Cities users can track</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-label">States Covered</div>
+    <div class="kpi-value">{{ state_count }}</div>
+    <div class="kpi-sub">Active scraper states</div>
+  </div>
+  <div class="kpi-card amber">
+    <div class="kpi-label">Add a City</div>
+    <div class="kpi-value" style="font-size:15px;padding-top:6px">
+      <button onclick="document.getElementById('addCityModal').classList.add('open')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add City
+      </button>
+    </div>
+    <div class="kpi-sub">Attach to an active scraper</div>
+  </div>
+</div>
+
+<!-- Info note -->
+<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:12px;color:#1e40af;display:flex;gap:10px;align-items:flex-start">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span>Only cities listed here appear in the user city-add dropdown. Removing a city does not affect users who already have it tracked — it only prevents new additions.</span>
+</div>
+
+<!-- City table -->
+<div class="users-card">
+  <div class="users-header">
+    <div>
+      <div class="card-title">Supported Cities</div>
+      <div class="card-sub" style="margin-bottom:0">Cities users can add to their coverage plan</div>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="cmSearch" placeholder="Filter cities…" oninput="filterCM()" style="padding:7px 11px 7px 32px;border:1px solid var(--border);border-radius:7px;font-size:12px;width:200px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+    </div>
+  </div>
+
+  <!-- Bulk action bar (visible when selections exist) -->
+  <div id="cmBulkBar" style="display:none;align-items:center;justify-content:space-between;gap:14px;padding:10px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin:0 16px 12px">
+    <div style="font-size:13px;color:#991b1b;font-weight:600">
+      <span id="cmBulkCount">0</span> cit<span id="cmBulkPlural">ies</span> selected
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button type="button" class="btn-sm" onclick="cmClearSelection()" style="background:#fff">Clear</button>
+      <button type="button" class="btn-sm btn-danger" onclick="cmConfirmBulkRemove()">🗑 Remove selected</button>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:34px;text-align:center"><input type="checkbox" id="cmSelectAll" onclick="cmToggleSelectAll(this)" title="Select all" style="cursor:pointer;width:15px;height:15px;vertical-align:middle"></th>
+        <th style="width:40px">#</th>
+        <th>City</th>
+        <th>State</th>
+        <th style="width:160px">Scraper Status</th>
+        <th style="width:100px">Action</th>
+      </tr>
+    </thead>
+    <tbody id="cmTbody">
+      {% for entry in supported %}
+      <tr class="cm-row" data-name="{{ entry.city|lower }}">
+        <td style="padding:11px 14px;text-align:center;vertical-align:middle">
+          <input type="checkbox" class="cm-row-check" value="{{ entry.city }}" data-state="{{ entry.state }}" onclick="cmUpdateSelection()" style="cursor:pointer;width:15px;height:15px;vertical-align:middle">
+        </td>
+        <td style="padding:11px 14px;font-size:11px;color:var(--muted);font-weight:600">{{ forloop.counter }}</td>
+        <td style="padding:11px 14px;font-weight:600;font-size:13px">{{ entry.city }}</td>
+        <td style="padding:11px 14px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;background:#f1f5f9;padding:2px 8px;border-radius:5px;font-weight:600">{{ entry.state }}</span>
+        </td>
+        <td style="padding:11px 14px">
+          <span class="badge badge-ok">🟢 Active</span>
+        </td>
+        <td style="padding:10px 14px">
+          <button class="btn-sm btn-danger" onclick="confirmRemove('{{ entry.city }}', '{{ entry.state }}')" style="font-size:11px;padding:5px 10px">
+            Remove
+          </button>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" style="padding:32px;text-align:center;color:var(--muted);font-size:13px">No supported cities yet. Add your first city above.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block modals %}
+<!-- Add City Modal -->
+<div id="addCityModal" class="modal-backdrop" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-icon">🏙️</div>
+    <div class="modal-title">Add Supported City</div>
+    <div class="modal-body">Select a state then choose a city. It will appear in the user city-add dropdown. Make sure an active scraper exists for it first.</div>
+    <form method="POST" onsubmit="return validateAddCity()">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add">
+      <input type="hidden" name="city"  id="hiddenCity">
+      <input type="hidden" name="state" id="hiddenState">
+      <div style="margin-bottom:14px">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:6px">State</label>
+        <select id="addStateSelect" onchange="onStateChange()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg);color:var(--text);outline:none;cursor:pointer">
+          <option value="">— Select a state —</option>
+        </select>
+      </div>
+      <div style="margin-bottom:18px">
+        <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);display:block;margin-bottom:6px">City</label>
+        <select id="addCitySelect" disabled style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--bg);color:var(--text);outline:none;cursor:pointer;opacity:.5">
+          <option value="">— Select a state first —</option>
+        </select>
+      </div>
+      <div class="modal-btns">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('addCityModal').classList.remove('open')">Cancel</button>
+        <button type="submit" style="padding:9px 20px;border-radius:8px;border:none;background:var(--blue);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Add City</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Remove confirm modal -->
+<div id="removeCityModal" class="modal-backdrop" onclick="if(event.target===this)this.classList.remove('open')">
+  <form method="POST" id="removeCityForm">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="remove">
+    <input type="hidden" name="city"   id="removeCityVal">
+    <input type="hidden" name="state"  id="removeStateVal">
+    <div class="modal">
+      <div class="modal-icon">🗑️</div>
+      <div class="modal-title">Remove City?</div>
+      <div class="modal-body">
+        Remove <strong id="removeCityLabel">—</strong> from the supported list?
+        <br><br>
+        Users who already track this city <strong>won't be affected</strong> — but no new users will be able to add it.
+      </div>
+      <div class="modal-btns">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('removeCityModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn-delete-confirm">Yes, Remove</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Bulk-remove confirm modal -->
+<div id="cmBulkRemoveModal" class="modal-backdrop" onclick="if(event.target===this)this.classList.remove('open')">
+  <form method="POST" id="cmBulkRemoveForm">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="bulk_remove">
+    <div id="cmBulkRemoveHidden"></div>
+    <div class="modal">
+      <div class="modal-icon">🗑️</div>
+      <div class="modal-title">Remove <span id="cmBulkModalCount">0</span> Cities?</div>
+      <div class="modal-body" id="cmBulkModalBody">
+        You are about to remove the selected cities from the supported list.
+      </div>
+      <div class="modal-btns">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('cmBulkRemoveModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="btn-delete-confirm">Remove <span id="cmBulkModalCount2">0</span> Cities</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Comprehensive US cities by state abbreviation ──
+var ALL_STATE_CITIES = {
+  AL:['Anniston','Auburn','Birmingham','Decatur','Dothan','Florence','Gadsden','Hoover','Huntsville','Mobile','Montgomery','Tuscaloosa'],
+  AK:['Anchorage','Fairbanks','Juneau','Kenai','Kodiak','Sitka','Wasilla'],
+  AZ:['Chandler','Flagstaff','Gilbert','Glendale','Mesa','Peoria','Phoenix','Scottsdale','Surprise','Tempe','Tucson','Yuma'],
+  AR:['Conway','Fayetteville','Fort Smith','Jonesboro','Little Rock','North Little Rock','Pine Bluff','Rogers','Springdale'],
+  CA:['Anaheim','Bakersfield','Chula Vista','Fresno','Irvine','Long Beach','Los Angeles','Oakland','Riverside','Sacramento','San Diego','San Francisco','San Jose','Santa Ana','Stockton'],
+  CO:['Aurora','Boulder','Colorado Springs','Denver','Fort Collins','Lakewood','Pueblo','Thornton','Westminster'],
+  CT:['Bridgeport','Hartford','New Haven','Norwalk','Stamford','Waterbury'],
+  DE:['Dover','Newark','Wilmington'],
+  FL:['Cape Coral','Clearwater','Fort Lauderdale','Gainesville','Hialeah','Jacksonville','Miami','Orlando','Pembroke Pines','Port St. Lucie','St. Petersburg','Tallahassee','Tampa'],
+  GA:['Albany','Athens','Atlanta','Augusta','Columbus','Macon','Roswell','Sandy Springs','Savannah','Warner Robins'],
+  HI:['Hilo','Honolulu','Kailua','Kaneohe','Pearl City'],
+  ID:['Boise','Caldwell','Idaho Falls','Meridian','Nampa','Pocatello','Twin Falls'],
+  IL:['Aurora','Chicago','Elgin','Joliet','Naperville','Peoria','Rockford','Springfield'],
+  IN:['Bloomington','Carmel','Evansville','Fort Wayne','Gary','Indianapolis','Muncie','South Bend'],
+  IA:['Cedar Rapids','Davenport','Des Moines','Iowa City','Sioux City','Waterloo'],
+  KS:['Kansas City','Lawrence','Olathe','Overland Park','Topeka','Wichita'],
+  KY:['Bowling Green','Covington','Lexington','Louisville','Owensboro','Paducah'],
+  LA:['Baton Rouge','Kenner','Lafayette','Lake Charles','Monroe','New Orleans','Shreveport'],
+  ME:['Auburn','Augusta','Bangor','Biddeford','Portland'],
+  MD:['Annapolis','Baltimore','Bethesda','Frederick','Gaithersburg','Rockville'],
+  MA:['Boston','Brockton','Cambridge','Lowell','New Bedford','Quincy','Springfield','Worcester'],
+  MI:['Ann Arbor','Detroit','Flint','Grand Rapids','Lansing','Livonia','Sterling Heights','Warren'],
+  MN:['Bloomington','Duluth','Minneapolis','Plymouth','Rochester','St. Paul'],
+  MS:['Biloxi','Gulfport','Hattiesburg','Jackson','Meridian','Southaven'],
+  MO:['Columbia','Independence','Kansas City','Springfield','St. Joseph','St. Louis'],
+  MT:['Billings','Bozeman','Butte','Great Falls','Helena','Missoula'],
+  NE:['Bellevue','Grand Island','Lincoln','Omaha'],
+  NV:['Carson City','Henderson','Las Vegas','North Las Vegas','Reno','Sparks'],
+  NH:['Concord','Manchester','Nashua'],
+  NJ:['Elizabeth','Jersey City','Newark','Paterson','Trenton'],
+  NM:['Albuquerque','Las Cruces','Rio Rancho','Roswell','Santa Fe'],
+  NY:['Albany','Buffalo','New York City','Rochester','Syracuse','Yonkers'],
+  NC:['Cary','Chapel Hill','Charlotte','Durham','Fayetteville','Greensboro','Raleigh','Winston-Salem'],
+  ND:['Bismarck','Fargo','Grand Forks','Minot'],
+  OH:['Akron','Cincinnati','Cleveland','Columbus','Dayton','Toledo'],
+  OK:['Broken Arrow','Edmond','Lawton','Norman','Oklahoma City','Tulsa'],
+  OR:['Beaverton','Eugene','Gresham','Hillsboro','Portland','Salem'],
+  PA:['Allentown','Erie','Philadelphia','Pittsburgh','Scranton'],
+  RI:['Cranston','Pawtucket','Providence','Warwick'],
+  SC:['Charleston','Columbia','Greenville','Mount Pleasant','Rock Hill'],
+  SD:['Aberdeen','Rapid City','Sioux Falls'],
+  TN:['Chattanooga','Clarksville','Knoxville','Memphis','Murfreesboro','Nashville'],
+  TX:['Abilene','Allen','Amarillo','Arlington','Austin','Beaumont','Brownsville','Carrollton','Corpus Christi','Dallas','Denton','El Paso','Fort Worth','Frisco','Garland','Grand Prairie','Houston','Irving','Killeen','Laredo','Lewisville','Lubbock','Mcallen','McKinney','Mesquite','Midland','Odessa','Pasadena','Pearland','Plano','San Antonio','Sugar Land','Tyler','Waco','Wichita Falls'],
+  UT:['Layton','Ogden','Orem','Provo','Salt Lake City','Sandy','West Jordan','West Valley City'],
+  VT:['Burlington','Montpelier','Rutland'],
+  VA:['Alexandria','Arlington','Chesapeake','Hampton','Norfolk','Richmond','Roanoke','Suffolk','Virginia Beach'],
+  WA:['Bellevue','Everett','Kent','Renton','Seattle','Spokane','Tacoma','Vancouver'],
+  WV:['Charleston','Huntington','Morgantown','Parkersburg'],
+  WI:['Green Bay','Kenosha','Madison','Milwaukee','Racine'],
+  WY:['Casper','Cheyenne','Gillette','Laramie'],
+};
+
+var STATE_NAMES = {
+  AL:'Alabama',AK:'Alaska',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',
+  CT:'Connecticut',DE:'Delaware',FL:'Florida',GA:'Georgia',HI:'Hawaii',ID:'Idaho',
+  IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',
+  ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',
+  MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',
+  NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',
+  OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',
+  TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',
+  WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming',
+};
+
+// Populate state dropdown on page load
+(function() {
+  var sel = document.getElementById('addStateSelect');
+  Object.keys(ALL_STATE_CITIES).sort().forEach(function(abbr) {
+    var opt = document.createElement('option');
+    opt.value = abbr;
+    opt.textContent = STATE_NAMES[abbr] + ' (' + abbr + ')';
+    sel.appendChild(opt);
+  });
+})();
+
+function onStateChange() {
+  var abbr    = document.getElementById('addStateSelect').value;
+  var citySel = document.getElementById('addCitySelect');
+  citySel.innerHTML = '';
+  if (!abbr) {
+    citySel.innerHTML = '<option value="">— Select a state first —</option>';
+    citySel.disabled = true;
+    citySel.style.opacity = '.5';
+    return;
+  }
+  var placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '— Select a city —';
+  citySel.appendChild(placeholder);
+  (ALL_STATE_CITIES[abbr] || []).forEach(function(city) {
+    var opt = document.createElement('option');
+    opt.value = city;
+    opt.textContent = city;
+    citySel.appendChild(opt);
+  });
+  citySel.disabled = false;
+  citySel.style.opacity = '1';
+}
+
+function validateAddCity() {
+  var state = document.getElementById('addStateSelect').value;
+  var city  = document.getElementById('addCitySelect').value;
+  if (!state || !city) {
+    alert('Please select both a state and a city.');
+    return false;
+  }
+  document.getElementById('hiddenCity').value  = city;
+  document.getElementById('hiddenState').value = state;
+  return true;
+}
+
+function filterCM() {
+  var q = document.getElementById('cmSearch').value.toLowerCase().trim();
+  document.querySelectorAll('#cmTbody .cm-row').forEach(function(r) {
+    r.style.display = (!q || r.dataset.name.includes(q)) ? '' : 'none';
+  });
+  cmUpdateSelection();
+}
+
+function confirmRemove(city, state) {
+  document.getElementById('removeCityVal').value  = city;
+  document.getElementById('removeStateVal').value = state;
+  document.getElementById('removeCityLabel').textContent = city + ', ' + state;
+  document.getElementById('removeCityModal').classList.add('open');
+}
+
+/* ---------- bulk selection ---------- */
+function cmGetVisibleChecks() {
+  return Array.from(document.querySelectorAll('.cm-row-check')).filter(function(cb) {
+    var row = cb.closest('tr');
+    return row && row.style.display !== 'none';
+  });
+}
+function cmGetCheckedChecks() {
+  return Array.from(document.querySelectorAll('.cm-row-check')).filter(function(cb) { return cb.checked; });
+}
+function cmUpdateSelection() {
+  var checked = cmGetCheckedChecks();
+  var bar = document.getElementById('cmBulkBar');
+  document.getElementById('cmBulkCount').textContent = checked.length;
+  document.getElementById('cmBulkPlural').textContent = checked.length === 1 ? 'y' : 'ies';
+  bar.style.display = checked.length > 0 ? 'flex' : 'none';
+  var visible = cmGetVisibleChecks();
+  var all = document.getElementById('cmSelectAll');
+  if (visible.length === 0) {
+    all.checked = false; all.indeterminate = false;
+  } else {
+    var visChecked = visible.filter(function(cb) { return cb.checked; }).length;
+    all.checked = visChecked === visible.length;
+    all.indeterminate = visChecked > 0 && visChecked < visible.length;
+  }
+}
+function cmToggleSelectAll(box) {
+  cmGetVisibleChecks().forEach(function(cb) { cb.checked = box.checked; });
+  cmUpdateSelection();
+}
+function cmClearSelection() {
+  document.querySelectorAll('.cm-row-check').forEach(function(cb) { cb.checked = false; });
+  cmUpdateSelection();
+}
+function cmConfirmBulkRemove() {
+  var checked = cmGetCheckedChecks();
+  if (checked.length === 0) return;
+  document.getElementById('cmBulkModalCount').textContent = checked.length;
+  document.getElementById('cmBulkModalCount2').textContent = checked.length;
+  var preview = checked.slice(0, 5).map(function(cb) { return cb.value + ', ' + cb.dataset.state; }).join('<br>');
+  var more = checked.length > 5 ? '<br><em>… and ' + (checked.length - 5) + ' more</em>' : '';
+  document.getElementById('cmBulkModalBody').innerHTML =
+    'You are about to remove <strong>' + checked.length + '</strong> cit' +
+    (checked.length === 1 ? 'y' : 'ies') + ' from the supported list:<br><br>' + preview + more +
+    '<br><br>Users who already track these cities <strong>won\'t be affected</strong> — but no new users will be able to add them.';
+  var hidden = document.getElementById('cmBulkRemoveHidden');
+  hidden.innerHTML = '';
+  checked.forEach(function(cb) {
+    var inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'city_names'; inp.value = cb.value;
+    hidden.appendChild(inp);
+  });
+  document.getElementById('cmBulkRemoveModal').classList.add('open');
+}
+</script>
+{% endblock %}

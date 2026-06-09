@@ -1,0 +1,1240 @@
+{% extends "core/admin_base.html" %}
+{% load static %}
+{% block title %}Scrapers{% endblock %}
+{% block page_title %}Scrapers{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; <span id="scTotal">{{ total }}</span> configured · Accela permit ingestion{% endblock %}
+
+{% block extra_head %}
+<style>
+.sc-toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.sc-search{flex:1;min-width:240px;display:flex;align-items:center;gap:0;background:#fff;border:1px solid var(--border);border-radius:9px;padding:0 12px;height:38px;}
+.sc-search input{border:0;outline:0;flex:1;font-size:13px;font-family:inherit;background:transparent;color:var(--text);}
+.sc-search svg{width:14px;height:14px;color:var(--muted);flex-shrink:0;}
+.sc-select{height:38px;background:#fff;border:1px solid var(--border);border-radius:9px;padding:0 30px 0 12px;font-size:12.5px;color:var(--text);font-family:inherit;font-weight:600;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;min-width:130px;}
+.sc-select:focus{outline:none;border-color:var(--blue);}
+.sc-newbtn{padding:9px 16px;background:var(--grad);color:#fff;border:0;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px;box-shadow:var(--sh-grad);text-decoration:none;}
+.sc-newbtn:hover{opacity:.92;transform:translateY(-1px);}
+
+.sc-table-wrap{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+/* Horizontal scroll for the table on narrow viewports — the
+   wrap stays rounded; the inner div scrolls. Used by the @media
+   block below to flip overflow:hidden→auto on mobile. */
+.sc-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table.sc-table{width:100%;border-collapse:collapse;font-size:12.5px;table-layout:auto;}
+table.sc-table thead th{
+  background:var(--bg);font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);text-align:left;
+  padding:11px 18px;border-bottom:1px solid var(--border);white-space:nowrap;
+}
+table.sc-table tbody td{padding:13px 18px;border-bottom:1px solid var(--border);vertical-align:middle;}
+table.sc-table tbody tr:last-child td{border-bottom:none;}
+table.sc-table tbody tr:hover{background:rgba(15,23,42,.012);}
+table.sc-table .sc-name{color:var(--text);text-decoration:none;font-weight:600;}
+table.sc-table .sc-name:hover{color:var(--blue);}
+table.sc-table .sc-meta{font-size:10.5px;color:var(--muted);margin-top:2px;}
+table.sc-table .sc-host{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--muted);}
+/* Full-URL link in the URL column. Single-line ellipsis truncation
+   capped at ~340px so wide rows don't blow the table layout — the
+   full URL is visible on hover (native title tooltip), and clicking
+   anywhere on the text opens it in a new tab. */
+table.sc-table .sc-urllink{
+  display:inline-block;max-width:340px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;
+  font-family:'JetBrains Mono',monospace;font-size:11.5px;
+  color:#1d4ed8;text-decoration:none;
+}
+table.sc-table .sc-urllink:hover{text-decoration:underline;}
+table.sc-table .sc-urlcell{display:inline-flex;align-items:center;gap:8px;max-width:100%;}
+table.sc-table .sc-urlopen{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:6px;border:1px solid var(--border);
+  background:#fff;color:var(--muted);text-decoration:none;flex-shrink:0;
+  transition:background .12s, border-color .12s, color .12s;
+}
+table.sc-table .sc-urlopen:hover{background:var(--bg);border-color:var(--blue);color:var(--blue);}
+table.sc-table .sc-urlopen svg{width:11px;height:11px;display:block;}
+table.sc-table .sc-citystate{font-weight:600;color:var(--text);}
+table.sc-table .sc-statepill{display:inline-block;padding:2px 7px;background:rgba(29,78,216,.08);color:#1d4ed8;border-radius:5px;font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:.04em;margin-left:4px;}
+.sc-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:'JetBrains Mono',monospace;}
+.sc-pill.ok{background:rgba(22,163,74,.12);color:#15803d;}
+.sc-pill.failed{background:rgba(220,38,38,.12);color:#b91c1c;}
+.sc-pill.partial{background:rgba(234,88,12,.12);color:#9a3412;}
+.sc-pill.idle{background:rgba(100,116,139,.12);color:#475569;}
+.sc-pill.off{background:rgba(100,116,139,.18);color:#334155;}
+.sc-pill.waiting{background:rgba(234,179,8,.12);color:#a16207;}
+.sc-pill.working{background:rgba(37,99,235,.12);color:#1d4ed8;animation:sc-pulse 1.5s ease-in-out infinite;}
+.sc-pill.done{background:rgba(22,163,74,.12);color:#15803d;}
+@keyframes sc-pulse{0%,100%{opacity:1;}50%{opacity:.55;}}
+.sc-pill::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.8;}
+.sc-runall-bar{display:none;align-items:center;gap:12px;margin-top:12px;padding:12px 18px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:12.5px;color:var(--text);}
+.sc-runall-bar.active{display:flex;}
+.sc-runall-bar .sc-ra-progress{flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;}
+.sc-runall-bar .sc-ra-fill{height:100%;background:var(--grad);border-radius:3px;transition:width .4s ease;}
+.sc-runall-bar .sc-ra-label{font-weight:600;white-space:nowrap;}
+.sc-runall-bar .sc-ra-note{font-size:11.5px;color:var(--muted);white-space:nowrap;}
+.sc-threads{display:inline-flex;align-items:center;gap:6px;}
+.sc-threads label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+.sc-threads input[type=number]{width:48px;height:30px;border:1px solid var(--border);border-radius:7px;padding:0 6px;font-size:12.5px;font-weight:600;font-family:inherit;color:var(--text);text-align:center;background:#fff;-moz-appearance:textfield;}
+.sc-threads input[type=number]::-webkit-inner-spin-button,
+.sc-threads input[type=number]::-webkit-outer-spin-button{opacity:1;}
+.sc-threads input[type=number]:focus{outline:none;border-color:var(--blue);}
+.sc-actions{display:flex;gap:6px;justify-content:flex-end;}
+.sc-btn{padding:5px 10px;background:#fff;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;color:var(--text);font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px;}
+.sc-btn:hover{background:var(--bg);border-color:#9ca3af;}
+.sc-btn.primary{background:var(--grad);color:#fff;border-color:transparent;}
+.sc-btn.primary:hover{opacity:.92;}
+.sc-btn.danger{color:#b91c1c;}
+.sc-btn.danger:hover{background:#fef2f2;border-color:#dc2626;}
+
+/* ── Bulk-select bar (slides in below the toolbar when ≥1 row checked) */
+.sc-bulkbar{display:none;align-items:center;gap:12px;margin-top:12px;padding:10px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:12.5px;color:#7f1d1d;font-weight:600;}
+.sc-bulkbar.active{display:flex;}
+.sc-bulkbar .sc-bulk-count{flex:1;}
+.sc-bulkbar .sc-btn{padding:6px 12px;font-size:12px;}
+.sc-checkcell{width:36px;padding-right:0!important;}
+.sc-checkcell input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:#dc2626;margin:0;display:block;}
+table.sc-table thead th.sc-checkcell{padding-right:0!important;}
+
+.sc-empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:13px;}
+.sc-empty .ico{font-size:42px;margin-bottom:12px;opacity:.6;}
+.sc-empty h3{color:var(--text);font-size:16px;margin:0 0 6px;font-family:'Plus Jakarta Sans',sans-serif;}
+
+/* ── DataTables theme overrides — match the rest of the admin chrome
+   (mirrors templates/core/admin_scraper_detail.html so the two pages
+   feel identical). ── */
+#scrapersTable_wrapper{position:relative;}
+.dataTables_processing{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:#fff;border:1px solid var(--border);border-radius:10px;
+  padding:8px 16px;font-size:11.5px;font-weight:600;color:var(--text);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  box-shadow:0 4px 14px rgba(15,23,42,.10);z-index:30;
+}
+.dt-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 18px;background:var(--bg);border-top:1px solid var(--border);
+  flex-wrap:wrap;font-family:inherit;
+}
+.dataTables_info{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
+}
+.dataTables_paginate{display:flex;align-items:center;gap:6px;}
+.dataTables_paginate .paginate_button{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:30px;height:30px;padding:0 9px;
+  border:1px solid var(--border);border-radius:7px;
+  background:#fff;color:var(--text);
+  font-size:11.5px;font-weight:600;cursor:pointer;
+  font-family:inherit;text-decoration:none;
+  transition:background .12s, border-color .12s, color .12s;
+}
+.dataTables_paginate .paginate_button:hover{
+  background:var(--bg);border-color:var(--text);
+}
+.dataTables_paginate .paginate_button.current,
+.dataTables_paginate .paginate_button.current:hover{
+  background:var(--grad);border-color:transparent;color:#fff;
+  box-shadow:var(--sh-grad);
+}
+.dataTables_paginate .paginate_button.disabled,
+.dataTables_paginate .paginate_button.disabled:hover{
+  opacity:.4;cursor:not-allowed;color:var(--muted);
+  border-color:var(--border);background:#fff;
+}
+.dataTables_length{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);}
+.dataTables_length label{display:flex;align-items:center;gap:8px;margin:0;}
+.dataTables_length select{
+  height:30px;border:1px solid var(--border);border-radius:7px;
+  padding:0 22px 0 9px;font-size:11.5px;font-weight:600;color:var(--text);
+  background:#fff;cursor:pointer;font-family:inherit;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;
+}
+.dataTables_paginate .ellipsis{padding:0 4px;color:var(--muted);font-weight:600;}
+table.sc-table thead th.sorting,
+table.sc-table thead th.sorting_asc,
+table.sc-table thead th.sorting_desc{cursor:pointer;}
+table.sc-table thead th.sorting_asc::after  {content:' ↑';color:var(--text);}
+table.sc-table thead th.sorting_desc::after {content:' ↓';color:var(--text);}
+table.sc-table thead th.sorting::after      {content:' ↕';color:var(--muted);opacity:.55;}
+
+#toastSc{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;font-size:12.5px;font-weight:500;padding:11px 18px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;}
+#toastSc.show{opacity:1;}
+#toastSc.ok{background:#16a34a;}
+#toastSc.err{background:#dc2626;}
+
+/* ── Edit-scraper modal ─────────────────────────────────────────── */
+#scEditOverlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.45);
+  display:none;align-items:center;justify-content:center;
+  z-index:9998;padding:20px;
+}
+#scEditOverlay.open{display:flex;}
+#scEditModal{
+  background:#fff;border-radius:14px;border:1px solid var(--border);
+  width:100%;max-width:520px;box-shadow:0 24px 60px rgba(15,23,42,.25);
+  padding:22px 24px 20px;font-family:inherit;
+}
+#scEditModal h3{
+  margin:0 0 4px;font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:17px;color:var(--text);font-weight:700;
+}
+#scEditModal .sc-edit-sub{
+  font-size:12px;color:var(--muted);margin:0 0 18px;
+}
+#scEditModal label{
+  display:block;font-size:11px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--muted);margin:14px 0 6px;
+}
+#scEditModal input[type=text]{
+  width:100%;height:38px;padding:0 12px;border:1px solid var(--border);
+  border-radius:9px;font-size:13px;font-family:inherit;color:var(--text);
+  background:#fff;box-sizing:border-box;
+}
+#scEditModal input[type=text]:focus{outline:none;border-color:var(--blue);}
+#scEditModal .sc-edit-row{display:flex;gap:10px;}
+#scEditModal .sc-edit-row > div{flex:1;}
+#scEditModal .sc-edit-row > div.sc-edit-state{flex:0 0 110px;}
+#scEditError{
+  display:none;margin-top:12px;padding:9px 12px;border-radius:8px;
+  background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;
+  font-size:12px;font-weight:500;
+}
+#scEditError.show{display:block;}
+#scEditModal .sc-edit-actions{
+  display:flex;gap:8px;justify-content:flex-end;margin-top:20px;
+  padding-top:16px;border-top:1px solid var(--border);
+}
+#scEditModal .sc-edit-actions .sc-btn{padding:8px 16px;font-size:12px;}
+
+/* ── Mobile (≤768px) ────────────────────────────────────────────────
+   Three goals on phones:
+   1. Toolbar — search takes a full row, the two selects share a row,
+      the action buttons share a row. No horizontal scrolling of
+      controls; everything stays tappable (≥36 px tall).
+   2. Table — the 8-col grid (Name / URL / City / State / Last Run /
+      Permits / Status / Actions) cannot reflow without losing data,
+      so we let it scroll horizontally inside `.sc-table-wrap`. We
+      also hide the two lowest-value columns (URL = col-2, Last Run
+      = col-5) which the user can still see by drilling into a row.
+   3. DataTables foot — info + length + paginate stack vertically
+      and centre so the pager isn't pushed off-screen.
+   The 480 px tier collapses the action buttons to one-per-row so
+   the labels don't truncate on tiny screens (e.g. iPhone SE). */
+@media (max-width: 768px) {
+  .sc-toolbar{gap:8px;}
+  .sc-search{flex:1 1 100%;min-width:0;}
+  .sc-select{flex:1 1 calc(50% - 4px);min-width:0;}
+  .sc-toolbar .sc-btn,
+  .sc-toolbar .sc-newbtn{flex:1 1 calc(50% - 4px);justify-content:center;text-align:center;}
+
+  .sc-table-wrap{overflow:hidden;}
+  .sc-table-wrap > table{display:block;}                  /* needed so inner wrap can scroll */
+  .sc-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table.sc-table{min-width:860px;}                        /* preserve column widths during scroll */
+  table.sc-table thead th,
+  table.sc-table tbody td{padding:10px 12px;}
+  table.sc-table thead th:nth-child(3),                   /* URL */
+  table.sc-table tbody td:nth-child(3),
+  table.sc-table thead th:nth-child(6),                   /* Last Run */
+  table.sc-table tbody td:nth-child(6){display:none;}
+
+  .dt-foot{flex-direction:column;align-items:stretch;gap:10px;padding:12px 14px;}
+  .dt-foot .dataTables_length,
+  .dt-foot .dataTables_info,
+  .dt-foot .dataTables_paginate{justify-content:center;text-align:center;}
+  .dataTables_paginate{flex-wrap:wrap;justify-content:center;}
+}
+@media (max-width: 480px) {
+  .sc-select,
+  .sc-toolbar .sc-btn,
+  .sc-toolbar .sc-newbtn{flex:1 1 100%;}
+  #scEditModal{padding:18px 16px;}
+  #scEditModal .sc-edit-row{flex-direction:column;gap:0;}
+  #scEditModal .sc-edit-row > div.sc-edit-state{flex:1 1 auto;}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="toastSc"></div>
+
+<form id="scFilters" class="sc-toolbar" onsubmit="event.preventDefault(); reloadScrapers();">
+  <div class="sc-search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input type="text" name="q" id="scQ" value="{{ q }}" placeholder="Search by name, URL, city, state, or agency code…">
+  </div>
+  <select class="sc-select" name="state" id="scState" title="Filter by state">
+    <option value="">All states</option>
+    {% for st in state_options %}
+      <option value="{{ st.code }}" {% if st.code == state_filter %}selected{% endif %}>{{ st.code }} ({{ st.count }})</option>
+    {% endfor %}
+  </select>
+  <select class="sc-select" name="city" id="scCity" title="Filter by city">
+    <option value="">All cities</option>
+    {# Pre-populated client-side by the cities-by-state JSON below #}
+  </select>
+  <select class="sc-select" name="status" id="scStatus" title="Filter by status">
+    <option value="">All statuses</option>
+    <option value="success">Success</option>
+    <option value="failed">Failed</option>
+    <option value="partial">Partial</option>
+    <option value="running">Running</option>
+    <option value="cancelled">Cancelled</option>
+    <option value="idle">Idle (never run)</option>
+    <option value="disabled">Disabled</option>
+  </select>
+  <button type="submit" class="sc-btn">Search</button>
+  <a href="/admin-panel/scraper-stats/" class="sc-btn">📊 Stats</a>
+  <a href="/admin-panel/scraper-settings/" class="sc-btn">⚙️ Settings</a>
+  <a href="/admin-panel/scrapers/cron/" class="sc-btn primary" title="Schedule + run cron passes from one place">⏰ Cron</a>
+  <span class="sc-threads" title="Number of scrapers to run concurrently (1–10). Also used by the cron worker — saved automatically.">
+    <label for="scThreads">Threads</label>
+    <input type="number" id="scThreads" min="1" max="10"
+           value="{{ scrapers_default_threads|default:5 }}"
+           onchange="saveDefaultThreads()" onblur="saveDefaultThreads()">
+  </span>
+  {% comment %}
+    Global "# of pages" — replaces the per-scraper input. Auto-saves to
+    system_settings on change/blur via /admin-panel/scrapers/save-default-pages/
+    and is forwarded as max_pages to every run (per-row Run, Run Selected,
+    Run All). The per-scraper detail page still has its own override field
+    that wins when set there.
+  {% endcomment %}
+  <span class="sc-threads" title="Global page cap applied to every run started from this page (per-row Run, Run Selected, Run All). Saved automatically — no Save button.">
+    <label for="scPages"># of pages</label>
+    <input type="number" id="scPages" min="1" max="1000" value="{{ scrapers_default_pages|default:50 }}"
+           style="width:68px;" onchange="saveDefaultPages()" onblur="saveDefaultPages()">
+  </span>
+  <button type="button" class="sc-btn primary" id="scRunAllBtn" onclick="runAllScrapers()">&#9654; Run All</button>
+  <button type="button" class="sc-btn danger" id="scStopAllBtn" onclick="stopRunAll()" style="display:none">&#9632; Stop All</button>
+  <button type="button" class="sc-btn" id="scExportBtn" onclick="exportScrapersCsv()" title="Download all scrapers (honours current filters) as CSV">⬇ Export CSV</button>
+  <a href="/admin-panel/scrapers/new/" class="sc-newbtn">+ New Scraper</a>
+</form>
+
+<div id="scBulkBar" class="sc-bulkbar">
+  <span class="sc-bulk-count"><span id="scBulkCount">0</span> selected</span>
+  <button type="button" class="sc-btn" onclick="clearBulkSelection()">Clear</button>
+  <button type="button" class="sc-btn primary" id="scBulkRunBtn" onclick="runSelectedScrapers()">&#9654; Run selected</button>
+  <button type="button" class="sc-btn danger" id="scBulkDeleteBtn" onclick="bulkDeleteScrapers()">Delete selected</button>
+</div>
+
+<div id="scRunAllBar" class="sc-runall-bar">
+  <span class="sc-ra-label" id="scRunAllLabel">Running all scrapers…</span>
+  <div class="sc-ra-progress"><div class="sc-ra-fill" id="scRunAllFill" style="width:0%"></div></div>
+  <span class="sc-ra-note" id="scRunAllNote">0 / 0</span>
+</div>
+
+<div class="sc-table-wrap sc-table-scroll" style="margin-top:18px;">
+  <table id="scrapersTable" class="sc-table" style="width:100%;">
+    <thead>
+      <tr>
+        <th class="sc-checkcell"><input type="checkbox" id="scCheckAll" title="Select all on this page" onclick="toggleSelectAll(this)"></th>
+        <th>Name</th>
+        <th>URL</th>
+        <th>City</th>
+        <th>State</th>
+        <th>Last Run</th>
+        <th>Permits</th>
+        <th>Status</th>
+        <th style="text-align:right;">Actions</th>
+      </tr>
+    </thead>
+    <tbody><!-- populated by DataTables --></tbody>
+  </table>
+</div>
+
+{# Edit-scraper modal — populated by openEditScraper() from the row #}
+{# data exposed by the DataTables row API. Hidden by default; shown #}
+{# by toggling .open on the overlay. Closes on overlay click, Esc, #}
+{# or the Cancel / X buttons. #}
+<div id="scEditOverlay" role="dialog" aria-modal="true" aria-labelledby="scEditTitle">
+  <div id="scEditModal">
+    <h3 id="scEditTitle">Edit scraper</h3>
+    <p class="sc-edit-sub">Update the name, source URL, city, and state. Other settings live on the scraper detail page.</p>
+    <form id="scEditForm" autocomplete="off">
+      <input type="hidden" name="sid" id="scEditSid" value="">
+      <label for="scEditName">Name</label>
+      <input type="text" id="scEditName" name="name" maxlength="200" required>
+      <label for="scEditUrl">URL</label>
+      <input type="text" id="scEditUrl" name="url" maxlength="2000" required placeholder="https://…">
+      <div class="sc-edit-row">
+        <div>
+          <label for="scEditCity">City</label>
+          <input type="text" id="scEditCity" name="city" maxlength="120">
+        </div>
+        <div class="sc-edit-state">
+          <label for="scEditState">State</label>
+          <input type="text" id="scEditState" name="state" maxlength="2" placeholder="CA" style="text-transform:uppercase;">
+          <div id="scEditStateHint" style="display:none;font-size:11px;color:#0f766e;margin-top:4px;">
+            Inferred from name — edit if wrong.
+          </div>
+        </div>
+      </div>
+      <div id="scEditError"></div>
+      <div class="sc-edit-actions">
+        <button type="button" class="sc-btn" onclick="closeEditScraper()">Cancel</button>
+        <button type="submit" class="sc-btn primary" id="scEditSave">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+window.SC_CITIES_BY_STATE  = {{ cities_by_state_json|safe }};
+window.SC_STATE_FILTER     = "{{ state_filter|escapejs }}";
+window.SC_CITY_FILTER      = "{{ city_filter|escapejs }}";
+// Full canonical US state-code list — used by the Edit modal to
+// validate auto-inferred state suffixes (e.g. "Fremont CA" → CA ✓,
+// "Permit-Search GO" → '' ✗) without falling back to the smaller
+// SC_CITIES_BY_STATE keys, which only cover states that already
+// have a scraper.
+window.SC_ALL_STATE_CODES  = {{ all_state_codes_json|safe }};
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+{% comment %}
+  jQuery 3.7.1 + DataTables 1.13.8, served via /lib/<name> (see
+  core.views.vendor_lib). Filenames are deliberately neutral so
+  ad-block filter lists that match "jquery*"/"*dataTables*" leave
+  them alone.
+{% endcomment %}
+<link rel="stylesheet" href="/lib/grid.min.css?v=3">
+<script src="/lib/core.min.js?v=3"></script>
+<script src="/lib/grid.min.js?v=3"></script>
+<script>
+function getCsrf() {
+  const m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? m[1] : '';
+}
+function toast(msg, kind) {
+  const t = document.getElementById('toastSc');
+  t.textContent = msg;
+  t.className = 'show ' + (kind || '');
+  clearTimeout(window._scTo);
+  window._scTo = setTimeout(() => { t.className = ''; }, 3500);
+}
+/* Reads the global "# of pages" toolbar input, clamps to 1-1000, and
+ * returns the current value. Used by every run path on this page so a
+ * single edit in the toolbar applies everywhere. */
+function getGlobalMaxPages(){
+  var el = document.getElementById('scPages');
+  var v  = parseInt(el && el.value, 10);
+  if (!v || v < 1) v = 50;
+  if (v > 1000) v = 1000;
+  if (el) el.value = v;
+  return v;
+}
+/* Auto-saves the value to system_settings.scrapers_default_pages so it
+ * survives reloads + applies to other admins. Silent on success, toast
+ * on error. Debounced to one in-flight request — the change/blur events
+ * can fire back-to-back when the user tabs out. */
+/* Auto-saves the toolbar Threads value to
+ * system_settings.scrapers_default_threads so the cron worker reads
+ * the same number the admin set in the UI. Clamped 1-10. Silent on
+ * success, toast on error; debounced like saveDefaultPages. */
+window._scThreadsSavePending = false;
+async function saveDefaultThreads(){
+  if (window._scThreadsSavePending) return;
+  var el = document.getElementById('scThreads');
+  var v  = parseInt(el && el.value, 10);
+  if (!v || v < 1) v = 5;
+  if (v > 10) v = 10;
+  if (el) el.value = v;
+  window._scThreadsSavePending = true;
+  try {
+    var fd = new FormData();
+    fd.append('threads', String(v));
+    var r = await fetch('/admin-panel/scrapers/save-default-threads/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: fd,
+    });
+    var d = {};
+    try { d = await r.json(); } catch(_) {}
+    if (!r.ok || !d.ok) {
+      toast('Could not save Threads: ' + (d.error || ('HTTP ' + r.status)), 'err');
+    }
+  } catch (e) {
+    toast('Network error saving Threads: ' + e.message, 'err');
+  } finally {
+    window._scThreadsSavePending = false;
+  }
+}
+
+window._scPagesSavePending = false;
+async function saveDefaultPages(){
+  if (window._scPagesSavePending) return;
+  var v = getGlobalMaxPages();
+  window._scPagesSavePending = true;
+  try {
+    var fd = new FormData();
+    fd.append('pages', String(v));
+    var r = await fetch('/admin-panel/scrapers/save-default-pages/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: fd,
+    });
+    var d = {};
+    try { d = await r.json(); } catch(_) {}
+    if (!r.ok || !d.ok) {
+      toast('Could not save # of pages: ' + (d.error || ('HTTP ' + r.status)), 'err');
+    }
+  } catch (e) {
+    toast('Network error saving # of pages: ' + e.message, 'err');
+  } finally {
+    window._scPagesSavePending = false;
+  }
+}
+
+async function toggleEnabled(sid, enable) {
+  toast(enable ? 'Enabling scraper…' : 'Disabling scraper…');
+  try {
+    var fd = new FormData();
+    fd.append('enabled', enable ? '1' : '0');
+    const r = await fetch('/admin-panel/scrapers/' + sid + '/toggle-enabled/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: fd,
+    });
+    const d = await r.json();
+    if (r.ok && d.ok) {
+      toast(d.enabled ? 'Scraper enabled — now active.' : 'Scraper disabled — it will be skipped by Run All & cron.', 'ok');
+      if (window.scrapersTable) window.scrapersTable.ajax.reload(null, false);
+    } else {
+      toast('Failed: ' + (d.error || ('HTTP ' + r.status)), 'err');
+    }
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+  }
+}
+
+async function runNow(sid) {
+  var mp = getGlobalMaxPages();
+  toast('Running scraper (' + mp + ' pages)…');
+  try {
+    var fd = new FormData();
+    fd.append('max_pages', String(mp));
+    const r = await fetch('/admin-panel/scrapers/' + sid + '/run/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+      body: fd,
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('Scraper started — refreshing…', 'ok');
+      setTimeout(() => window.scrapersTable && window.scrapersTable.ajax.reload(null, false), 1100);
+    } else {
+      toast('Run failed: ' + (d.error || 'unknown'), 'err');
+    }
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+  }
+}
+async function stopRun(sid) {
+  toast('Stopping scraper…');
+  try {
+    var r = await fetch('/admin-panel/scrapers/' + sid + '/stop-run/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+    });
+    var d = await r.json();
+    if (d.ok) {
+      toast(d.msg || 'Stop requested', 'ok');
+      setTimeout(function(){ window.scrapersTable && window.scrapersTable.ajax.reload(null, false); }, 1500);
+    } else {
+      toast('Stop failed: ' + (d.error || 'unknown'), 'err');
+    }
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+  }
+}
+function showBatchRunning() {
+  document.getElementById('scRunAllBtn').style.display = 'none';
+  document.getElementById('scStopAllBtn').style.display = '';
+}
+function showBatchIdle() {
+  var btn = document.getElementById('scRunAllBtn');
+  btn.style.display = '';
+  btn.disabled = false;
+  btn.textContent = '\u25B6 Run All';
+  document.getElementById('scStopAllBtn').style.display = 'none';
+  document.getElementById('scStopAllBtn').disabled = false;
+  document.getElementById('scStopAllBtn').textContent = '\u25A0 Stop All';
+}
+// Edit modal — read row via DataTables API, populate form, show overlay.
+// We deliberately use the row API instead of inlining row JSON in the
+// button HTML: scraper names/URLs can contain quotes, backslashes, or
+// non-ASCII characters that are easy to mis-quote in an onclick string.
+function openEditScraper(btn){
+  if (!window.scrapersTable) return;
+  var tr = btn.closest('tr');
+  var s  = window.scrapersTable.row(tr).data();
+  if (!s) return;
+  document.getElementById('scEditSid').value   = s.id;
+  document.getElementById('scEditName').value  = s.name  || '';
+  document.getElementById('scEditUrl').value   = s.url   || '';
+  document.getElementById('scEditCity').value  = s.city  || '';
+  // ── State pre-fill ───────────────────────────────────────────
+  // If the row already has a state, use it. Otherwise infer from
+  // the trailing 2-letter token of the scraper name (every scraper
+  // is named "{City} {ST}" by convention) so the admin sees the
+  // suggested code in the field BEFORE saving — no more accidental
+  // empty-state saves like "Fremont CA" → state=NULL.
+  var stateInput = document.getElementById('scEditState');
+  var stateHint  = document.getElementById('scEditStateHint');
+  stateHint.style.display = 'none';
+  if (s.state) {
+    stateInput.value = s.state;
+  } else {
+    var inferred = inferStateFromName(s.name || '');
+    stateInput.value = inferred;
+    if (inferred) stateHint.style.display = 'block';
+  }
+  var err = document.getElementById('scEditError');
+  err.classList.remove('show'); err.textContent = '';
+  document.getElementById('scEditOverlay').classList.add('open');
+  setTimeout(function(){ document.getElementById('scEditName').focus(); }, 50);
+}
+// Pull the trailing 2-letter token from a scraper name and validate
+// against the canonical US-state set. Returns '' when the suffix
+// isn't a real state (so we never auto-fill garbage like "GO" from
+// "Permit-Search GO"). The state list is shipped to the page
+// already as window.SC_CITIES_BY_STATE keys — reuse that set so we
+// don't have to bundle a second copy.
+function inferStateFromName(name){
+  var m = (name || '').match(/\b([A-Za-z]{2})\s*$/);
+  if (!m) return '';
+  var code = m[1].toUpperCase();
+  var states = window.SC_CITIES_BY_STATE || {};
+  // SC_CITIES_BY_STATE only includes states that have at least one
+  // scraper assigned, so fall back to the full canonical list when
+  // present. Either source is fine — both are server-vetted.
+  var canonical = window.SC_ALL_STATE_CODES || Object.keys(states);
+  return canonical.indexOf(code) >= 0 ? code : '';
+}
+function closeEditScraper(){
+  document.getElementById('scEditOverlay').classList.remove('open');
+}
+async function submitEditScraper(ev){
+  ev.preventDefault();
+  var sid   = document.getElementById('scEditSid').value;
+  var name  = document.getElementById('scEditName').value.trim();
+  var url   = document.getElementById('scEditUrl').value.trim();
+  var city  = document.getElementById('scEditCity').value.trim();
+  var state = document.getElementById('scEditState').value.trim().toUpperCase();
+  var err   = document.getElementById('scEditError');
+  err.classList.remove('show'); err.textContent = '';
+  // Light client-side validation — server validates again authoritatively.
+  if (!name)               { err.textContent = 'Name is required.';                    err.classList.add('show'); return; }
+  if (!url)                { err.textContent = 'URL is required.';                     err.classList.add('show'); return; }
+  if (!/^https?:\/\//i.test(url)) {
+                             err.textContent = 'URL must start with http:// or https://';
+                             err.classList.add('show'); return; }
+  if (state && !/^[A-Z]{2}$/.test(state)) {
+                             err.textContent = 'State must be a 2-letter postal code (e.g. CA).';
+                             err.classList.add('show'); return; }
+  var btn = document.getElementById('scEditSave');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    var fd = new FormData();
+    fd.append('name',  name);
+    fd.append('url',   url);
+    fd.append('city',  city);
+    fd.append('state', state);
+    var r = await fetch('/admin-panel/scrapers/' + encodeURIComponent(sid) + '/update/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+      body: fd,
+    });
+    var d = {};
+    try { d = await r.json(); } catch(_) {}
+    if (r.ok && d.ok){
+      closeEditScraper();
+      toast('Saved.', 'ok');
+      window.scrapersTable && window.scrapersTable.ajax.reload(null, false);
+    } else {
+      err.textContent = d.error || ('Save failed (HTTP ' + r.status + ')');
+      err.classList.add('show');
+    }
+  } catch (e){
+    err.textContent = 'Network error: ' + e.message;
+    err.classList.add('show');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save changes';
+  }
+}
+async function deleteScraper(sid, name) {
+  if (!confirm('Delete scraper "' + name + '"? Its permits stay in the database.')) return;
+  const fd = new FormData();
+  try {
+    const r = await fetch('/admin-panel/scrapers/' + sid + '/delete/', {
+      method:  'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+      body:    fd,
+    });
+    if (r.redirected || r.ok) {
+      toast('Deleted scraper "' + name + '".', 'ok');
+      window.scrapersTable && window.scrapersTable.ajax.reload(null, false);
+    } else {
+      toast('Delete failed (HTTP ' + r.status + ')', 'err');
+    }
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+  }
+}
+
+function esc(s){
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+// Populate the City dropdown for the currently-selected state. Empty
+// state => "All cities" only (we don't dump every city in the country
+// into one list; that would be 1000+ entries).
+function refreshCityOptions(){
+  var $sel = document.getElementById('scCity');
+  var st   = (document.getElementById('scState').value || '').toUpperCase();
+  var prev = $sel.value;
+  // Use the SC_CITY_FILTER seed on first paint so a server-rendered
+  // ?city= param sticks across the JS rebuild.
+  if (!prev && window.SC_CITY_FILTER) prev = window.SC_CITY_FILTER;
+  var cities = (st && window.SC_CITIES_BY_STATE[st]) || [];
+  var opts = '<option value="">All cities</option>';
+  for (var i = 0; i < cities.length; i++){
+    var c = cities[i];
+    opts += '<option value="' + esc(c) + '"' + (c === prev ? ' selected' : '') + '>' + esc(c) + '</option>';
+  }
+  $sel.innerHTML = opts;
+}
+
+function reloadScrapers(){
+  if (window.scrapersTable) window.scrapersTable.ajax.reload();
+}
+
+// ── Bulk-select state + helpers ───────────────────────────────────
+// Persists across DataTables redraws (paging, filtering, sorting)
+// because the row <input> elements are recreated by render() each
+// time. We keep the canonical selection in window._scSelectedIds
+// and the row-render callback restores `checked` from it.
+window._scSelectedIds = {};
+function updateBulkBar(){
+  var ids = Object.keys(window._scSelectedIds);
+  var bar = document.getElementById('scBulkBar');
+  document.getElementById('scBulkCount').textContent = ids.length;
+  if (ids.length > 0) bar.classList.add('active');
+  else                bar.classList.remove('active');
+  // Header "select all" reflects whether every visible row is selected.
+  var rowChecks = document.querySelectorAll('.sc-rowcheck');
+  var allChecked = rowChecks.length > 0;
+  for (var i = 0; i < rowChecks.length; i++){
+    if (!rowChecks[i].checked) { allChecked = false; break; }
+  }
+  var hdr = document.getElementById('scCheckAll');
+  if (hdr) hdr.checked = allChecked;
+}
+function toggleSelectAll(cb){
+  var rowChecks = document.querySelectorAll('.sc-rowcheck');
+  for (var i = 0; i < rowChecks.length; i++){
+    rowChecks[i].checked = cb.checked;
+    var sid = rowChecks[i].getAttribute('data-sid');
+    if (cb.checked) window._scSelectedIds[sid] = true;
+    else            delete window._scSelectedIds[sid];
+  }
+  updateBulkBar();
+}
+function clearBulkSelection(){
+  window._scSelectedIds = {};
+  var rowChecks = document.querySelectorAll('.sc-rowcheck');
+  for (var i = 0; i < rowChecks.length; i++) rowChecks[i].checked = false;
+  var hdr = document.getElementById('scCheckAll');
+  if (hdr) hdr.checked = false;
+  updateBulkBar();
+}
+function exportScrapersCsv(){
+  // Honour the live filters: build a querystring from the same inputs
+  // that drive the DataTables ajax. Empty values are omitted so the
+  // URL stays clean.
+  var qs = [];
+  function add(k, v){ if (v) qs.push(encodeURIComponent(k)+'='+encodeURIComponent(v)); }
+  add('q',      document.getElementById('scQ').value || '');
+  add('state',  document.getElementById('scState').value || '');
+  add('city',   document.getElementById('scCity').value || '');
+  add('status', document.getElementById('scStatus').value || '');
+  var url = '/admin-panel/scrapers/export.csv' + (qs.length ? ('?' + qs.join('&')) : '');
+  window.location.href = url;
+}
+
+async function runSelectedScrapers(){
+  var ids = Object.keys(window._scSelectedIds);
+  if (ids.length === 0) return;
+  var btn = document.getElementById('scBulkRunBtn');
+  if (btn.disabled) return;
+  var threads = parseInt(document.getElementById('scThreads').value) || 5;
+  threads = Math.max(1, Math.min(threads, 10));
+  document.getElementById('scThreads').value = threads;
+  if (!confirm('Run ' + ids.length + ' selected scraper'
+               + (ids.length === 1 ? '' : 's')
+               + ' (' + threads + ' at a time)?')) return;
+  btn.disabled = true;
+  var origLabel = btn.innerHTML;
+  btn.textContent = 'Starting…';
+  toast('Starting batch run for ' + ids.length + ' scraper'
+        + (ids.length === 1 ? '' : 's') + '…');
+  try {
+    var fd = new FormData();
+    for (var i = 0; i < ids.length; i++) fd.append('ids', ids[i]);
+    fd.append('concurrency', threads);
+    fd.append('max_pages', String(getGlobalMaxPages()));
+    var r = await fetch('/admin-panel/scrapers/run-selected/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+      body: fd,
+    });
+    var d = {};
+    try { d = await r.json(); } catch(_) {}
+    if (!r.ok || !d.ok) {
+      toast('Failed: ' + (d.error || ('HTTP ' + r.status)), 'err');
+      return;
+    }
+    window._scBatchId = d.batch_id;
+    window._scBatchStatus = {};
+    window._scBatchEnabledIds = [];
+    showBatchRunning();
+    var bar = document.getElementById('scRunAllBar');
+    bar.classList.add('active');
+    document.getElementById('scRunAllLabel').textContent =
+      'Running ' + d.count + ' selected scraper'
+      + (d.count === 1 ? '' : 's') + '…';
+    document.getElementById('scRunAllFill').style.width = '0%';
+    document.getElementById('scRunAllNote').textContent = 'Starting…';
+    toast('Batch started — polling for status…', 'ok');
+    clearBulkSelection();
+    startBatchPolling(d.batch_id);
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = origLabel;
+  }
+}
+
+async function bulkDeleteScrapers(){
+  var ids = Object.keys(window._scSelectedIds);
+  if (ids.length === 0) return;
+  if (!confirm('Delete ' + ids.length + ' scraper' + (ids.length === 1 ? '' : 's')
+               + '? Their permits stay in the database.')) return;
+  var btn = document.getElementById('scBulkDeleteBtn');
+  btn.disabled = true; btn.textContent = 'Deleting…';
+  try {
+    var fd = new FormData();
+    for (var i = 0; i < ids.length; i++) fd.append('ids', ids[i]);
+    var r = await fetch('/admin-panel/scrapers/bulk-delete/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+      body: fd,
+    });
+    var d = {};
+    try { d = await r.json(); } catch(_) {}
+    if (r.ok && d.ok){
+      toast('Deleted ' + d.deleted + ' scraper' + (d.deleted === 1 ? '' : 's') + '.', 'ok');
+      clearBulkSelection();
+      window.scrapersTable && window.scrapersTable.ajax.reload(null, false);
+    } else {
+      toast('Bulk delete failed: ' + (d.error || ('HTTP ' + r.status)), 'err');
+    }
+  } catch (e){
+    toast('Network error: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Delete selected';
+  }
+}
+
+(function(){
+  // Seed the State dropdown server-side; mirror the seed into the
+  // City dropdown on page load so a deep-linked ?state=CA&city=Lancaster
+  // works on first paint.
+  refreshCityOptions();
+  document.getElementById('scState').addEventListener('change', function(){
+    refreshCityOptions();
+    reloadScrapers();
+  });
+  document.getElementById('scCity').addEventListener('change', reloadScrapers);
+  document.getElementById('scStatus').addEventListener('change', reloadScrapers);
+  // Debounced search-as-you-type
+  var qEl = document.getElementById('scQ'), qTo;
+  qEl.addEventListener('input', function(){
+    clearTimeout(qTo);
+    qTo = setTimeout(reloadScrapers, 300);
+  });
+
+  // Edit-modal wiring: form submit, overlay click-to-close, Esc.
+  document.getElementById('scEditForm').addEventListener('submit', submitEditScraper);
+  document.getElementById('scEditOverlay').addEventListener('click', function(e){
+    if (e.target === this) closeEditScraper();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && document.getElementById('scEditOverlay').classList.contains('open')) {
+      closeEditScraper();
+    }
+  });
+
+  function readFilters(d){
+    d.q      = document.getElementById('scQ').value || '';
+    d.state  = document.getElementById('scState').value || '';
+    d.city   = document.getElementById('scCity').value || '';
+    d.status = document.getElementById('scStatus').value || '';
+    return d;
+  }
+
+  // Sanity-check: if a CDN failed to load (corporate firewall, cached
+  // 502, etc.) jQuery or DataTables won't be on window. Surface that
+  // immediately in-page so the admin doesn't see "headers, no rows"
+  // and have to open devtools to figure out why.
+  if (typeof jQuery === 'undefined') {
+    document.querySelector('#scrapersTable tbody').innerHTML =
+      '<tr><td colspan="9" style="padding:24px;text-align:center;color:#dc2626;">'
+      + 'Could not load <code>/lib/core.min.js</code>. '
+      + 'A network error, proxy, or browser MIME-strictness setting is blocking it. '
+      + 'Try a hard-refresh (Ctrl+Shift+R) or a different browser.</td></tr>';
+    return;
+  }
+  if (!jQuery.fn || !jQuery.fn.DataTable) {
+    document.querySelector('#scrapersTable tbody').innerHTML =
+      '<tr><td colspan="9" style="padding:24px;text-align:center;color:#dc2626;">'
+      + 'Could not load <code>/lib/grid.min.js</code>. '
+      + 'A network error, proxy, or browser MIME-strictness setting is blocking it.</td></tr>';
+    return;
+  }
+
+  var table = jQuery('#scrapersTable').DataTable({
+    serverSide: true,
+    processing: true,
+    searching:  false,            // we have our own filter form
+    lengthMenu: [[25,50,100,200],[25,50,100,200]],
+    pageLength: 25,
+    order:      [[5,'desc']],     // Last Run, newest first (col 5 — checkbox is col 0 now)
+    dom:        'rt<"dt-foot"lip>',
+    deferRender: true,
+    ajax: {
+      url:     '/admin-panel/scrapers/data.json',
+      data:    function(d){ return readFilters(d); },
+      dataSrc: function(json){
+        var c = document.getElementById('scTotal');
+        if (c) c.textContent = json.recordsTotal;
+        return json.data;
+      },
+      error:   function(xhr, status, err){
+        // Replace the empty-table area with a loud message so the
+        // admin can SEE that the AJAX failed (DataTables' default is
+        // to silently leave the body blank).
+        var msg = 'AJAX error (HTTP ' + xhr.status + '): ' + (err || status || 'unknown');
+        if (xhr.status === 302 || xhr.status === 401 || xhr.status === 403) {
+          msg = 'Session expired — please reload the page and sign in again.';
+        }
+        document.querySelector('#scrapersTable tbody').innerHTML =
+          '<tr><td colspan="9" style="padding:24px;text-align:center;color:#dc2626;">'
+          + esc(msg) + '</td></tr>';
+        toast(msg, 'err');
+      },
+    },
+    columns: [
+      // Bulk-select checkbox — first column. Not orderable / not searchable.
+      // Stays in sync with window._scSelectedIds via the change handler in initBulkSelection().
+      {data:null, orderable:false, className:'sc-checkcell', render:function(s){
+        var checked = window._scSelectedIds && window._scSelectedIds[s.id] ? ' checked' : '';
+        return '<input type="checkbox" class="sc-rowcheck" data-sid="' + esc(s.id) + '"' + checked + '>';
+      }},
+      // Name
+      {data:null, render:function(s){
+        var meta = '';
+        if (s.city || s.state){
+          meta = '<div class="sc-meta">' + esc(s.city || '');
+          if (s.state) meta += (s.city ? ', ' : '') + esc(s.state);
+          meta += '</div>';
+        }
+        return '<a class="sc-name" href="/admin-panel/scrapers/' + esc(s.id) + '/">'
+             + esc(s.name) + '</a>' + meta;
+      }, name:'name'},
+      // URL — full URL is shown (truncated with ellipsis when it
+      // exceeds 340 px) and the whole text is itself the clickable
+      // link that opens the source portal in a new tab. The tiny
+      // external-link icon is kept as a visual cue so admins can tell
+      // at a glance that the cell is clickable. Non-http(s) values
+      // render as plain text (no link) so we never produce a
+      // target=_blank link to a relative path.
+      {data:null, orderable:false, render:function(s){
+        var u = String(s.url || '');
+        var safe = /^https?:\/\//i.test(u);
+        if (!safe){
+          return '<span class="sc-urlcell"><span class="sc-urllink" title="'
+               + esc(u) + '" style="color:var(--muted);">' + esc(u) + '</span></span>';
+        }
+        return '<span class="sc-urlcell">'
+             +   '<a class="sc-urllink" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer"'
+             +     ' title="Open ' + esc(u) + ' in a new tab">' + esc(u) + '</a>'
+             +   '<a class="sc-urlopen" href="' + esc(u) + '" target="_blank" rel="noopener noreferrer"'
+             +     ' title="Open in a new tab" aria-label="Open scraper URL in a new tab">'
+             +     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>'
+             +   '</a>'
+             + '</span>';
+      }, name:'url'},
+      // City — sortable on its own (separate column from State so an
+      // admin can sort by either independently).
+      {data:null, render:function(s){
+        if (!s.city) return '<span style="color:var(--muted);">—</span>';
+        return '<span class="sc-citystate">' + esc(s.city) + '</span>';
+      }, name:'city'},
+      // State — small uppercase pill, sortable. Always rendered as the
+      // 2-letter postal code that create_scraper stores.
+      {data:null, render:function(s){
+        if (!s.state) return '<span style="color:var(--muted);">—</span>';
+        return '<span class="sc-statepill" style="margin:0;">' + esc(s.state) + '</span>';
+      }, name:'state'},
+      // Last Run
+      {data:'last_run_at', render:function(d){ return d ? esc(d) : '—'; }},
+      // Permits count
+      {data:'total_permits', render:function(d){
+        return '<span style="font-weight:600;">' + esc(d) + '</span>';
+      }},
+      // Status pill — shows live status from DB, plus batch overlay (waiting) during Run All
+      {data:null, orderable:false, render:function(s){
+        var bs = window._scBatchStatus || {};
+        var bst = bs[s.id];
+        if (bst === 'waiting') return '<span class="sc-pill waiting">waiting</span>';
+        if (!s.enabled) return '<span class="sc-pill off">disabled</span>';
+        var st = (s.last_run_status || '').toLowerCase();
+        if (st === 'running') return '<span class="sc-pill working">running</span>';
+        if (st === 'success') return '<span class="sc-pill ok">success</span>';
+        if (st === 'failed')  return '<span class="sc-pill failed">failed</span>';
+        if (st === 'cancelled') return '<span class="sc-pill off">cancelled</span>';
+        if (st === 'partial') return '<span class="sc-pill partial">partial</span>';
+        return '<span class="sc-pill idle">idle</span>';
+      }},
+      // Actions — Run/Stop, Edit (modal), Open (detail page), Delete.
+      {data:null, orderable:false, render:function(s){
+        var isRunning = (s.last_run_status || '').toLowerCase() === 'running';
+        var runBtn;
+        if (isRunning) {
+          runBtn = '<button class="sc-btn danger" type="button" onclick="stopRun(' + esc(s.id) + ')">Stop</button>';
+        } else if (!s.enabled) {
+          runBtn = '<button class="sc-btn" type="button" disabled title="This scraper is disabled — click Enable to run it">Run</button>';
+        } else {
+          runBtn = '<button class="sc-btn primary" type="button" onclick="runNow(' + esc(s.id) + ')">Run</button>';
+        }
+        var toggleBtn = s.enabled
+          ? '<button class="sc-btn" type="button" onclick="toggleEnabled(' + esc(s.id) + ', false)" title="Disable — skip this scraper in Run All &amp; cron, and block manual runs until re-enabled">Disable</button>'
+          : '<button class="sc-btn primary" type="button" onclick="toggleEnabled(' + esc(s.id) + ', true)" title="Enable — include this scraper in Run All, cron and manual runs">Enable</button>';
+        return '<div class="sc-actions">'
+             +   runBtn
+             +   toggleBtn
+             +   '<button class="sc-btn" type="button" onclick="openEditScraper(this)">Edit</button>'
+             +   '<a class="sc-btn" href="/admin-panel/scrapers/' + esc(s.id) + '/">Open</a>'
+             +   '<button class="sc-btn danger" type="button" onclick="deleteScraper(' + esc(s.id) + ', \'' + esc(String(s.name).replace(/'/g, "\\'")) + '\')">Delete</button>'
+             + '</div>';
+      }},
+    ],
+    language: {
+      emptyTable: 'No scrapers configured yet — click "+ New Scraper" to add one.',
+      zeroRecords: 'No scrapers match the current filters.',
+      info: 'Showing _START_–_END_ of _TOTAL_ scrapers',
+      infoEmpty: 'No scrapers',
+      infoFiltered: ' (filtered from _MAX_ total)',
+      lengthMenu: '_MENU_ per page',
+      paginate: { previous: '‹ Prev', next: 'Next ›' },
+      processing: 'Loading…',
+    },
+  });
+  window.scrapersTable = table;
+
+  // Row-checkbox change handler — delegated on the table body so it
+  // survives DataTables redraws (paging, filtering, sorting). Updates
+  // the canonical _scSelectedIds map and refreshes the bulk bar.
+  jQuery('#scrapersTable tbody').on('change', '.sc-rowcheck', function(){
+    var sid = this.getAttribute('data-sid');
+    if (this.checked) window._scSelectedIds[sid] = true;
+    else              delete window._scSelectedIds[sid];
+    updateBulkBar();
+  });
+  // After each draw, refresh the bulk bar so the header "select all"
+  // checkbox reflects the new page's state.
+  table.on('draw', updateBulkBar);
+})();
+
+window._scBatchStatus = {};
+window._scBatchId = null;
+window._scBatchPoll = null;
+window._scBatchEnabledIds = [];
+
+// Auto-refresh table every 30 seconds so Status column stays current
+setInterval(function(){
+  if (window.scrapersTable) {
+    window.scrapersTable.ajax.reload(null, false);
+  }
+}, 30000);
+
+// On page load, check for an active batch and resume polling
+(async function resumeActiveBatch(){
+  try {
+    var r = await fetch('/admin-panel/scrapers/active-batch/');
+    if (!r.ok) return;
+    var d = await r.json();
+    if (d.ok && d.batch_id) {
+      window._scBatchId = d.batch_id;
+      showBatchRunning();
+      var bar = document.getElementById('scRunAllBar');
+      bar.classList.add('active');
+      document.getElementById('scRunAllLabel').textContent = 'Batch in progress…';
+      startBatchPolling(d.batch_id);
+    }
+  } catch(e) {}
+})();
+
+async function runAllScrapers() {
+  var btn = document.getElementById('scRunAllBtn');
+  if (btn.disabled) return;
+  var threads = parseInt(document.getElementById('scThreads').value) || 5;
+  threads = Math.max(1, Math.min(threads, 10));
+  document.getElementById('scThreads').value = threads;
+  if (!confirm('Run all enabled scrapers (' + threads + ' at a time)? This may take a while.')) return;
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+  toast('Starting batch run (' + threads + ' threads)…');
+  try {
+    var fd = new FormData();
+    fd.append('concurrency', threads);
+    fd.append('max_pages', String(getGlobalMaxPages()));
+    var r = await fetch('/admin-panel/scrapers/run-all/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+      body: fd,
+    });
+    var d = await r.json();
+    if (!d.ok) {
+      toast('Failed: ' + (d.error || 'unknown'), 'err');
+      showBatchIdle();
+      return;
+    }
+    window._scBatchId = d.batch_id;
+    window._scBatchStatus = {};
+    window._scBatchEnabledIds = [];
+    showBatchRunning();
+    var bar = document.getElementById('scRunAllBar');
+    bar.classList.add('active');
+    document.getElementById('scRunAllLabel').textContent = 'Running all scrapers…';
+    document.getElementById('scRunAllFill').style.width = '0%';
+    document.getElementById('scRunAllNote').textContent = 'Starting…';
+    toast('Batch started — polling for status…', 'ok');
+    startBatchPolling(d.batch_id);
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+    showBatchIdle();
+  }
+}
+async function stopRunAll() {
+  if (!confirm('Stop all running scrapers?')) return;
+  var btn = document.getElementById('scStopAllBtn');
+  btn.disabled = true;
+  btn.textContent = 'Stopping…';
+  try {
+    var r = await fetch('/admin-panel/scrapers/stop-all/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCsrf()},
+    });
+    var d = await r.json();
+    if (d.ok) {
+      toast(d.msg || 'Batch stopped', 'ok');
+    } else {
+      toast('Stop failed: ' + (d.error || 'unknown'), 'err');
+    }
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+  }
+}
+
+function startBatchPolling(batchId) {
+  if (window._scBatchPoll) clearInterval(window._scBatchPoll);
+  window._scBatchPoll = setInterval(function(){ pollBatchStatus(batchId); }, 2000);
+  pollBatchStatus(batchId);
+}
+
+async function pollBatchStatus(batchId) {
+  try {
+    var r = await fetch('/admin-panel/scrapers/cron/batch/' + batchId + '/');
+    if (!r.ok) return;
+    var d = await r.json();
+    if (!d.ok) return;
+
+    var children = d.children || [];
+    var allIds = d.all_scraper_ids || [];
+    var newStatus = {};
+    var doneCount = 0;
+
+    var childMap = {};
+    for (var i = 0; i < children.length; i++) {
+      var c = children[i];
+      childMap[c.scraper_id] = c;
+      if (c.finished) {
+        var st = (c.status || '').toLowerCase();
+        newStatus[c.scraper_id] = (st === 'success') ? 'success' : 'failed';
+        doneCount++;
+      } else {
+        newStatus[c.scraper_id] = 'working';
+      }
+    }
+
+    for (var k = 0; k < allIds.length; k++) {
+      if (!newStatus[allIds[k]]) {
+        newStatus[allIds[k]] = 'waiting';
+      }
+    }
+
+    var totalEnabled = allIds.length || children.length;
+    window._scBatchStatus = newStatus;
+
+    var pct = totalEnabled > 0 ? Math.round(100 * doneCount / totalEnabled) : 0;
+    document.getElementById('scRunAllFill').style.width = pct + '%';
+    document.getElementById('scRunAllNote').textContent = doneCount + ' / ' + totalEnabled + ' done';
+
+    // Status column refreshes via the 30-second ajax.reload below;
+    // the per-row cell injection used to live here but it wrote into
+    // td:nth-child(7) (the Permits column!) and clobbered the permit
+    // counts mid-batch. The renderer reads window._scBatchStatus on
+    // the next draw so "waiting" pills still appear when DataTables
+    // redraws — we just don't surgically poke individual <td>s.
+
+    if (d.finished) {
+      clearInterval(window._scBatchPoll);
+      window._scBatchPoll = null;
+      showBatchIdle();
+      window._scBatchStatus = {};
+      var summary = d.note || '';
+      try { var np = JSON.parse(summary); summary = np.summary || summary; } catch(_){}
+      var finalSt = (d.status || '').toLowerCase();
+      if (finalSt === 'success') {
+        document.getElementById('scRunAllLabel').textContent = 'Batch complete!';
+        toast('All scrapers finished successfully!', 'ok');
+      } else if (finalSt === 'cancelled') {
+        document.getElementById('scRunAllLabel').textContent = 'Batch cancelled';
+        toast('Batch cancelled — ' + summary, 'ok');
+      } else if (finalSt === 'failed') {
+        document.getElementById('scRunAllLabel').textContent = 'Batch failed';
+        toast('Batch failed — ' + summary, 'err');
+      } else {
+        document.getElementById('scRunAllLabel').textContent = 'Batch done (partial)';
+        toast('Batch done: ' + summary, 'ok');
+      }
+      if (window.scrapersTable) {
+        setTimeout(function(){ window.scrapersTable.ajax.reload(null, false); }, 1500);
+      }
+    }
+  } catch (e) {
+    // network hiccup — keep polling
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% comment %}
+  Soft-lock "Preview Mode" banner — included at the top of every
+  protected page (dashboard, permits, notifications, support, api
+  portal). Renders only when ``is_locked`` is True (i.e. user has
+  no active subscription). Replaces the old hard /paywall/ redirect
+  with an in-place upgrade CTA so users can still explore the app.
+
+  Usage:
+    {% include "core/_locked_banner.html" %}
+{% endcomment %}
+{% if is_locked %}
+<style>
+  .lk-banner{
+    position:relative;overflow:hidden;border-radius:18px;
+    background:linear-gradient(135deg,#0f172a 0%,#1e293b 55%,#1d4ed8 100%);
+    color:#fff;padding:22px 26px;margin-bottom:22px;
+    box-shadow:0 10px 30px -12px rgba(29,78,216,.4),0 2px 8px rgba(15,23,42,.08);
+    display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center;
+  }
+  .lk-banner::before{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(800px 200px at 100% -20%, rgba(16,185,129,.25), transparent 60%),
+               radial-gradient(600px 200px at 0% 120%, rgba(59,130,246,.25), transparent 60%);
+    pointer-events:none;
+  }
+  .lk-icon{
+    width:54px;height:54px;border-radius:14px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    backdrop-filter:blur(8px);position:relative;z-index:1;
+  }
+  .lk-icon svg{width:24px;height:24px;color:#fff;}
+  .lk-text{position:relative;z-index:1;min-width:0;}
+  .lk-tag{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:'JetBrains Mono','DM Sans',monospace;font-size:10px;font-weight:700;
+    color:#bef264;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:6px;
+  }
+  .lk-tag::before{
+    content:"";width:6px;height:6px;border-radius:50%;background:#84cc16;
+    box-shadow:0 0 10px #84cc16;animation:lk-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes lk-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .lk-title{
+    font-family:'Plus Jakarta Sans','Inter',sans-serif;
+    font-size:18px;font-weight:800;letter-spacing:-.3px;line-height:1.25;margin-bottom:4px;
+  }
+  .lk-sub{font-size:13.5px;color:rgba(255,255,255,.78);line-height:1.5;}
+  .lk-perks{
+    display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;
+    font-size:12px;color:rgba(255,255,255,.85);
+  }
+  .lk-perk{display:inline-flex;align-items:center;gap:6px;}
+  .lk-perk svg{width:13px;height:13px;color:#10b981;}
+  .lk-cta-wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+  .lk-cta{
+    display:inline-flex;align-items:center;gap:8px;
+    background:#fff;color:#0f172a;font-weight:700;font-size:13.5px;
+    padding:11px 20px;border-radius:10px;text-decoration:none;
+    box-shadow:0 4px 14px -2px rgba(0,0,0,.25);
+    transition:transform .15s ease,box-shadow .15s ease;
+  }
+  .lk-cta:hover{transform:translateY(-1px);box-shadow:0 6px 18px -2px rgba(0,0,0,.3);}
+  .lk-cta svg{width:14px;height:14px;}
+  .lk-trial{font-size:11px;color:rgba(255,255,255,.6);}
+  @media (max-width:780px){
+    .lk-banner{grid-template-columns:auto 1fr;}
+    .lk-cta-wrap{grid-column:1 / -1;align-items:stretch;}
+    .lk-cta{justify-content:center;}
+  }
+</style>
+<div class="lk-banner" role="region" aria-label="Account in preview mode">
+  <div class="lk-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2"/>
+      <path d="M7 11V7a5 5 0 0110 0v4"/>
+    </svg>
+  </div>
+  <div class="lk-text">
+    <div class="lk-tag">Preview Mode</div>
+    <div class="lk-title">You're exploring Permitlify — pick a plan to unlock daily AI-scored permit alerts</div>
+    <div class="lk-sub">Browse the dashboard, see the layout, configure your cities. To start receiving real permits in your inbox each morning, choose a plan below.</div>
+    <div class="lk-perks">
+      <span class="lk-perk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Free trial on every plan</span>
+      <span class="lk-perk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Cancel anytime</span>
+      <span class="lk-perk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>From $1 the first month</span>
+    </div>
+  </div>
+  <div class="lk-cta-wrap">
+    <a href="/settings/#billing" class="lk-cta">
+      Choose a Plan
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </a>
+    <span class="lk-trial">Takes less than a minute</span>
+  </div>
+</div>
+{% endif %}

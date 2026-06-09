@@ -1,0 +1,101 @@
+{% extends "dashboard/base.html" %}
+{% block title %}API Settings — Admin — GoldenProxies{% endblock %}
+{% block mobile_title %}API Settings{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-2xl mx-auto space-y-5">
+
+  <div>
+    <h1 class="text-2xl font-serif font-bold text-gray-900">API Settings</h1>
+    <p class="text-sm text-gray-400 mt-1">Configure AI and scraping API keys used by the blog post generator.</p>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="px-4 py-3 rounded-xl text-sm font-medium border
+      {% if 'error' in msg.tags %}border-red-300 bg-red-50/80 text-red-700
+      {% else %}border-green-300 bg-green-50/80 text-green-700{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    <!-- DigitalOcean Inference -->
+    <div class="glass-card rounded-2xl p-6 shadow-md">
+      <div class="flex items-center gap-3 mb-4 flex-wrap">
+        <div class="w-10 h-10 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] text-lg font-serif font-bold flex-shrink-0">DO</div>
+        <div class="min-w-0 flex-1">
+          <h2 class="font-bold text-gray-900">DigitalOcean Inference</h2>
+          <p class="text-xs text-gray-400">Used for AI blog post generation and scrape-and-rewrite.</p>
+        </div>
+        <div class="ml-auto">
+          {% if do_set %}
+          <span class="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">● Configured</span>
+          {% else %}
+          <span class="text-xs font-semibold text-gray-400 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full">Not set</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">API Key</label>
+          <input type="password" name="do_api_key" placeholder="{% if do_set %}•••••••• (set){% else %}doo_v1_…{% endif %}"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+          <p class="text-xs text-gray-400 mt-1">
+            {% if do_set %}Key is set. Leave blank to keep, or paste a new one to replace.
+            {% else %}Get your key from the <a href="https://cloud.digitalocean.com/" target="_blank" class="text-[#D4AF37] hover:underline">DigitalOcean console</a>. Endpoint: <code class="px-1 rounded bg-gray-100 text-gray-700">https://inference.do-ai.run/v1</code>.{% endif %}
+          </p>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Model</label>
+          <input type="text" name="do_model" value="{{ do_model }}" placeholder="{{ do_default_model }}"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+          <p class="text-xs text-gray-400 mt-1">Default: <code class="px-1 rounded bg-gray-100 text-gray-700">{{ do_default_model }}</code> (OpenAI GPT OSS 20B). Change to any model your DO Inference account exposes.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Datacenter Proxy (research scraper) -->
+    <div class="glass-card rounded-2xl p-6 shadow-md">
+      <div class="flex items-center gap-3 mb-4 flex-wrap">
+        <div class="w-10 h-10 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] text-lg flex-shrink-0">⚡</div>
+        <div class="min-w-0 flex-1">
+          <h2 class="font-bold text-gray-900">Datacenter Proxy (Research Scraper)</h2>
+          <p class="text-xs text-gray-400">HTTP proxy with basic authentication, used to fetch research URLs for the blog generator. Optional.</p>
+        </div>
+        <div class="ml-auto">
+          {% if proxy_set %}
+          <span class="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">● Configured</span>
+          {% else %}
+          <span class="text-xs font-semibold text-gray-400 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full">Not set</span>
+          {% endif %}
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Proxy URL</label>
+        <input type="text" name="proxy_url" value="{{ proxy_url }}" placeholder="user:pass@host:port"
+          class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+        <p class="text-xs text-gray-400 mt-2">
+          Single-line format: <code class="px-1 rounded bg-gray-100 text-gray-700">user:pass@host:port</code> (or <code class="px-1 rounded bg-gray-100 text-gray-700">http://user:pass@host:port</code>). The same proxy is used for both HTTP and HTTPS targets.
+        </p>
+      </div>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit" class="gold-btn px-8 py-2.5 rounded-xl text-sm font-semibold">Save API Settings</button>
+    </div>
+  </form>
+
+  <!-- Usage info -->
+  <div class="glass-card rounded-2xl p-5 text-xs text-gray-400 space-y-1.5">
+    <p class="font-semibold text-gray-600 text-sm">How these settings are used</p>
+    <p>• <strong>DO Inference</strong> generates the blog post title, meta description, tags, excerpt, and full HTML content, and rewrites scraped articles into original posts.</p>
+    <p>• <strong>Datacenter Proxy</strong> (optional) scrapes reference URLs through an authenticated HTTP proxy.</p>
+    <p>• Credentials are stored in the database and passwords are never displayed back in the UI after saving.</p>
+    <p class="pt-2">Looking for outbound email configuration? See <a href="/admin-panel/email-settings/" class="text-[#D4AF37] font-semibold hover:underline">Email Settings →</a></p>
+  </div>
+
+</div>
+{% endblock %}

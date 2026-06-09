@@ -1,0 +1,175 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Email Settings — Admin — GoldenProxies{% endblock %}
+{% block mobile_title %}Email Settings{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-6xl mx-auto space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-2xl font-serif font-bold text-gray-900">Email Settings</h1>
+      <p class="text-sm text-gray-500 mt-1">Configure your Resend API key and per-service sender identity for transactional email.</p>
+    </div>
+    {% if resend_set %}
+    <span class="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">● Resend Connected</span>
+    {% else %}
+    <span class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">⚠ Not configured</span>
+    {% endif %}
+  </div>
+
+  {% if messages %}
+    {% for m in messages %}
+    <div class="rounded-xl px-4 py-3 text-sm
+      {% if m.tags == 'success' %}bg-green-50 border border-green-200 text-green-800
+      {% elif m.tags == 'error' %}bg-red-50 border border-red-200 text-red-800
+      {% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <!-- ═══════════ STEP 1: RESEND API KEY ═══════════ -->
+    <div class="glass-card rounded-2xl p-6 shadow-md">
+      <div class="flex items-start gap-4 mb-5 pb-5 border-b border-[#D4AF37]/10">
+        <div class="w-10 h-10 rounded-full bg-[#D4AF37] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">1</div>
+        <div class="min-w-0 flex-1">
+          <h2 class="font-bold text-gray-900 text-lg">Resend API Key</h2>
+          <p class="text-sm text-gray-500 mt-0.5">
+            Get a key at <a href="https://resend.com/api-keys" target="_blank" rel="noopener" class="text-[#D4AF37] font-semibold hover:underline">resend.com/api-keys</a>.
+            Verify your sending domain at <a href="https://resend.com/domains" target="_blank" rel="noopener" class="text-[#D4AF37] font-semibold hover:underline">resend.com/domains</a>
+            so you can send from <code class="px-1 rounded bg-gray-100 text-gray-700 text-xs">@goldenproxies.com</code>.
+            Until then, use <code class="px-1 rounded bg-gray-100 text-gray-700 text-xs">{{ resend_default_from }}</code> for testing.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Resend API Key</label>
+        <div class="flex items-center gap-3">
+          <input type="password" name="resend_api_key"
+            placeholder="{% if resend_set %}•••••••• (set){% else %}re_xxxxxxxxxxxxxxxxxxxxxxxx{% endif %}"
+            class="flex-1 px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+          {% if resend_set %}
+          <span class="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full whitespace-nowrap">● Configured</span>
+          {% else %}
+          <span class="text-xs font-semibold text-gray-400 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full whitespace-nowrap">Not set</span>
+          {% endif %}
+        </div>
+        <p class="text-xs text-gray-400 mt-2">Stored in the database, masked in the UI. Leave blank to keep the existing key.</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5 pt-5 border-t border-[#D4AF37]/10">
+        <div class="sm:col-span-2">
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Default From Email</label>
+          <input type="email" name="resend_from_email" value="{{ resend_from_email }}" placeholder="{{ resend_default_from }}"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+          <p class="text-[11px] text-gray-400 mt-1">Used when a per-service sender below leaves the From field blank.</p>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Default From Name</label>
+          <input type="text" name="resend_from_name" value="{{ resend_from_name }}" placeholder="GoldenProxies"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ STEP 2: PER-SERVICE SENDERS ═══════════ -->
+    <div>
+      <div class="flex items-start gap-4 mb-4">
+        <div class="w-10 h-10 rounded-full bg-[#D4AF37] text-white flex items-center justify-center font-bold text-sm flex-shrink-0">2</div>
+        <div class="min-w-0 flex-1">
+          <h2 class="font-bold text-gray-900 text-lg">Per-service sender configuration</h2>
+          <p class="text-sm text-gray-500 mt-0.5">Customize the From address, display name, and reply-to per email type. Leave any field blank to fall back to the default sender above.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {% for s in services %}
+        <div class="glass-card rounded-2xl p-5 shadow-md">
+          <div class="flex items-start gap-3 mb-4 pb-4 border-b border-[#D4AF37]/10">
+            <div class="w-9 h-9 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-base flex-shrink-0">{{ s.icon }}</div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="font-bold text-gray-900">{{ s.label }}</h3>
+                {% if s.from_email or s.from_name or s.reply_to %}
+                <span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">CUSTOM</span>
+                {% else %}
+                <span class="text-[10px] font-bold text-gray-400 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">DEFAULT</span>
+                {% endif %}
+              </div>
+              <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{{ s.desc }}</p>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">From Email Address</label>
+              <input type="email" name="email_{{ s.slug }}_from" value="{{ s.from_email }}" placeholder="{{ s.default_from }}"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+              {% if not s.from_email and s.effective_from %}
+              <p class="text-[11px] text-gray-400 mt-1">→ Currently using default: <code class="font-mono text-gray-500">{{ s.effective_from }}</code></p>
+              {% endif %}
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Display Name</label>
+              <input type="text" name="email_{{ s.slug }}_name" value="{{ s.from_name }}" placeholder="GoldenProxies {{ s.label }}"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Reply-To <span class="text-gray-400 font-normal normal-case">(optional)</span></label>
+              <input type="email" name="email_{{ s.slug }}_replyto" value="{{ s.reply_to }}" placeholder="reply@goldenproxies.com"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-3">
+      <button type="submit" class="gold-btn px-8 py-2.5 rounded-xl text-sm font-semibold">Save Email Settings</button>
+    </div>
+  </form>
+
+  <!-- ═══════════ TEST EMAIL ═══════════ -->
+  <div class="glass-card rounded-2xl p-5 shadow-md">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-9 h-9 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">✉</div>
+      <div class="min-w-0 flex-1">
+        <h3 class="font-bold text-gray-900">Send a test email</h3>
+        <p class="text-xs text-gray-500">Verify each service sender actually delivers via Resend. Pick a sender, enter a recipient, and hit send.</p>
+      </div>
+    </div>
+    <form method="post" action="{% url 'admin_send_test_email' %}" class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+      {% csrf_token %}
+      <div class="sm:col-span-4">
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Sender</label>
+        <select name="service" class="w-full px-3.5 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
+          <option value="">— Default —</option>
+          {% for s in services %}
+          <option value="{{ s.slug }}">{{ s.icon }} {{ s.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="sm:col-span-5">
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">To</label>
+        <input type="email" name="to_email" value="{{ request.user.email }}" placeholder="recipient@example.com"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+      </div>
+      <div class="sm:col-span-3">
+        <button type="submit" {% if not resend_set %}disabled{% endif %}
+          class="w-full glass-btn px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap
+          {% if not resend_set %}opacity-50 cursor-not-allowed{% endif %}">
+          ✉ Send test
+        </button>
+      </div>
+    </form>
+    {% if not resend_set %}
+    <p class="text-xs text-amber-600 mt-3">⚠ Save your Resend API key above before sending a test email.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#1d4ed8">
+<title>Permitlify — Set Up Your Account</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --pr:#1d4ed8;--pr2:#3b82f6;--pr3:#1e3a8a;
+  --pd:rgba(29,78,216,.09);
+  --ac:#059669;--ac2:#10b981;
+  --grad:linear-gradient(135deg,#1d4ed8 0%,#059669 100%);
+  --tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;
+  --re:#dc2626;--reld:rgba(220,38,38,.08);
+  --b1:rgba(0,0,0,.07);--sur2:#f8fafc;
+}
+body{font-family:'DM Sans',sans-serif;min-height:100vh;display:grid;grid-template-columns:1fr 1fr;-webkit-font-smoothing:antialiased;}
+@media(max-width:820px){body{grid-template-columns:1fr;}}
+
+/* LEFT */
+.left{background:linear-gradient(155deg,#0f172a 0%,#111827 60%,#0d1f3c 100%);padding:48px 52px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;}
+.left::before{content:'';position:absolute;top:-80px;right:-80px;width:420px;height:420px;background:radial-gradient(circle,rgba(29,78,216,.12) 0%,transparent 65%);pointer-events:none;}
+.left::after{content:'';position:absolute;bottom:-60px;left:-40px;width:320px;height:320px;background:radial-gradient(circle,rgba(5,150,105,.08) 0%,transparent 65%);pointer-events:none;}
+@media(max-width:820px){.left{display:none;}}
+
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:52px;text-decoration:none;}
+.logo-icon{width:40px;height:40px;border-radius:10px;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 0 24px rgba(29,78,216,.4);}
+.logo-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:800;color:#f1f5f9;letter-spacing:-.4px;}
+
+.step-nav{display:flex;flex-direction:column;gap:6px;margin-bottom:40px;}
+.snav-item{display:flex;align-items:center;gap:14px;padding:10px 0;opacity:.4;transition:opacity .25s;}
+.snav-item.active{opacity:1;}
+.snav-item.done{opacity:.65;}
+.snav-num{width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;color:#f1f5f9;flex-shrink:0;}
+.snav-item.active .snav-num{background:var(--grad);border-color:transparent;box-shadow:0 0 16px rgba(29,78,216,.5);}
+.snav-item.done .snav-num{background:#059669;border-color:transparent;}
+.snav-label{font-size:14px;font-weight:500;color:#f1f5f9;}
+.snav-desc{font-size:12px;color:#64748b;margin-top:1px;}
+.snav-connector{width:2px;height:18px;background:rgba(255,255,255,.08);margin-left:14px;}
+
+.headline{font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(24px,3vw,36px);font-weight:800;color:#f1f5f9;line-height:1.15;letter-spacing:-1px;margin-bottom:14px;}
+.subline{font-size:14.5px;color:#94a3b8;line-height:1.7;max-width:340px;}
+
+/* RIGHT */
+.right{background:#fff;padding:48px 52px;display:flex;flex-direction:column;justify-content:center;overflow-y:auto;}
+@media(max-width:820px){.right{padding:32px 24px;}}
+
+.mob-logo{display:none;align-items:center;gap:10px;margin-bottom:32px;text-decoration:none;}
+.mob-logo-icon{width:34px;height:34px;border-radius:9px;background:var(--grad);display:flex;align-items:center;justify-content:center;}
+.mob-logo-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;color:var(--tx);letter-spacing:-.3px;}
+@media(max-width:820px){.mob-logo{display:flex;}}
+
+.progress-bar{display:flex;gap:6px;margin-bottom:32px;}
+.pb-seg{height:4px;border-radius:4px;flex:1;background:#e2e8f0;transition:background .3s;}
+.pb-seg.filled{background:var(--grad);}
+
+.form-card{max-width:440px;width:100%;}
+.step-label{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:#10b981;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.step-label::before{content:'';display:block;width:16px;height:2px;background:#10b981;border-radius:2px;}
+.form-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:800;color:var(--tx);letter-spacing:-.6px;margin-bottom:8px;}
+.form-sub{font-size:14px;color:var(--tx2);line-height:1.6;margin-bottom:28px;}
+
+.err-box{background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13.5px;color:#b91c1c;display:flex;gap:10px;align-items:flex-start;}
+.err-box svg{flex-shrink:0;margin-top:1px;}
+
+/* Form elements */
+.field{margin-bottom:18px;}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--tx);margin-bottom:6px;}
+.field select,.field input[type=text]{width:100%;height:46px;border:1.5px solid #e2e8f0;border-radius:10px;padding:0 14px;font-size:14.5px;color:var(--tx);background:#fff;transition:border-color .2s,box-shadow .2s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;}
+.field select:focus,.field input[type=text]:focus{outline:none;border-color:var(--pr2);box-shadow:0 0 0 3px rgba(59,130,246,.12);}
+
+.fields-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:400px){.fields-row{grid-template-columns:1fr;}}
+
+/* T&C step */
+.tc-box{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin-bottom:20px;max-height:220px;overflow-y:auto;font-size:13px;color:var(--tx2);line-height:1.7;}
+.tc-box h4{font-size:13.5px;font-weight:700;color:var(--tx);margin-bottom:8px;}
+.tc-box p{margin-bottom:8px;}
+.checkbox-row{display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:14px 16px;border:1.5px solid #e2e8f0;border-radius:10px;transition:border-color .2s,background .2s;}
+.checkbox-row:hover{border-color:var(--pr2);background:rgba(59,130,246,.04);}
+.checkbox-row.checked{border-color:var(--pr);background:rgba(29,78,216,.05);}
+.checkbox-row input{display:none;}
+.checkbox-box{width:20px;height:20px;border-radius:5px;border:2px solid #cbd5e1;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;transition:all .2s;}
+.checkbox-row.checked .checkbox-box{background:var(--pr);border-color:var(--pr);}
+.checkbox-text{font-size:13.5px;color:var(--tx);line-height:1.5;}
+.checkbox-text a{color:var(--pr);text-decoration:none;font-weight:500;}
+.checkbox-text a:hover{text-decoration:underline;}
+
+/* Plan cards — redesigned: stacked vertical list, horizontal layout per row */
+.period-toggle{display:flex;background:#f1f5f9;border-radius:10px;padding:4px;gap:4px;margin-bottom:20px;width:fit-content;}
+.period-btn{padding:8px 20px;border-radius:7px;border:none;background:transparent;font-size:13.5px;font-weight:600;color:var(--tx2);cursor:pointer;transition:all .2s;}
+.period-btn.active{background:#fff;color:var(--tx);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.badge-save{display:inline-block;background:#dcfce7;color:#15803d;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:6px;vertical-align:middle;}
+
+.plans-grid{display:flex;flex-direction:column;gap:12px;margin-bottom:18px;}
+.plan-card{border:1.5px solid #e2e8f0;border-radius:14px;padding:16px 18px;transition:all .2s;position:relative;background:#fff;}
+.plan-card:hover{border-color:var(--pr2);box-shadow:0 4px 14px rgba(29,78,216,.08);transform:translateY(-1px);}
+.plan-card.popular{border-color:var(--pr);background:linear-gradient(135deg,rgba(29,78,216,.025),rgba(5,150,105,.025));}
+.plan-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;}
+.plan-row-l{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.plan-row-r{display:flex;align-items:baseline;gap:4px;flex-shrink:0;}
+.plan-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;color:var(--tx);letter-spacing:-.3px;}
+.plan-cities{font-size:12px;color:var(--tx3);font-weight:500;}
+.plan-price{font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;color:var(--tx);letter-spacing:-.8px;line-height:1;}
+.plan-price-unit{font-size:12.5px;font-weight:500;color:var(--tx3);}
+.plan-feats{list-style:none;display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0 12px;padding-left:0;}
+.plan-feats li{font-size:12px;color:var(--tx2);display:inline-flex;align-items:center;gap:5px;}
+.plan-feats li::before{content:'✓';font-weight:700;color:var(--ac2);font-size:11px;line-height:1;}
+.plan-btn{width:100%;padding:11px;border-radius:10px;border:none;font-size:13.5px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;}
+.plan-card:not(.popular) .plan-btn{background:#f1f5f9;color:var(--tx);}
+.plan-card:not(.popular) .plan-btn:hover{background:#e2e8f0;}
+.plan-card.popular .plan-btn{background:var(--grad);color:#fff;box-shadow:0 4px 14px rgba(29,78,216,.3);}
+.plan-card.popular .plan-btn:hover{box-shadow:0 6px 18px rgba(29,78,216,.4);transform:translateY(-1px);}
+.pop-badge{position:absolute;top:-9px;right:14px;background:var(--grad);color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:.4px;text-transform:uppercase;}
+.check-status{text-align:center;margin-top:12px;}
+.check-status a{font-size:13px;color:var(--tx3);text-decoration:none;}
+.check-status a:hover{color:var(--pr);}
+.check-status a span{font-weight:600;color:var(--tx2);}
+
+/* CTA Button */
+.btn-primary{width:100%;height:50px;border:none;border-radius:12px;background:var(--grad);color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:-.2px;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(29,78,216,.35);}
+.btn-primary:active{transform:translateY(0);}
+
+.back-link{text-align:center;margin-top:16px;font-size:13px;color:var(--tx3);}
+.back-link a{color:var(--tx2);text-decoration:none;font-weight:500;}
+.back-link a:hover{color:var(--pr);}
+</style>
+</head>
+<body>
+
+<!-- LEFT PANEL -->
+<div class="left">
+  <div>
+    <a class="logo" href="/">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <span class="logo-name">Permitlify</span>
+    </a>
+
+    <div class="step-nav">
+      <div class="snav-item {% if step >= 1 %}{% if step > 1 %}done{% else %}active{% endif %}{% endif %}">
+        <div class="snav-num">{% if step > 1 %}✓{% else %}1{% endif %}</div>
+        <div>
+          <div class="snav-label">Choose Your Plan</div>
+          <div class="snav-desc">Pick the plan that fits</div>
+        </div>
+      </div>
+      <div class="snav-connector"></div>
+      <div class="snav-item {% if step >= 2 %}{% if step > 2 %}done{% else %}active{% endif %}{% endif %}">
+        <div class="snav-num">{% if step > 2 %}✓{% else %}2{% endif %}</div>
+        <div>
+          <div class="snav-label">Service Area</div>
+          <div class="snav-desc">Pick your target city &amp; state</div>
+        </div>
+      </div>
+      <div class="snav-connector"></div>
+      <div class="snav-item {% if step >= 3 %}active{% endif %}">
+        <div class="snav-num">3</div>
+        <div>
+          <div class="snav-label">Review &amp; Pay</div>
+          <div class="snav-desc">Accept terms &amp; activate</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="headline">You're almost<br>ready to find<br>your next lead.</div>
+    <div class="subline">Permitlify surfaces permit activity before it hits Zillow — so you reach homeowners first.</div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right">
+  <a class="mob-logo" href="/">
+    <div class="mob-logo-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </div>
+    <span class="mob-logo-name">Permitlify</span>
+  </a>
+
+  <div class="progress-bar">
+    <div class="pb-seg {% if step >= 1 %}filled{% endif %}"></div>
+    <div class="pb-seg {% if step >= 2 %}filled{% endif %}"></div>
+    <div class="pb-seg {% if step >= 3 %}filled{% endif %}"></div>
+  </div>
+
+  <div class="form-card">
+
+    {% if error %}
+    <div class="err-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- ═══ STEP 1: PLAN ═══ -->
+    {% if step == 1 %}
+    <div class="step-label">Step 1 of 3</div>
+    <div class="form-title">Choose Your Plan</div>
+    <div class="form-sub">Pick the plan that fits — you'll set up your city next, then activate. All plans include a free trial.</div>
+
+    <div class="plans-grid" id="monthly-plans">
+      <!-- Starter Monthly -->
+      <div class="plan-card">
+        <div class="plan-row">
+          <div class="plan-row-l">
+            <div class="plan-name">Starter</div>
+            <div class="plan-cities">1 state</div>
+          </div>
+          <div class="plan-row-r">
+            <div class="plan-price">${{ pricing.starter_monthly }}</div>
+            <div class="plan-price-unit">/mo</div>
+          </div>
+        </div>
+        <ul class="plan-feats">
+          <li>Daily permit alerts</li>
+          <li>Email notifications</li>
+          <li>Basic lead scoring</li>
+        </ul>
+        <form method="post">{% csrf_token %}<input type="hidden" name="step" value="1"><input type="hidden" name="plan" value="starter"><input type="hidden" name="period" value="monthly"><button class="plan-btn" type="submit">Continue with Starter</button></form>
+      </div>
+      <!-- Pro Monthly -->
+      <div class="plan-card popular">
+        <div class="pop-badge">Most Popular</div>
+        <div class="plan-row">
+          <div class="plan-row-l">
+            <div class="plan-name">Pro</div>
+            <div class="plan-cities">Up to 2 states</div>
+          </div>
+          <div class="plan-row-r">
+            <div class="plan-price">${{ pricing.pro_monthly }}</div>
+            <div class="plan-price-unit">/mo</div>
+          </div>
+        </div>
+        <ul class="plan-feats">
+          <li>Everything in Starter</li>
+          <li>Priority lead scoring</li>
+          <li>Contractor matching</li>
+        </ul>
+        <form method="post">{% csrf_token %}<input type="hidden" name="step" value="1"><input type="hidden" name="plan" value="pro"><input type="hidden" name="period" value="monthly"><button class="plan-btn" type="submit">Continue with Pro</button></form>
+      </div>
+      <!-- Agency Monthly -->
+      <div class="plan-card">
+        <div class="plan-row">
+          <div class="plan-row-l">
+            <div class="plan-name">Agency</div>
+            <div class="plan-cities">Up to 5 states</div>
+          </div>
+          <div class="plan-row-r">
+            <div class="plan-price">${{ pricing.agency_monthly }}</div>
+            <div class="plan-price-unit">/mo</div>
+          </div>
+        </div>
+        <ul class="plan-feats">
+          <li>Everything in Pro</li>
+          <li>API access</li>
+          <li>Team seats</li>
+        </ul>
+        <form method="post">{% csrf_token %}<input type="hidden" name="step" value="1"><input type="hidden" name="plan" value="agency"><input type="hidden" name="period" value="monthly"><button class="plan-btn" type="submit">Continue with Agency</button></form>
+      </div>
+    </div>
+
+    <!-- ═══ STEP 2: STATE PICKER (multi, capped by plan) ═══ -->
+    {% elif step == 2 %}
+    <div class="step-label">Step 2 of 3</div>
+    <div class="form-title">Your Service Area</div>
+    <div class="form-sub">
+      Your <strong>{{ onboarding_plan|default:"Starter"|title }}</strong> plan covers up to
+      <strong>{{ city_limit }} {{ city_limit_label }}</strong>.
+      Pick the {{ city_limit_label }} you want to monitor — or skip and set this up later from <em>Settings → Coverage</em>.
+    </div>
+
+    <style>
+    .state-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:6px 0 8px;}
+    .state-tile{position:relative;display:flex;align-items:center;gap:10px;padding:11px 12px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all .12s;user-select:none;}
+    .state-tile:hover{border-color:var(--pr2);background:rgba(59,130,246,.04);}
+    .state-tile.selected{border-color:var(--pr);background:linear-gradient(135deg,rgba(29,78,216,.06),rgba(5,150,105,.06));}
+    .state-tile.disabled{opacity:.45;cursor:not-allowed;}
+    .state-tile.disabled:hover{border-color:#e2e8f0;background:#fff;}
+    .state-tile input[type=checkbox]{position:absolute;opacity:0;pointer-events:none;}
+    .st-box{width:20px;height:20px;border:1.5px solid #cbd5e1;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#fff;}
+    .state-tile.selected .st-box{background:var(--pr);border-color:var(--pr);color:#fff;}
+    .st-meta{flex:1;min-width:0;}
+    .st-name{font-size:13.5px;font-weight:700;color:#0f172a;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .st-sub{font-size:11.5px;color:#64748b;margin-top:2px;}
+    .state-counter{font-size:12.5px;color:#64748b;margin:6px 0 14px 2px;}
+    .state-counter.over{color:#dc2626;font-weight:600;}
+    .skip-link{display:block;text-align:center;margin-top:14px;background:none;border:none;color:#64748b;font-size:13.5px;cursor:pointer;padding:8px;text-decoration:underline;text-underline-offset:3px;}
+    .skip-link:hover{color:var(--pr2);}
+    </style>
+
+    <form method="post" id="state-form">
+      {% csrf_token %}
+      <input type="hidden" name="step" value="2">
+
+      {% if supported_states %}
+      <div class="state-grid" id="state-grid">
+        {% for s in supported_states %}
+        <label class="state-tile{% if s.state in prev_state_codes %} selected{% endif %}" data-code="{{ s.state }}">
+          <input type="checkbox" name="state" value="{{ s.state }}"
+                 {% if s.state in prev_state_codes %}checked{% endif %}
+                 onchange="onStateToggle(this)">
+          <div class="st-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="st-meta">
+            <div class="st-name">{{ s.name }} ({{ s.state }})</div>
+            <div class="st-sub">{{ s.count }} permits / 30d</div>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="state-counter" id="state-counter">
+        <span id="sc-num">0</span> of {{ city_limit }} {{ city_limit_label }} selected
+      </div>
+      {% else %}
+      <div style="padding:18px;background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;color:#92400e;font-size:13.5px;line-height:1.55;margin-bottom:14px;">
+        We're still onboarding new states with enough permit volume to sell. Use <em>Skip for now</em> and we'll email you the moment your area opens up.
+      </div>
+      {% endif %}
+
+      <button class="btn-primary" type="submit"{% if not supported_states %} disabled{% endif %}>
+        Continue
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+
+      <button type="submit" class="skip-link" name="skip" value="1" formnovalidate>
+        Skip for now — I'll set this up from Settings
+      </button>
+    </form>
+
+    <script>
+    (function(){
+      var LIMIT = {{ city_limit }};
+      var grid  = document.getElementById('state-grid');
+      if (!grid) return;
+      function refresh(){
+        var boxes = grid.querySelectorAll('input[type=checkbox]');
+        var picked = 0;
+        boxes.forEach(function(b){ if (b.checked) picked++; });
+        var atCap = picked >= LIMIT;
+        boxes.forEach(function(b){
+          var tile = b.closest('.state-tile');
+          if (b.checked) {
+            tile.classList.add('selected');
+            tile.classList.remove('disabled');
+          } else {
+            tile.classList.remove('selected');
+            tile.classList.toggle('disabled', atCap);
+            b.disabled = atCap;
+          }
+        });
+        var num = document.getElementById('sc-num');
+        if (num) num.textContent = picked;
+        var ctr = document.getElementById('state-counter');
+        if (ctr) ctr.classList.toggle('over', picked > LIMIT);
+      }
+      window.onStateToggle = refresh;
+      refresh();
+    })();
+    </script>
+
+    <!-- ═══ STEP 3: TERMS + PAY ═══ -->
+    {% elif step == 3 %}
+    <div class="step-label">Step 3 of 3</div>
+    <div class="form-title">Start your free 3-day trial</div>
+    <div class="form-sub">No credit card required. You'll see today's top 20 leads for the next 3 days — pick a plan anytime from the dashboard to unlock the full history, all contact info, and CSV exports.</div>
+
+    <div class="tc-box">
+      <h4>Permitlify Terms of Service</h4>
+      <p>By using Permitlify, you agree to use the platform solely for lawful business purposes. You may not resell, redistribute, or republish permit data without written consent.</p>
+      <p>Permitlify provides permit data for informational purposes only. We do not guarantee data completeness or accuracy. Data is sourced from public government records and may be subject to delays.</p>
+      <p>Your subscription automatically renews each billing period. You may cancel at any time via your account settings. Refunds are handled per our refund policy available at permitlify.com/refunds.</p>
+      <p>We reserve the right to suspend accounts that violate these terms, including scraping our platform, sharing credentials, or engaging in abusive behavior.</p>
+      <p>By continuing, you also accept our <a href="/privacy/" target="_blank">Privacy Policy</a>.</p>
+    </div>
+
+    <form method="post" id="tc-form">
+      {% csrf_token %}
+      <input type="hidden" name="step" value="3">
+      <input type="hidden" name="agreed" id="agreed-val" value="0">
+
+      <label class="checkbox-row" id="tc-row" onclick="toggleAgree(this)">
+        <div class="checkbox-box" id="chk-box">
+          <svg id="chk-icon" width="12" height="12" viewBox="0 0 12 10" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" style="display:none;"><polyline points="1 5 4.5 9 11 1"/></svg>
+        </div>
+        <span class="checkbox-text">I have read and agree to the <a href="/terms/" target="_blank" onclick="event.stopPropagation()">Terms of Service</a> and <a href="/privacy/" target="_blank" onclick="event.stopPropagation()">Privacy Policy</a>.</span>
+      </label>
+
+      <div style="height:20px;"></div>
+      <button class="btn-primary" type="submit" id="agree-btn">
+        Start free 3-day trial — no card required
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </form>
+
+    <script>
+    function toggleAgree(el) {
+      const checked = el.classList.toggle('checked');
+      document.getElementById('agreed-val').value = checked ? '1' : '0';
+      document.getElementById('chk-icon').style.display = checked ? 'block' : 'none';
+    }
+    </script>
+    {% endif %}
+
+    <div class="back-link">
+      {% if step == 2 %}<a href="/onboarding/?back=1">← Back</a>{% elif step == 3 %}<a href="/onboarding/?back=2">← Back</a>{% else %}<a href="/logout/">Sign out</a>{% endif %}
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

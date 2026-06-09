@@ -1,0 +1,197 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+{% block page_meta %} · {{ total_users }} total users{% endblock %}
+
+{% block content %}
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card blue">
+    <div class="kpi-label">Total Users</div>
+    <div class="kpi-value">{{ total_users }}</div>
+    <div class="kpi-sub"><span class="kpi-up">↑ {{ new_this_month }} new</span> this month</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-label">Monthly MRR{% if data_source == 'local' %} <span title="Whop API unreachable — showing approximation from local plan counts" style="color:#f59e0b;font-size:11px">⚠</span>{% endif %}</div>
+    <div class="kpi-value">${{ mrr|floatformat:2 }}</div>
+    <div class="kpi-sub">
+      {% if mrr_delta_pct is not None and mrr_delta_pct != 0 %}
+        <span class="{% if mrr_delta_pct >= 0 %}kpi-up{% else %}kpi-down{% endif %}">{% if mrr_delta_pct >= 0 %}↑{% else %}↓{% endif %} {{ mrr_delta_pct|floatformat:0 }}%</span> vs prior period
+      {% else %}
+        ARR ${{ arr|floatformat:2 }}
+      {% endif %}
+    </div>
+  </div>
+  <div class="kpi-card purple">
+    <div class="kpi-label">Active Subscribers</div>
+    <div class="kpi-value">{{ active_subs }}</div>
+    <div class="kpi-sub">{% if data_source == 'whop' %}Currently recurring on Whop{% else %}Pro + Agency plans (local){% endif %}</div>
+  </div>
+  <div class="kpi-card amber">
+    <div class="kpi-label">Avg Rev / Sub</div>
+    <div class="kpi-value">${{ avg_rev|floatformat:2 }}</div>
+    <div class="kpi-sub">Per recurring sub</div>
+  </div>
+</div>
+
+<!-- Scraper alert summary (if any broken) -->
+{% if danger_count %}
+<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:13px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  <div style="flex:1;font-size:12.5px;color:#991b1b"><strong>{{ danger_count }} scraper script{{ danger_count|pluralize }}</strong> have been silent for 3+ days and need immediate attention.</div>
+  <a href="/admin-panel/scrapers/" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;background:#dc2626;color:#fff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">View Scrapers →</a>
+</div>
+{% elif broken_count %}
+<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:13px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <div style="flex:1;font-size:12.5px;color:#92400e"><strong>{{ broken_count }} scraper script{{ broken_count|pluralize }}</strong> showing no recent leads — worth checking.</div>
+  <a href="/admin-panel/scrapers/" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;background:#d97706;color:#fff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">View Scrapers →</a>
+</div>
+{% endif %}
+
+<!-- Charts row -->
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:20px">
+  <div class="card">
+    <div class="card-title">Gross Revenue by Month</div>
+    <div class="card-sub">{% if data_source == 'whop' %}Last 6 months · Whop payments{% else %}Whop unavailable — local estimate only{% endif %} · <a href="/admin-panel/revenue/" style="color:var(--blue);font-weight:600;text-decoration:none">Full revenue →</a></div>
+    <div class="chart-wrap"><canvas id="mrrChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Plan Distribution</div>
+    <div class="card-sub">{{ total_users }} total users</div>
+    <div class="chart-wrap" style="height:150px;margin-bottom:14px"><canvas id="planChart"></canvas></div>
+    <div class="plan-row">
+      <div class="plan-item">
+        <div class="plan-dot" style="background:#94a3b8"></div>
+        <div class="plan-name">Starter (${{ pricing.starter_monthly }}/mo)</div>
+        <div class="plan-count">{{ plan_counts.starter }}</div>
+        <div class="plan-bar-wrap">{% if total_users %}<div class="plan-bar" style="width:{% widthratio plan_counts.starter total_users 100 %}%;background:#94a3b8"></div>{% endif %}</div>
+      </div>
+      <div class="plan-item">
+        <div class="plan-dot" style="background:#1d4ed8"></div>
+        <div class="plan-name">Pro (${{ pricing.pro_monthly }}/mo)</div>
+        <div class="plan-count">{{ plan_counts.pro }}</div>
+        <div class="plan-bar-wrap">{% if total_users %}<div class="plan-bar" style="width:{% widthratio plan_counts.pro total_users 100 %}%;background:#1d4ed8"></div>{% endif %}</div>
+      </div>
+      <div class="plan-item">
+        <div class="plan-dot" style="background:#7c3aed"></div>
+        <div class="plan-name">Agency (${{ pricing.agency_monthly }}/mo)</div>
+        <div class="plan-count">{{ plan_counts.agency }}</div>
+        <div class="plan-bar-wrap">{% if total_users %}<div class="plan-bar" style="width:{% widthratio plan_counts.agency total_users 100 %}%;background:#7c3aed"></div>{% endif %}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick stats row -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+  <div class="card">
+    <div class="card-title">Top Cities by Coverage</div>
+    <div class="card-sub">Cities tracked across all accounts · <a href="/admin-panel/cities/" style="color:var(--blue);font-weight:600;text-decoration:none">View all →</a></div>
+    {% for city, count in top_cities %}{% with max_count=top_cities.0.1 %}
+    <div class="city-item">
+      <div class="city-name">{{ city }}</div>
+      <div class="city-bar-wrap"><div class="city-bar" style="width:{% widthratio count max_count 100 %}%"></div></div>
+      <div class="city-count">{{ count }}</div>
+    </div>
+    {% endwith %}{% endfor %}
+  </div>
+  <div class="card">
+    <div class="card-title">Quick Stats</div>
+    <div class="card-sub">Current month snapshot · <a href="/admin-panel/revenue/" style="color:var(--blue);font-weight:600;text-decoration:none">Full revenue →</a></div>
+    <div class="stats-mini">
+      <div class="stat-item">
+        <div class="stat-label">New users this month</div>
+        <div class="stat-value">{{ new_this_month }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Paid conversion rate</div>
+        {% if total_users %}<div class="stat-value" style="color:var(--green)">{% widthratio active_subs total_users 100 %}%</div>{% else %}<div class="stat-value">—</div>{% endif %}
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Total MRR{% if data_source == 'whop' %} (Whop){% endif %}</div>
+        <div class="stat-value" style="color:var(--green)">${{ mrr|floatformat:2 }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Scraper leads today</div>
+        <div class="stat-value" style="color:var(--blue)">{{ total_leads_today }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Banned emails</div>
+        <div class="stat-value">{{ banned_count }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick-link cards -->
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px">
+  {% for item in quick_links %}
+  <a href="{{ item.url }}" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;text-decoration:none;transition:box-shadow .15s;display:block" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
+    <div style="font-size:24px;margin-bottom:6px">{{ item.icon }}</div>
+    <div style="font-size:12px;font-weight:700;color:var(--text)">{{ item.label }}</div>
+  </a>
+  {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+{# admin_base.html renders this block OUTSIDE its wrapper <script>     #}
+{# (so child templates can emit their own <script src=…> tags). That   #}
+{# means raw JS here MUST be wrapped in our own <script>…</script>     #}
+{# pair — otherwise the chart init code leaks onto the page as visible #}
+{# text. (See PR #174 for the symmetric admin DataTables variant.)     #}
+<script>
+{
+  const _labels = [{% for m in monthly_revenue %}'{{ m.month }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+  const _data   = [{% for m in monthly_revenue %}{{ m.revenue }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  // Fade older bars; highlight the current (last) month in green.
+  const _bg = _labels.map((_, i) => {
+    if (i === _labels.length - 1) return 'rgba(5,150,105,1)';
+    const a = 0.2 + (0.5 * i / Math.max(1, _labels.length - 2));
+    return `rgba(29,78,216,${a.toFixed(2)})`;
+  });
+  const _border = _labels.map((_, i) => i === _labels.length - 1 ? '#059669' : '#1d4ed8');
+  new Chart(document.getElementById('mrrChart').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: _labels,
+    datasets: [{
+      data: _data,
+      backgroundColor: _bg,
+      borderColor:     _border,
+      borderWidth:2, borderRadius:7, borderSkipped:false,
+    }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>' $'+c.parsed.y.toLocaleString()}}},
+    scales:{
+      y:{beginAtZero:true, grid:{color:'rgba(0,0,0,.04)'}, ticks:{callback:v=>'$'+(v>=1000?(v/1000).toFixed(0)+'k':v),font:{size:10}}},
+      x:{grid:{display:false}, ticks:{font:{size:10}}}
+    }
+  }
+});
+}
+new Chart(document.getElementById('planChart').getContext('2d'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Starter','Pro','Agency'],
+    datasets: [{
+      data: [{{ plan_counts.starter }},{{ plan_counts.pro }},{{ plan_counts.agency }}],
+      backgroundColor: ['#94a3b8','#1d4ed8','#7c3aed'],
+      borderWidth: 0, hoverOffset: 5,
+    }]
+  },
+  options: {
+    responsive:true, maintainAspectRatio:false, cutout:'68%',
+    plugins:{legend:{position:'right', labels:{font:{size:11},padding:12,boxWidth:9,boxHeight:9,usePointStyle:true}}}
+  }
+});
+</script>
+{% endblock %}

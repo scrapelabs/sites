@@ -1,0 +1,103 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Banned Emails{% endblock %}
+{% block page_title %}Banned Emails{% endblock %}
+{% block page_meta %} · {{ banned_list|length }} banned{% endblock %}
+
+{% block toasts %}
+{% if unbanned == 'ok' %}<div class="toast toast-ok" id="adminToast">✅ Email unbanned successfully.</div>{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- KPI row -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+  <div class="kpi-card" style="border-top:3px solid var(--red)">
+    <div class="kpi-label">Banned Emails</div>
+    <div class="kpi-value" style="color:var(--red)">{{ banned_list|length }}</div>
+    <div class="kpi-sub">Permanently blocked</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">What Banning Does</div>
+    <div class="kpi-value" style="font-size:14px;line-height:1.4;padding-top:4px;color:var(--muted)">Deletes account + blocks email from signing up or logging in again.</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">How to Unban</div>
+    <div class="kpi-value" style="font-size:14px;line-height:1.4;padding-top:4px;color:var(--muted)">Click Unban on any row to restore email access. Account is not restored.</div>
+  </div>
+</div>
+
+<!-- Ban table -->
+<div class="users-card">
+  <div class="users-header">
+    <div>
+      <div class="card-title" style="display:flex;align-items:center;gap:8px">
+        🚫 Banned Emails
+        {% if banned_list %}
+        <span style="background:#dc2626;color:#fff;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700">{{ banned_list|length }}</span>
+        {% endif %}
+      </div>
+      <div class="card-sub" style="margin-bottom:0">These emails cannot sign up or log in. Banning also deletes the user's account.</div>
+    </div>
+    {% if banned_list %}
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="banSearch" placeholder="Search…" oninput="filterBanned()" style="padding:7px 11px 7px 32px;border:1px solid var(--border);border-radius:7px;font-size:12px;width:200px;background:var(--bg);color:var(--text);outline:none;font-family:inherit">
+    </div>
+    {% endif %}
+  </div>
+
+  {% if banned_list %}
+  <table>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Name</th>
+        <th>Banned On</th>
+        <th>Banned By</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="banTbody">
+      {% for entry in banned_list %}
+      <tr class="ban-row" data-email="{{ entry.email|lower }}" data-name="{{ entry.name|lower }}">
+        <td class="td-user">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:28px;height:28px;border-radius:50%;background:#fecaca;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">🚫</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--red)">{{ entry.email }}</div>
+          </div>
+        </td>
+        <td class="td-user" style="font-size:13px;color:var(--muted)">{{ entry.name|default:"—" }}</td>
+        <td class="td-joined">{{ entry.banned_on|default:"—" }}</td>
+        <td class="td-joined">{{ entry.banned_by|default:"—" }}</td>
+        <td class="td-actions">
+          <form method="POST" action="/admin-panel/unban/" style="display:inline">
+            {% csrf_token %}
+            <input type="hidden" name="email" value="{{ entry.email }}">
+            <button type="submit" class="btn-sm" style="border-color:#bbf7d0;background:#f0fdf4;color:#065f46">✅ Unban</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="padding:60px 20px;text-align:center;color:var(--muted)">
+    <div style="font-size:40px;margin-bottom:12px">✅</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:6px;color:var(--text)">No banned emails</div>
+    <div style="font-size:13px">Use the Ban button on the <a href="/admin-panel/users/" style="color:var(--blue);font-weight:600;text-decoration:none">Users page</a> to block an email permanently.</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function filterBanned() {
+  const q = document.getElementById('banSearch').value.toLowerCase().trim();
+  document.querySelectorAll('#banTbody .ban-row').forEach(r => {
+    r.style.display = (!q || r.dataset.email.includes(q) || r.dataset.name.includes(q)) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

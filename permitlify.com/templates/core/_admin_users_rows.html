@@ -1,0 +1,123 @@
+{% comment %}
+  Partial: <tbody> rows for the admin Users table.
+
+  Returned standalone by ``admin_users_rows_view`` for the htmx
+  ``hx-get`` swap on the main /admin-panel/users/ page. The shell
+  page (``admin_users.html``) renders the chrome instantly; this
+  partial is loaded async so the user sees the navigation+stats
+  cards in <50 ms even on a cold worker.
+
+  The row markup here is byte-identical to what the legacy
+  inline-render version produced — same classes, same data-*
+  attributes, same expand-detail row — so all the existing
+  selection / modal / detail-toggle JS in ``admin_users.html``
+  keeps working unchanged.
+{% endcomment %}
+{% for user in users %}
+<tr class="user-row" data-id="{{ user.id }}" data-name="{{ user.name|lower }}" data-email="{{ user.email|lower }}" data-plan="{% if user.is_no_plan %}no_plan{% else %}{{ user.plan|lower }}{% endif %}">
+  <td style="padding:11px 14px;text-align:center;vertical-align:middle">
+    {% if not user.is_admin %}
+    <input type="checkbox" class="row-check" value="{{ user.id }}" data-name="{{ user.name }}" data-email="{{ user.email }}" onclick="updateSelection()" style="cursor:pointer;width:15px;height:15px;vertical-align:middle">
+    {% endif %}
+  </td>
+  <td class="td-expand">
+    <button class="expand-btn" onclick="toggleDetail({{ user.id }})" title="Expand">▶</button>
+  </td>
+  <td class="td-user">
+    <div class="user-cell">
+      <div class="u-avatar">{{ user.avatar_initials }}</div>
+      <div>
+        <div class="u-name">
+          {{ user.name }}
+          {% if user.is_admin %}<span class="badge badge-admin">ADMIN</span>{% endif %}
+        </div>
+        <div class="u-email">{{ user.email }}</div>
+      </div>
+    </div>
+  </td>
+  <td class="td-plan">
+    {% if user.is_no_plan %}<span class="badge badge-no-plan" title="Signed up but no active Whop subscription — permits and cities are locked until they pick a plan.">No Plan</span>
+    {% elif user.plan == 'pro' %}<span class="badge badge-pro">Pro</span>
+    {% elif user.plan == 'agency' %}<span class="badge badge-agency">Agency</span>
+    {% else %}<span class="badge badge-starter">Starter</span>{% endif %}
+  </td>
+  <td class="td-rev">
+    {% if user.price > 0 %}<span class="price-paid">${{ user.price }}/mo</span>
+    {% else %}<span class="price-zero">$0</span>{% endif %}
+  </td>
+  <td class="td-city">
+    <span style="font-weight:600">{{ user.cities_count }}</span>
+    <span style="font-size:11px;color:var(--muted)"> cities</span>
+  </td>
+  <td class="td-joined">{{ user.joined|default:"—" }}</td>
+  <td class="td-status"><span class="badge badge-active">Active</span></td>
+  <td class="td-mode">
+    {% comment %}
+      Whop-mode dropdown is shown for ALL rows including admins so a
+      super-admin who needs to test the $1 dev plans on their own
+      account (or another admin's) can flip it without editing JSONB
+      by hand. The backend self-guard still prevents flipping your
+      own row in one click.
+    {% endcomment %}
+    <form method="POST" action="/admin-panel/whop-mode/{{ user.id }}/" class="mode-form" data-user-id="{{ user.id }}">
+      {% csrf_token %}
+      <select name="whop_mode" class="mode-select mode-{{ user.whop_mode }}" onchange="this.form.submit()" title="Switch this user's Whop billing between live (prod) and $1 test plans (dev)">
+        <option value="prod" {% if user.whop_mode == 'prod' %}selected{% endif %}>PROD</option>
+        <option value="dev"  {% if user.whop_mode == 'dev'  %}selected{% endif %}>DEV</option>
+      </select>
+    </form>
+  </td>
+  <td class="td-actions">
+    {% comment %}
+      Email-code toggle is shown for ALL rows including admins so a
+      super-admin who can't receive codes (corp spam filter, etc.)
+      can be opted out by another admin. Delete + Ban remain hidden
+      on admin rows — those are destructive ops the "Protected"
+      label was originally guarding.
+    {% endcomment %}
+    <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+      <form method="POST" action="/admin-panel/email-code/{{ user.id }}/" class="code-form" data-user-id="{{ user.id }}" style="display:inline-flex">
+        {% csrf_token %}
+        <input type="hidden" name="email_code" value="{% if user.email_code == 'on' %}off{% else %}on{% endif %}">
+        <button type="submit" class="code-toggle code-{{ user.email_code }}" title="{% if user.email_code == 'on' %}Email-code login verification is ON. Click to disable for this user (they'll be able to sign in with just email + password).{% else %}Email-code login verification is OFF for this user. Click to re-enable.{% endif %}">
+          {% if user.email_code == 'on' %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="11" height="11"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          CODE&nbsp;ON
+          {% else %}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="11" height="11"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4" stroke-dasharray="3 3"/></svg>
+          CODE&nbsp;OFF
+          {% endif %}
+        </button>
+      </form>
+      {% if not user.is_admin %}
+      <button class="btn-sm btn-danger" onclick="confirmDelete({{ user.id }},'{{ user.name|escapejs }}','{{ user.email|escapejs }}')">🗑 Delete</button>
+      <button class="btn-sm" style="border-color:#fed7aa;background:#fff7ed;color:#c2410c" onclick="confirmBan({{ user.id }},'{{ user.name|escapejs }}','{{ user.email|escapejs }}')">🚫 Ban</button>
+      {% else %}
+      <span style="font-size:10px;color:var(--muted);font-style:italic">admin</span>
+      {% endif %}
+    </div>
+  </td>
+</tr>
+<tr class="detail-row" id="detail-{{ user.id }}">
+  <td colspan="10">
+    <div class="detail-inner">
+      <div class="detail-grid">
+        <div class="detail-field"><div class="detail-label">User ID</div><div class="detail-value mono">{{ user.id }}</div></div>
+        <div class="detail-field"><div class="detail-label">Full Name</div><div class="detail-value">{{ user.name }}</div></div>
+        <div class="detail-field"><div class="detail-label">Email Address</div><div class="detail-value">{{ user.email }}</div></div>
+        <div class="detail-field"><div class="detail-label">Plan</div><div class="detail-value">{% if user.is_no_plan %}<span class="badge badge-no-plan">No Plan</span>{% else %}{{ user.plan|title }}{% endif %}</div></div>
+        <div class="detail-field"><div class="detail-label">Monthly Revenue</div><div class="detail-value">${{ user.price }}/mo</div></div>
+        <div class="detail-field"><div class="detail-label">Joined</div><div class="detail-value">{{ user.joined|default:"—" }}</div></div>
+        <div class="detail-field" style="grid-column:1/-1">
+          <div class="detail-label">Cities Tracked ({{ user.cities_count }})</div>
+          <div class="detail-cities">
+            {% for city in user.cities %}<span class="city-tag">{{ city }}</span>{% empty %}<span style="font-size:11px;color:var(--muted)">None</span>{% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </td>
+</tr>
+{% empty %}
+<tr><td colspan="10" style="text-align:center;padding:32px;color:var(--muted)">No users found.</td></tr>
+{% endfor %}

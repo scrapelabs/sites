@@ -1,0 +1,122 @@
+{% extends "core/public_base.html" %}
+{% block title %}Contact Us{% endblock %}
+
+{% block extra_css %}
+.contact-grid{display:grid;grid-template-columns:1fr 1.6fr;gap:48px;align-items:start;}
+@media(max-width:780px){.contact-grid{grid-template-columns:1fr;}}
+.contact-info-card{background:var(--bg2);border:1px solid var(--b1);border-radius:18px;padding:32px;}
+.contact-info-card h3{font-size:18px;font-weight:700;color:var(--tx);margin-bottom:20px;}
+.contact-method{display:flex;align-items:flex-start;gap:14px;padding:16px 0;border-bottom:1px solid var(--b1);}
+.contact-method:last-child{border-bottom:none;}
+.contact-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.contact-ico.bl{background:var(--pd);}
+.contact-ico.bl svg{stroke:var(--bl);}
+.contact-ico.gr{background:var(--ad);}
+.contact-ico.gr svg{stroke:var(--ac);}
+.contact-ico svg{width:20px;height:20px;fill:none;stroke-width:2;stroke-linecap:round;}
+.contact-label{font-size:11.5px;font-weight:600;color:var(--tx3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+.contact-value{font-size:15px;font-weight:500;color:var(--tx);}
+.contact-value a{color:var(--bl);text-decoration:none;}
+.contact-value a:hover{text-decoration:underline;}
+.form-card{background:#fff;border:1px solid var(--b1);border-radius:18px;padding:36px;box-shadow:var(--sh);}
+.form-card h3{font-size:20px;font-weight:800;color:var(--tx);margin-bottom:6px;}
+.form-card .form-sub{font-size:14px;color:var(--tx2);margin-bottom:24px;}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
+.field label{font-size:12.5px;font-weight:600;color:var(--tx);font-family:'Plus Jakarta Sans',sans-serif;}
+.field input,.field select,.field textarea{width:100%;padding:11px 14px;border:1.5px solid var(--b1);border-radius:10px;font-size:14.5px;font-family:'DM Sans',sans-serif;color:var(--tx);background:#fff;transition:border-color .18s;outline:none;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--bl);box-shadow:0 0 0 3px rgba(29,78,216,.09);}
+.field textarea{resize:vertical;min-height:110px;}
+.row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:480px){.row-2{grid-template-columns:1fr;}}
+.btn-send{width:100%;padding:13px;background:var(--grad);color:#fff;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;border:none;border-radius:11px;cursor:pointer;box-shadow:0 4px 16px rgba(29,78,216,.3);transition:all .2s;}
+.btn-send:hover{opacity:.92;transform:translateY(-1px);}
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-hero-inner">
+    <div class="page-breadcrumb"><a href="{% url 'index' %}">Home</a><span>/</span>Company<span>/</span>Contact Us</div>
+    <h1>Get in touch</h1>
+    <p class="lead">Have a question, a partnership idea, or just want to see Permitlify in action? We typically respond within one business day.</p>
+  </div>
+</div>
+
+<div class="content-wrap">
+  <div class="contact-grid">
+    <div>
+      <div class="contact-info-card">
+        <h3>Contact information</h3>
+        <div class="contact-method">
+          <div class="contact-ico bl"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+          <div>
+            <div class="contact-label">General</div>
+            <div class="contact-value"><a href="mailto:support@permitlify.com">support@permitlify.com</a></div>
+          </div>
+        </div>
+        <div class="contact-method">
+          <div class="contact-ico gr"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 12 19.79 19.79 0 01.12 3.38 2 2 0 012.1 1.21L5.07 1a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.08 8.9a16 16 0 006 6l1.26-1.26a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 15.92z"/></svg></div>
+          <div>
+            <div class="contact-label">Sales</div>
+            <div class="contact-value"><a href="mailto:sales@permitlify.com">sales@permitlify.com</a></div>
+          </div>
+        </div>
+        <div class="contact-method">
+          <div class="contact-ico bl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+          <div>
+            <div class="contact-label">Support</div>
+            <div class="contact-value"><a href="mailto:support@permitlify.com">support@permitlify.com</a></div>
+          </div>
+        </div>
+        <div class="contact-method">
+          <div class="contact-ico gr"><svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+          <div>
+            <div class="contact-label">Press</div>
+            <div class="contact-value"><a href="mailto:press@permitlify.com">press@permitlify.com</a></div>
+          </div>
+        </div>
+        <div class="contact-method">
+          <div class="contact-ico bl"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+          <div>
+            <div class="contact-label">Headquarters</div>
+            <div class="contact-value">Fort Worth, TX 76104<br><span style="font-size:13px;color:var(--tx3);">Fully remote-friendly team</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;background:var(--ad);border:1px solid rgba(5,150,105,.2);border-radius:14px;padding:20px 22px;">
+        <div style="font-size:13px;font-weight:700;color:var(--ac3);margin-bottom:4px;">Response time</div>
+        <div style="font-size:14px;color:#065f46;line-height:1.6;">We typically respond to all inquiries within <strong>1 business day</strong>. For urgent support issues, use the live chat in your dashboard.</div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h3>Send us a message</h3>
+      <div class="form-sub">Fill in the form below and we'll get back to you shortly.</div>
+      <form method="POST">
+        {% csrf_token %}
+        <div class="row-2">
+          <div class="field"><label>First Name</label><input type="text" name="first_name" placeholder="Marcus"></div>
+          <div class="field"><label>Last Name</label><input type="text" name="last_name" placeholder="Kim"></div>
+        </div>
+        <div class="field"><label>Email Address</label><input type="email" name="email" placeholder="you@company.com"></div>
+        <div class="field"><label>Company / Trade</label><input type="text" name="company" placeholder="Premier Roofing LLC"></div>
+        <div class="field">
+          <label>Reason for contact</label>
+          <select name="reason">
+            <option value="">Select a topic...</option>
+            <option>Sales / Demo request</option>
+            <option>Technical support</option>
+            <option>Billing question</option>
+            <option>Partnership / Integration</option>
+            <option>Press / Media</option>
+            <option>Career inquiry</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field"><label>Message</label><textarea name="message" placeholder="Tell us how we can help..."></textarea></div>
+        <button type="submit" class="btn-send">Send Message</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

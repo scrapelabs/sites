@@ -1,0 +1,184 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Messages — Admin — GoldenProxies{% endblock %}
+{% block mobile_title %}Support Inbox{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-6xl mx-auto space-y-4">
+  <div class="flex items-center gap-3">
+    <h1 class="text-2xl font-serif font-bold text-gray-900">Support Inbox</h1>
+    {% if open_count > 0 %}
+    <span class="text-xs font-bold bg-[#D4AF37] text-white px-2 py-0.5 rounded-full">{{ open_count }}</span>
+    {% endif %}
+  </div>
+
+  <div class="flex flex-col lg:flex-row gap-4 lg:gap-5 lg:h-[620px]">
+
+    <!-- Message list -->
+    <div class="w-full lg:w-80 flex-shrink-0 glass-card rounded-2xl overflow-hidden flex flex-col shadow-md max-h-[60vh] lg:max-h-none">
+      <!-- Filter tabs -->
+      <div class="flex border-b border-[#D4AF37]/10 flex-shrink-0">
+        <a href="?status=all{% if selected %}&msg={{ selected.id }}{% endif %}" class="flex-1 py-2.5 text-xs font-semibold text-center transition-colors {% if status_filter == 'all' %}text-[#D4AF37] border-b-2 border-[#D4AF37]{% else %}text-gray-400 hover:text-gray-600{% endif %}">All</a>
+        <a href="?status=open{% if selected %}&msg={{ selected.id }}{% endif %}" class="flex-1 py-2.5 text-xs font-semibold text-center transition-colors {% if status_filter == 'open' %}text-[#D4AF37] border-b-2 border-[#D4AF37]{% else %}text-gray-400 hover:text-gray-600{% endif %}">Open</a>
+        <a href="?status=replied{% if selected %}&msg={{ selected.id }}{% endif %}" class="flex-1 py-2.5 text-xs font-semibold text-center transition-colors {% if status_filter == 'replied' %}text-[#D4AF37] border-b-2 border-[#D4AF37]{% else %}text-gray-400 hover:text-gray-600{% endif %}">Replied</a>
+        <a href="?status=closed{% if selected %}&msg={{ selected.id }}{% endif %}" class="flex-1 py-2.5 text-xs font-semibold text-center transition-colors {% if status_filter == 'closed' %}text-[#D4AF37] border-b-2 border-[#D4AF37]{% else %}text-gray-400 hover:text-gray-600{% endif %}">Closed</a>
+      </div>
+
+      <!-- List -->
+      <div class="flex-1 overflow-y-auto divide-y divide-[#D4AF37]/8">
+        {% for msg in msgs %}
+        <a href="?status={{ status_filter }}&msg={{ msg.id }}"
+          class="block px-4 py-3.5 hover:bg-[#D4AF37]/5 transition-colors {% if selected and selected.id == msg.id %}bg-[#D4AF37]/8 border-r-2 border-[#D4AF37]{% endif %}">
+          <div class="flex items-start justify-between gap-2 mb-1">
+            <div class="flex items-center gap-1.5 min-w-0">
+              {% if msg.status == 'open' %}<span class="w-1.5 h-1.5 rounded-full bg-[#D4AF37] flex-shrink-0 mt-0.5"></span>{% endif %}
+              <span class="text-xs font-bold text-gray-900 truncate">{{ msg.user.get_full_name|default:msg.user.email }}</span>
+            </div>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0
+              {% if msg.status == 'open' %}bg-[#D4AF37]/10 text-[#B8941F]
+              {% elif msg.status == 'replied' %}bg-green-50 text-green-700
+              {% else %}bg-gray-100 text-gray-500{% endif %}">
+              {{ msg.status|capfirst }}
+            </span>
+          </div>
+          <div class="flex items-center gap-2 mb-0.5">
+            <span class="text-[10px] font-bold
+              {% if msg.priority == 'critical' %}text-red-600
+              {% elif msg.priority == 'high' %}text-orange-600
+              {% elif msg.priority == 'low' %}text-green-600
+              {% else %}text-yellow-600{% endif %}">
+              {% if msg.priority == 'critical' %}🔴{% elif msg.priority == 'high' %}🟠{% elif msg.priority == 'low' %}🟢{% else %}🟡{% endif %}
+              {{ msg.get_priority_display }}
+            </span>
+            <span class="text-xs font-semibold text-gray-700 truncate">{{ msg.subject }}</span>
+          </div>
+          <div class="text-xs text-gray-400 truncate">{{ msg.body }}</div>
+          <div class="text-xs text-gray-300 mt-1">{{ msg.created_at|date:"M d, Y" }}</div>
+        </a>
+        {% empty %}
+        <div class="py-12 text-center text-sm text-gray-400">No messages</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Conversation view -->
+    <div class="flex-1 glass-card rounded-2xl overflow-hidden flex flex-col shadow-md min-w-0 min-h-[400px] lg:min-h-0">
+      {% if not selected %}
+      <div class="flex-1 flex flex-col items-center justify-center text-center p-8">
+        <div class="text-5xl opacity-20 mb-3">📬</div>
+        <p class="text-sm font-semibold text-gray-400">Select a message to view the conversation</p>
+      </div>
+      {% else %}
+
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-[#D4AF37]/10 flex items-start justify-between gap-4 flex-shrink-0">
+        <div>
+          <h3 class="font-bold text-gray-900">{{ selected.subject }}</h3>
+          <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full border
+              {% if selected.priority == 'critical' %}bg-red-50 text-red-700 border-red-200
+              {% elif selected.priority == 'high' %}bg-orange-50 text-orange-700 border-orange-200
+              {% elif selected.priority == 'low' %}bg-green-50 text-green-700 border-green-200
+              {% else %}bg-yellow-50 text-yellow-700 border-yellow-200{% endif %}">
+              {% if selected.priority == 'critical' %}🔴{% elif selected.priority == 'high' %}🟠{% elif selected.priority == 'low' %}🟢{% else %}🟡{% endif %}
+              {{ selected.get_priority_display }}
+            </span>
+            <span class="text-xs text-gray-500">From: <strong class="text-gray-700">{{ selected.user.get_full_name|default:selected.user.email }}</strong></span>
+            <span class="text-gray-300 text-xs">·</span>
+            <span class="text-xs text-gray-500">{{ selected.user.email }}</span>
+            <span class="text-gray-300 text-xs">·</span>
+            <span class="text-xs text-gray-500">{{ selected.created_at|date:"M d, Y" }}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full border
+            {% if selected.status == 'open' %}bg-[#D4AF37]/10 text-[#B8941F] border-[#D4AF37]/20
+            {% elif selected.status == 'replied' %}bg-green-50 text-green-700 border-green-200
+            {% else %}bg-gray-100 text-gray-500 border-gray-200{% endif %}">
+            {{ selected.status|capfirst }}
+          </span>
+          {% if selected.status != 'closed' %}
+          <form method="post" action="/admin-panel/messages/{{ selected.id }}/status/" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="closed">
+            <button type="submit" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors">
+              ✕ Close
+            </button>
+          </form>
+          {% else %}
+          <form method="post" action="/admin-panel/messages/{{ selected.id }}/status/" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="open">
+            <button type="submit" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#D4AF37]/20 text-[#D4AF37] hover:bg-[#D4AF37]/5 transition-colors">
+              ↩ Reopen
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Messages thread -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-5">
+        <!-- User message -->
+        <div class="flex gap-3">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4AF37]/30 to-[#D4AF37]/10 flex items-center justify-center text-xs font-bold text-[#D4AF37] flex-shrink-0 mt-0.5">
+            {{ selected.user.first_name|first|default:selected.user.email|first|upper }}
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="text-xs font-bold text-gray-900">{{ selected.user.get_full_name|default:selected.user.email }}</span>
+              <span class="text-xs text-gray-400">{{ selected.created_at|date:"M d, Y" }}</span>
+            </div>
+            <div class="bg-[#D4AF37]/5 border border-[#D4AF37]/10 rounded-2xl rounded-tl-sm px-4 py-3">
+              <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{{ selected.body }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin reply -->
+        {% if selected.reply_body %}
+        <div class="flex gap-3 flex-row-reverse">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center flex-shrink-0 mt-0.5">
+            <span class="text-white text-xs">👑</span>
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1.5 flex-row-reverse">
+              <span class="text-xs font-bold text-gray-900">You (Admin)</span>
+              <span class="text-xs text-gray-400">{{ selected.replied_at|date:"M d, Y" }}</span>
+            </div>
+            <div class="bg-gradient-to-br from-[#D4AF37]/10 to-[#D4AF37]/5 border border-[#D4AF37]/15 rounded-2xl rounded-tr-sm px-4 py-3">
+              <p class="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{{ selected.reply_body }}</p>
+            </div>
+            <div class="flex items-center gap-1 mt-2 justify-end">
+              <span class="text-xs text-green-600 font-medium">✓ Sent</span>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Reply composer -->
+      {% if selected.status != 'closed' %}
+      <div class="px-6 py-4 border-t border-[#D4AF37]/10 flex-shrink-0">
+        {% if selected.reply_body %}
+        <p class="text-xs text-gray-400 mb-3">Send an updated reply to overwrite the previous one</p>
+        {% endif %}
+        <form method="post" action="/admin-panel/messages/{{ selected.id }}/reply/">
+          {% csrf_token %}
+          <div class="flex gap-3 items-end">
+            {{ reply_form.reply_body }}
+            <button type="submit" class="flex-shrink-0 w-11 h-11 rounded-xl gold-btn text-white flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            </button>
+          </div>
+        </form>
+      </div>
+      {% else %}
+      <div class="px-6 py-4 border-t border-[#D4AF37]/10 bg-gray-50/50 flex-shrink-0 text-center">
+        <p class="text-xs text-gray-400">This conversation is closed. Reopen it to reply.</p>
+      </div>
+      {% endif %}
+
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "core/public_base.html" %}
+{% block title %}Privacy Policy{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-hero-inner">
+    <div class="page-breadcrumb"><a href="{% url 'index' %}">Home</a><span>/</span>Company<span>/</span>Privacy Policy</div>
+    <h1>Privacy Policy</h1>
+    <p class="lead">Last updated: April 19, 2026. This policy explains how Permitlify collects, uses, and protects your information.</p>
+  </div>
+</div>
+
+<div class="content-wrap">
+  <div class="prose">
+
+    <h2>1. Who we are</h2>
+    <p>Permitlify ("we," "our," or "us") is a building permit intelligence platform operated from Fort Worth, Texas. We provide daily permit lead alerts to home service contractors across the United States. Our website is <strong>permitlify.com</strong>.</p>
+
+    <h2>2. Information we collect</h2>
+    <h3>Information you provide directly</h3>
+    <p>When you create an account, we collect your name, email address, and password (stored as a one-way hash). If you upgrade to a paid plan, we collect billing information through our payment processor (Stripe). We never store your full credit card number.</p>
+    <h3>Information from permit records (contractor-facing lead data)</h3>
+    <p>Permitlify's core service involves processing <strong>publicly filed building permit records</strong> sourced from US municipal and county government portals. These records may include property owner names, addresses, and (where publicly available) contact information. This data is derived exclusively from public government databases and is used solely to provide our lead intelligence service to subscribers.</p>
+    <h3>Usage information</h3>
+    <p>We automatically collect certain technical information when you use our service: IP address, browser type, pages visited, time spent, and actions taken in the platform. We use this for security, debugging, and improving the product.</p>
+
+    <h2>3. How we use your information</h2>
+    <p>We use the information we collect to:</p>
+    <ul>
+      <li>Provide, operate, and improve the Permitlify platform</li>
+      <li>Send your daily permit lead reports and alert notifications</li>
+      <li>Process your subscription and billing</li>
+      <li>Respond to customer support requests</li>
+      <li>Send product updates and marketing communications (you can opt out at any time)</li>
+      <li>Detect, prevent, and respond to fraud or security incidents</li>
+      <li>Comply with legal obligations</li>
+    </ul>
+
+    <h2>4. Data sharing and disclosure</h2>
+    <p>We do not sell your personal information to third parties. We may share your data only in these circumstances:</p>
+    <ul>
+      <li><strong>Service providers:</strong> We use third-party vendors (hosting, email delivery, payment processing, analytics) who process data on our behalf under strict data processing agreements.</li>
+      <li><strong>Legal requirements:</strong> We may disclose your information if required by law, court order, or government authority.</li>
+      <li><strong>Business transfers:</strong> In the event of a merger, acquisition, or sale of assets, user data may be transferred as part of that transaction.</li>
+    </ul>
+
+    <h2>5. Data about third parties in permit records</h2>
+    <p>Our permit lead database contains publicly available information sourced from government permit portals. This information — which may include property owner names, addresses, and contact details — is drawn from records that are already in the public domain by operation of law. We process this data in our capacity as a business intelligence provider, and our subscribers are contractually required to use it in compliance with applicable law, including CAN-SPAM, TCPA, and relevant state consumer protection statutes.</p>
+    <p>If you are a property owner who believes your information has been incorrectly processed, please contact us at <a href="mailto:privacy@permitlify.com">privacy@permitlify.com</a>.</p>
+
+    <h2>6. Data retention</h2>
+    <p>We retain your account information for as long as your account is active. If you delete your account, we will delete your personal data within 30 days, except where we are required to retain it by law. Permit record data (which is sourced from public records) is retained for up to 24 months for service continuity.</p>
+
+    <h2>7. Security</h2>
+    <p>We implement industry-standard security measures including encrypted data transmission (TLS), hashed password storage, access controls, and regular security audits. However, no system is completely secure — we cannot guarantee absolute security of your information.</p>
+
+    <h2>8. Your rights</h2>
+    <p>Depending on your location, you may have the right to: access the personal data we hold about you, correct inaccurate data, request deletion of your data, opt out of marketing communications, and data portability. To exercise these rights, email <a href="mailto:privacy@permitlify.com">privacy@permitlify.com</a>.</p>
+    <p>California residents have additional rights under the CCPA. Texas residents have rights under the Texas Data Privacy and Security Act (TDPSA). Please contact us for a full list of applicable rights based on your state.</p>
+
+    <h2>9. Cookies</h2>
+    <p>We use essential session cookies to keep you logged in. We do not use advertising or tracking cookies. We do not use third-party tracking pixels or behavioral advertising networks.</p>
+
+    <h2>10. Children's privacy</h2>
+    <p>Permitlify is not directed to children under the age of 18. We do not knowingly collect information from minors. If we learn we have collected data from a child, we will delete it immediately.</p>
+
+    <h2>11. Changes to this policy</h2>
+    <p>We may update this Privacy Policy from time to time. We will notify you of material changes via email or by posting a notice on our website. Continued use of Permitlify after changes take effect constitutes acceptance of the updated policy.</p>
+
+    <h2>12. Contact us</h2>
+    <p>For privacy-related questions, data requests, or concerns, contact our Privacy Team at:<br><a href="mailto:privacy@permitlify.com">privacy@permitlify.com</a><br>Permitlify, Fort Worth, TX 76104</p>
+
+  </div>
+
+  <div style="margin-top:40px;background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="font-size:14px;color:var(--tx2);">Also see our <a href="{% url 'terms' %}" style="color:var(--bl);font-weight:600;">Terms of Service</a></div>
+    <a href="{% url 'contact' %}" style="font-size:13.5px;font-weight:600;color:var(--bl);text-decoration:none;">Questions? Contact us →</a>
+  </div>
+</div>
+{% endblock %}

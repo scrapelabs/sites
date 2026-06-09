@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Payment Successful — GoldenProxies{% endblock %}
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 py-20">
+  <div class="glass-card max-w-md w-full rounded-3xl p-10 text-center">
+
+    <!-- Gold checkmark -->
+    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-[#D4AF37]/20 to-[#D4AF37]/5 border-2 border-[#D4AF37]/50 flex items-center justify-center mx-auto mb-6">
+      <svg class="w-10 h-10 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+
+    <h1 class="text-2xl font-extrabold text-gray-900 mb-2">Payment Successful!</h1>
+    <p class="text-gray-500 mb-2">Welcome to GoldenProxies
+      <strong class="text-[#D4AF37]">{{ profile.plan_display }}</strong>
+    </p>
+    <p class="text-sm text-gray-400 mb-8">Your subscription is now active. You have full access to all {{ profile.plan_display }} features.</p>
+
+    {% if membership_id %}
+    <div class="bg-[#D4AF37]/8 border border-[#D4AF37]/20 rounded-xl px-4 py-3 mb-8 text-left">
+      <p class="text-xs text-gray-400 mb-0.5">Membership ID</p>
+      <p class="text-xs font-mono text-gray-600 break-all">{{ membership_id }}</p>
+    </div>
+    {% endif %}
+
+    <div class="flex flex-col gap-3">
+      <a href="/dashboard/" class="gold-btn w-full py-3 rounded-xl text-sm font-semibold text-center">Go to Dashboard →</a>
+      <a href="/billing/" class="glass-btn w-full py-3 rounded-xl text-sm font-semibold text-center">View Billing</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

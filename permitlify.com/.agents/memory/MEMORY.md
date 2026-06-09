@@ -1,0 +1,8 @@
+- [Permitlify lead data scope](permitlify-lead-data.md) — permits expose CONTRACTOR contact only, never the homeowner; do not write copy, UI, or emails that promise owner phone/email.
+- [Accela inference engine](accela-inference-engine.md) — active path is `oss_agent_scrape_permits` in `core/scrapers/accela.py`, uses DO Inference (GPT-OSS), NOT Claude; legacy `claude_extract` paths in `core/scraper_accela.py` are dormant.
+- [GitHub PR workflow](github-pr-workflow.md) — repo PRs go via GitHub API (PAT), not git push; /tmp helper is wiped on restart, reconstruct with Git Data API.
+- [Accela free parser REMOVED](accela-free-parser.md) — active Accela pipeline is GPT-OSS-only now; regex parser + XPath map gone; helper file kept only for dormant Claude path; grid backfill stays.
+- [Permit manual-edit locks](permit-manual-edit-locks.md) — manual_fields JSONB locks edited columns; ALL three upsert_permit paths (triple-key, ON CONFLICT, dedup_hash) must exclude them, incl. triple-key state/city force-write.
+- [Person-vs-company save gate](permit-person-company-gate.md) — one-word business names are leads; use email domain (non-freemail) not name shape; junk_permits.reason is the real drop cause.
+- [Scraper run entry points](scraper-run-entry-points.md) — `enabled` only means OFF if EVERY trigger honours it: Run All & cron already do; Run now, Backfill, and Run selected each need their own guard.
+- [Permits score pagination](permits-score-pagination.md) — /permits/ sorts on a Python-derived score; materialized into permits.score_cache (daily refresh) so PG does ORDER BY/tier/range/summary; ring stays live; _PERMIT_VIEW_COLS shared read+refresh or rank drifts.

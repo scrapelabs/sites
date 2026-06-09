@@ -1,0 +1,120 @@
+{% extends "dashboard/base.html" %}
+{% block title %}{% if post %}Edit Post{% else %}New Post{% endif %} — Admin — GoldenProxies{% endblock %}
+{% block mobile_title %}{% if post %}Edit Post{% else %}New Post{% endif %}{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-3xl mx-auto space-y-5">
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="px-4 py-3 rounded-xl text-sm font-medium border
+      {% if 'error' in msg.tags %}border-red-300 bg-red-50/80 text-red-700
+      {% else %}border-green-300 bg-green-50/80 text-green-700{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="flex items-center gap-3">
+    <a href="/admin-panel/blog/" class="text-gray-400 hover:text-gray-600 transition-colors">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+      <h1 class="text-2xl font-serif font-bold text-gray-900">{% if post %}Edit Post{% else %}New Post{% endif %}</h1>
+      {% if post %}<p class="text-xs text-gray-400 mt-0.5">/blog/{{ post.slug }}/</p>{% endif %}
+    </div>
+    {% if post and post.status == 'published' %}
+    <a href="/blog/{{ post.slug }}/" target="_blank"
+       class="ml-auto glass-btn px-4 py-2 rounded-xl text-xs font-semibold">View Live →</a>
+    {% endif %}
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="space-y-4">
+
+      <!-- Title + Slug -->
+      <div class="glass-card rounded-2xl p-6 shadow-md space-y-4">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Title <span class="text-red-400">*</span></label>
+          <input type="text" name="title" value="{{ post.title|default:'' }}" required
+            placeholder="Blog post title"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-semibold">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">URL Slug</label>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400 shrink-0">/blog/</span>
+            <input type="text" name="slug" value="{{ post.slug|default:'' }}"
+              placeholder="url-friendly-slug"
+              class="flex-1 px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+            <span class="text-xs text-gray-400 shrink-0">/</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">Leave blank to auto-generate from title.</p>
+        </div>
+      </div>
+
+      <!-- Status + Cover -->
+      <div class="glass-card rounded-2xl p-6 shadow-md grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Status</label>
+          <select name="status"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] transition">
+            <option value="draft" {% if not post or post.status == 'draft' %}selected{% endif %}>Draft</option>
+            <option value="published" {% if post and post.status == 'published' %}selected{% endif %}>Published</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Cover Image URL</label>
+          <input type="url" name="cover_image_url" value="{{ post.cover_image_url|default:'' }}"
+            placeholder="https://..."
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] transition">
+        </div>
+      </div>
+
+      <!-- Excerpt -->
+      <div class="glass-card rounded-2xl p-6 shadow-md">
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Excerpt</label>
+        <textarea name="excerpt" rows="2" placeholder="Short preview shown in listing pages (2-3 sentences)"
+          class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition resize-none">{{ post.excerpt|default:'' }}</textarea>
+      </div>
+
+      <!-- Content -->
+      <div class="glass-card rounded-2xl p-6 shadow-md">
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Content (HTML)</label>
+        <textarea name="content" rows="20" placeholder="Write your blog post content here. HTML tags supported: &lt;h2&gt;, &lt;h3&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;blockquote&gt;"
+          class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono resize-y">{{ post.content|default:'' }}</textarea>
+        <p class="text-xs text-gray-400 mt-1">HTML is rendered directly. Use the same tags as blog-prose styling.</p>
+      </div>
+
+      <!-- Tags + Meta -->
+      <div class="glass-card rounded-2xl p-6 shadow-md space-y-4">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Tags</label>
+          <input type="text" name="tags" value="{{ post.tags|default:'' }}"
+            placeholder="proxy, web scraping, residential IPs"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] transition">
+          <p class="text-xs text-gray-400 mt-1">Comma-separated tags.</p>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Meta Description</label>
+          <textarea name="meta_description" rows="2" placeholder="150-160 character description for search engines"
+            class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] transition resize-none">{{ post.meta_description|default:'' }}</textarea>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-1 pb-4">
+        <a href="/admin-panel/blog/" class="text-sm text-gray-400 hover:text-gray-600">← Back to posts</a>
+        <div class="flex gap-2 w-full sm:w-auto">
+          <button type="submit" name="status_override" value="draft"
+            class="glass-btn flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-sm font-semibold">Save Draft</button>
+          <button type="submit"
+            class="gold-btn flex-1 sm:flex-none px-7 py-2.5 rounded-xl text-sm font-semibold">Save Post</button>
+        </div>
+      </div>
+
+    </div>
+  </form>
+
+</div>
+{% endblock %}

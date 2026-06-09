@@ -1,0 +1,56 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "tMCXYfj9f6UcPr82tnPid"
+uri = "file://permitlify.zip"
+type = "unspecified"
+title = "permitlify.zip — full project source"
+
+[[outputs]]
+id = "icf3eBjGi_NNNd2BiDZZk"
+uri = "file://permitlify_v2.zip"
+type = "unspecified"
+title = "Permitlify v2 — Billing Hero + CSS Fix (19.4 MB)"
+
+[[outputs]]
+id = "txo9m4hW8yUst9AH5wO1n"
+uri = "file://permitlify_full.zip"
+type = "unspecified"
+title = "Permitlify — Fixed Full Export (19.4 MB)"
+
+[[outputs]]
+id = "JPKgxDXqqZsJSqo3ebhEs"
+uri = "file://permitlify_final.zip"
+type = "unspecified"
+title = "Permitlify — Final Export with Invoice Redesign (19.4 MB)"
+
+[[outputs]]
+id = "itM9ff2BDhbUdl4Atq0XN"
+uri = "file://permitlify_v3.zip"
+type = "unspecified"
+title = "Permitlify v3 — Richer Plan Card Gradient (19.2 MB)"
+
+[[outputs]]
+id = "K-F4gKIEGQ6CYxeqjWWFJ"
+uri = "file://permitlify_v4.zip"
+type = "unspecified"
+title = "Permitlify v4 — Fully Working Security Tab (19.2 MB)"
+
+[[outputs]]
+id = "t6xun6l9NfcpyJMKeKtya"
+uri = "file://permitlify_v5.zip"
+type = "unspecified"
+title = "Permitlify v5 — Live DB Usage Tracking (19.2 MB)"
+
+[[outputs]]
+id = "TOVW_-DvaSgzAu1tXs133"
+uri = "file://permitlify_v6.zip"
+type = "unspecified"
+title = "Permitlify v6 (19.2 MB)"
+
+[[outputs]]
+id = "KrzeXtJumdXITg5aNjms2"
+uri = "file://permitlify_v7.zip"
+type = "unspecified"
+title = "Permitlify v7 (19.2 MB)"

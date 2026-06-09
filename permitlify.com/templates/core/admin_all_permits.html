@@ -1,0 +1,555 @@
+{% extends "core/admin_base.html" %}
+{% load static %}
+{% block title %}All Permit Data{% endblock %}
+{% block page_title %}All Permit Data{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; <span id="apTotal">{{ total_permits }}</span> rows in <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:rgba(15,23,42,.05);padding:1px 6px;border-radius:5px;">permits</code> table{% endblock %}
+
+{% block extra_head %}
+<style>
+.ap-filters{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;}
+.ap-filters .ap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 12px;}
+.ap-filters label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+.ap-filters input, .ap-filters select{
+  height:34px;padding:0 10px;border:1px solid var(--border);border-radius:7px;
+  background:#fff;font-size:12.5px;color:var(--text);font-family:inherit;
+  font-weight:500;text-transform:none;letter-spacing:0;outline:none;
+}
+.ap-filters input:focus, .ap-filters select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.1);}
+.ap-filters .ap-range{display:flex;gap:6px;align-items:center;}
+.ap-filters .ap-range input{flex:1;min-width:0;}
+.ap-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;}
+.ap-btn{padding:8px 16px;border-radius:7px;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text);}
+.ap-btn.primary{background:var(--grad);color:#fff;border:0;box-shadow:var(--sh-grad);}
+.ap-btn:hover{opacity:.92;}
+
+.ap-table-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.ap-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+table.ap-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+table.ap-table thead th{
+  background:var(--bg);font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);text-align:left;
+  padding:11px 14px;border-bottom:1px solid var(--border);white-space:nowrap;
+}
+table.ap-table tbody td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle;}
+table.ap-table tbody tr:last-child td{border-bottom:none;}
+table.ap-table tbody tr:hover{background:rgba(15,23,42,.012);}
+table.ap-table .num{font-family:'JetBrains Mono',monospace;font-size:11.5px;}
+table.ap-table .muted{color:var(--muted);}
+table.ap-table .src-pill{display:inline-block;padding:2px 7px;background:rgba(29,78,216,.08);color:#1d4ed8;border-radius:5px;font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:.02em;}
+table.ap-table .grade{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:10.5px;font-weight:800;color:#fff;font-family:'JetBrains Mono',monospace;}
+table.ap-table .grade.A{background:#16a34a;} table.ap-table .grade.B{background:#65a30d;}
+table.ap-table .grade.C{background:#ca8a04;} table.ap-table .grade.D{background:#ea580c;}
+table.ap-table .grade.F{background:#dc2626;} table.ap-table .grade{background:#94a3b8;}
+.src-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:#fff;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;color:var(--text);text-decoration:none;cursor:pointer;font-family:inherit;}
+.src-btn:hover{border-color:var(--blue);color:var(--blue);}
+
+.dt-foot{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:12px;color:var(--muted);gap:14px;flex-wrap:wrap;}
+.dt-foot .dataTables_length select, .dt-foot .dataTables_paginate .paginate_button{
+  font-family:inherit;font-size:12px;
+}
+.dt-foot .dataTables_paginate .paginate_button{padding:4px 10px;margin:0 2px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--text);cursor:pointer;}
+.dt-foot .dataTables_paginate .paginate_button.current{background:var(--blue);color:#fff;border-color:var(--blue);}
+.dt-foot .dataTables_paginate .paginate_button.disabled{opacity:.4;cursor:not-allowed;}
+.dataTables_processing{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 14px;background:rgba(255,255,255,.95);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;color:var(--text);z-index:10;}
+</style>
+{% endblock %}
+
+{% block content %}
+<form id="apFilters" class="ap-filters" onsubmit="return false;">
+  <div class="ap-grid">
+    <label>Search (any field)
+      <input type="text" name="q" placeholder="permit #, address, name, email, phone…">
+    </label>
+    <label>Permit #
+      <input type="text" name="permit_number" placeholder="BLD2025-001">
+    </label>
+    <label>Source
+      <input type="text" name="source" placeholder="scraper-225">
+    </label>
+    <label>State
+      <input type="text" name="state" placeholder="CA" maxlength="2" style="text-transform:uppercase;">
+    </label>
+    <label>City
+      <input type="text" name="city" placeholder="San Diego">
+    </label>
+    <label>Permit Type
+      <input type="text" name="permit_type" placeholder="Building">
+    </label>
+    <label>Status
+      <input type="text" name="status" placeholder="Issued">
+    </label>
+    <label>Contractor
+      <input type="text" name="contractor" placeholder="Acme Builders">
+    </label>
+    <label>Owner
+      <input type="text" name="owner" placeholder="John Smith">
+    </label>
+    <label>Email
+      <input type="text" name="email" placeholder="@gmail.com">
+    </label>
+    <label>Phone
+      <input type="text" name="phone" placeholder="619">
+    </label>
+    <label>Has Email
+      <select name="has_email">
+        <option value="">— Any —</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+    </label>
+    <label>Has Phone
+      <select name="has_phone">
+        <option value="">— Any —</option>
+        <option value="yes">Yes</option>
+        <option value="no">No</option>
+      </select>
+    </label>
+    <label>Date From
+      <input type="date" name="date_from">
+    </label>
+    <label>Date To
+      <input type="date" name="date_to">
+    </label>
+    <label>Scraped From
+      <input type="date" name="scraped_from">
+    </label>
+    <label>Scraped To
+      <input type="date" name="scraped_to">
+    </label>
+    <label>Score (0-100)
+      <div class="ap-range">
+        <input type="number" name="min_score" min="0" max="100" placeholder="Min">
+        <input type="number" name="max_score" min="0" max="100" placeholder="Max">
+      </div>
+    </label>
+    <label>Valuation ($)
+      <div class="ap-range">
+        <input type="number" name="min_value" min="0" placeholder="Min">
+        <input type="number" name="max_value" min="0" placeholder="Max">
+      </div>
+    </label>
+  </div>
+  <div class="ap-actions">
+    <button type="button" class="ap-btn" onclick="resetApFilters()">Reset</button>
+    <button type="submit" class="ap-btn primary">Apply</button>
+  </div>
+</form>
+
+<div class="ap-delbar" style="display:flex;align-items:center;gap:10px;margin:10px 0;flex-wrap:wrap;">
+  <span id="apSelCount" style="font-size:13px;color:var(--muted);">0 selected</span>
+  <button type="button" id="apDelSel" class="ap-btn" style="color:#b91c1c;border-color:#fca5a5;" disabled
+          onclick="apDeleteSelected()">🗑 Delete selected</button>
+  <button type="button" id="apDelAll" class="ap-btn" style="color:#b91c1c;border-color:#fca5a5;"
+          onclick="apDeleteAllMatching()" title="Hard-delete every record matching the current filters (all pages)">
+    🗑 Delete all matching
+  </button>
+  <span style="font-size:12px;color:var(--muted);">Permanently removes rows from the database (not the junk list).</span>
+</div>
+
+<div class="ap-table-wrap">
+  <div class="ap-table-scroll" style="position:relative;">
+    <table id="apTable" class="ap-table" style="width:100%;">
+      <thead>
+        <tr>
+          <th style="width:34px;text-align:center;">
+            <input type="checkbox" id="apSelAll" title="Select all on this page" onclick="apToggleSelAll(this)">
+          </th>
+          <th>Permit #</th>
+          <th>Type</th>
+          <th>Address</th>
+          <th>City</th>
+          <th>State</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Contractor</th>
+          <th>Owner</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Date</th>
+          <th>Scraped</th>
+          <th>Value</th>
+          <th>Score</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Manual permit editor modal ──────────────────────────────────── #}
+{# Fields edited here are LOCKED: db.update_permit records them in      #}
+{# manual_fields so future scraper upserts can never overwrite them.   #}
+<div id="peOverlay" role="dialog" aria-modal="true" aria-labelledby="peTitle"
+     style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:1000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
+  <div style="background:#fff;border-radius:12px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--border,#e5e7eb);display:flex;align-items:center;gap:10px;">
+      <h3 id="peTitle" style="margin:0;font-size:16px;">Edit permit <span id="peId" class="num"></span></h3>
+      <button type="button" onclick="closePermitEdit()" style="margin-left:auto;background:transparent;border:0;font-size:20px;cursor:pointer;color:var(--muted);line-height:1;">×</button>
+    </div>
+    <form id="peForm" autocomplete="off" style="padding:18px 22px;">
+      <p style="margin:0 0 14px;color:var(--muted);font-size:12.5px;line-height:1.5;">
+        Saved fields are <b>locked</b> — a future rescrape of this permit will keep
+        your values and never overwrite them. Fields with a 🔒 were edited before.
+      </p>
+      <div id="peFields" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
+      <div id="peError" style="display:none;margin-top:12px;color:#b91c1c;font-size:12.5px;"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:18px;">
+        <button type="button" onclick="closePermitEdit()" class="ap-btn">Cancel</button>
+        <button type="submit" id="peSave" class="ap-btn primary">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<link rel="stylesheet" href="/lib/grid.min.css?v=3">
+<script src="/lib/core.min.js?v=3"></script>
+<script src="/lib/grid.min.js?v=3"></script>
+<script>
+(function(){
+  function esc(s){
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function readFilters(d){
+    var f = document.getElementById('apFilters');
+    if (!f) return d;
+    function v(name) {
+      var el = f.elements[name];
+      return el ? (el.value || '').trim() : '';
+    }
+    ['q','permit_number','source','state','city','permit_type','status',
+     'contractor','owner','email','phone','has_email','has_phone',
+     'date_from','date_to','scraped_from','scraped_to',
+     'min_score','max_score','min_value','max_value'
+    ].forEach(function(n){ d[n] = v(n); });
+    return d;
+  }
+
+  /* Cross-page selection: server-side paging only renders one page at a
+     time, so we remember picked ids in a Set that survives page changes
+     and reloads (matching the "delete the whole thing" expectation). */
+  var apSel = window.apSel = new Set();
+  window.apRefreshSelUI = function(){
+    var n = apSel.size;
+    var lbl = document.getElementById('apSelCount');
+    if (lbl) lbl.textContent = n + ' selected';
+    var btn = document.getElementById('apDelSel');
+    if (btn) btn.disabled = (n === 0);
+    var all = document.getElementById('apSelAll');
+    if (all){
+      var boxes = document.querySelectorAll('#apTable tbody .ap-rowsel');
+      var checked = document.querySelectorAll('#apTable tbody .ap-rowsel:checked');
+      all.checked = boxes.length > 0 && checked.length === boxes.length;
+    }
+  };
+  window.apToggleSelAll = function(master){
+    document.querySelectorAll('#apTable tbody .ap-rowsel').forEach(function(cb){
+      cb.checked = master.checked;
+      var id = cb.getAttribute('data-id');
+      if (master.checked) apSel.add(id); else apSel.delete(id);
+    });
+    window.apRefreshSelUI();
+  };
+
+  window.resetApFilters = function(){
+    var f = document.getElementById('apFilters');
+    if (!f) return;
+    Array.prototype.forEach.call(f.elements, function(el){
+      if (!el.name) return;
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else if (el.type !== 'submit' && el.type !== 'button') el.value = '';
+    });
+    if (window.apTable) window.apTable.ajax.reload();
+  };
+
+  window.apTable = jQuery('#apTable').DataTable({
+    serverSide: true,
+    processing: true,
+    searching:  false,
+    lengthMenu: [[25,50,100,250,500],[25,50,100,250,500]],
+    pageLength: 50,
+    order:      [[12,'desc']],
+    dom:        'rt<"dt-foot"lip>',
+    deferRender: true,
+    ajax: {
+      url:  '/admin-panel/permits/data.json',
+      data: function(d){ return readFilters(d); },
+      dataSrc: function(json){
+        var c = document.getElementById('apTotal');
+        if (c) c.textContent = json.recordsFiltered;
+        return json.data;
+      },
+    },
+    drawCallback: function(){ if (window.apRefreshSelUI) window.apRefreshSelUI(); },
+    columns: [
+      {data:'id', orderable:false, className:'ap-selcol', render:function(d){
+        var id = esc(d);
+        var on = (window.apSel && window.apSel.has(String(d))) ? ' checked' : '';
+        return '<input type="checkbox" class="ap-rowsel" data-id="' + id + '"' + on + '>';
+      }},
+      {data:'permit', render:function(d){ return '<span class="num">' + (esc(d) || '—') + '</span>'; }},
+      {data:'type',    render:function(d){ return esc(d) || '<span class="muted">—</span>'; }},
+      {data:'address', render:function(d){ return esc(d) || '<span class="muted">—</span>'; }},
+      {data:'city',    render:function(d){ return esc(d) || '<span class="muted">—</span>'; }},
+      {data:'state',   render:function(d){ return d ? '<span class="num">' + esc(d) + '</span>' : '<span class="muted">—</span>'; }},
+      {data:null, name:'source', orderable:true, render:function(p){
+        if (!p.source) return '<span class="muted">—</span>';
+        var label = p.scraper_name || p.source;
+        var inner;
+        if (p.scraper_id) {
+          inner = '<a href="/admin-panel/scrapers/' + esc(p.scraper_id) + '/" '
+                + 'class="src-pill" style="text-decoration:none;" '
+                + 'title="Open scraper #' + esc(p.scraper_id) + ' (' + esc(p.source) + ')">'
+                + esc(label) + '</a>';
+        } else {
+          inner = '<span class="src-pill">' + esc(label) + '</span>';
+        }
+        if (p.detail_url) {
+          inner += ' <a href="' + esc(p.detail_url) + '" target="_blank" rel="noopener" '
+                 + 'title="Open original permit page on Accela" '
+                 + 'style="text-decoration:none;color:var(--muted);margin-left:4px;font-size:11px;">↗</a>';
+        }
+        return inner;
+      }},
+      {data:'status',  render:function(d){ return esc(d) || '<span class="muted">—</span>'; }},
+      {data:'contractor', render:function(d){ return esc(d) || '<span class="muted">—</span>'; }},
+      {data:'owner',      render:function(d){ return esc(d) || '<span class="muted">—</span>'; }},
+      {data:'email', render:function(d){
+        return d ? '<a href="mailto:' + esc(d) + '" style="color:var(--text);text-decoration:none;">' + esc(d) + '</a>'
+                 : '<span class="muted">—</span>';
+      }},
+      {data:'phone', render:function(d){
+        return d ? '<span class="num">' + esc(d) + '</span>' : '<span class="muted">—</span>';
+      }},
+      {data:'date', render:function(d){
+        return d ? '<span class="num">' + esc(String(d).slice(0,10)) + '</span>' : '<span class="num muted">—</span>';
+      }},
+      {data:'scraped', render:function(d){
+        return d ? '<span class="num">' + esc(String(d).slice(0,10)) + '</span>' : '<span class="num muted">—</span>';
+      }},
+      {data:'value', render:function(d){
+        return d ? '<span class="num">' + esc(d) + '</span>' : '<span class="num muted">—</span>';
+      }},
+      {data:null, render:function(p){
+        var letter = (p.grade || '').charAt(0).toUpperCase();
+        var chip = '<span class="grade ' + esc(letter) + '">' + (esc(p.grade) || '—') + '</span>';
+        return chip + ' <span class="num" style="margin-left:6px;">' + esc(p.score || 0) + '</span>';
+      }},
+      {data:null, orderable:false, render:function(p){
+        var view = '<a href="/admin-panel/permits/' + esc(p.id) + '/raw/" target="_blank" rel="noopener" class="src-btn" title="View raw scraped data">👁 Raw</a>';
+        var edit = ' <button type="button" class="src-btn" title="Manually edit this permit" onclick="openPermitEdit(' + esc(p.id) + ')">✏ Edit</button>';
+        var open = '';
+        if (p.detail_url) {
+          open = ' <a href="' + esc(p.detail_url) + '" target="_blank" rel="noopener" class="src-btn" title="Open original permit page">↗ Open</a>';
+        }
+        return view + edit + open;
+      }},
+    ],
+  });
+
+  var fForm = document.getElementById('apFilters');
+  if (fForm){
+    var _t = null;
+    function liveReload(immediate){
+      if (_t){ clearTimeout(_t); _t = null; }
+      if (immediate){ window.apTable.ajax.reload(null, false); return; }
+      _t = setTimeout(function(){ window.apTable.ajax.reload(null, false); }, 250);
+    }
+    fForm.addEventListener('submit', function(e){ e.preventDefault(); liveReload(true); });
+    Array.prototype.forEach.call(fForm.elements, function(el){
+      if (!el.name) return;
+      var ev = (el.tagName === 'SELECT' || el.type === 'date') ? 'change' : 'input';
+      el.addEventListener(ev, function(){ liveReload(false); });
+    });
+  }
+
+  // Per-row checkbox: keep the cross-page Set in sync (event delegation
+  // so it survives DataTables re-rendering the tbody on every draw).
+  var tbody = document.querySelector('#apTable tbody');
+  if (tbody){
+    tbody.addEventListener('change', function(e){
+      var cb = e.target;
+      if (!cb || !cb.classList || !cb.classList.contains('ap-rowsel')) return;
+      var id = cb.getAttribute('data-id');
+      if (cb.checked) apSel.add(id); else apSel.delete(id);
+      window.apRefreshSelUI();
+    });
+  }
+})();
+
+function _apCsrf(){
+  var m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+async function apDeleteSelected(){
+  var ids = Array.from(window.apSel || []);
+  if (!ids.length) return;
+  if (!confirm('Permanently delete ' + ids.length + ' selected record(s) from the database? This cannot be undone.')) return;
+  var fd = new FormData();
+  ids.forEach(function(id){ fd.append('ids', id); });
+  try {
+    var r = await fetch('/admin-panel/permits/bulk-delete/', {
+      method:'POST', headers:{'X-CSRFToken':_apCsrf()}, body:fd,
+    });
+    var d = await r.json();
+    if (!r.ok || !d.ok){ throw new Error(d.error || ('HTTP ' + r.status)); }
+    window.apSel.clear();
+    alert('Deleted ' + d.deleted + ' record(s).');
+    window.apTable.ajax.reload(null, false);
+  } catch (e){ alert('Delete failed: ' + e.message); }
+}
+
+async function apDeleteAllMatching(){
+  var total = document.getElementById('apTotal');
+  var n = total ? total.textContent : 'all';
+  if (!confirm('Permanently delete ALL ' + n + ' record(s) matching the current filters (every page) from the database? This cannot be undone.')) return;
+  var fd = new FormData();
+  fd.append('match_all', '1');
+  // Mirror the active filters so the server deletes exactly what's shown.
+  var f = document.getElementById('apFilters');
+  if (f){
+    Array.prototype.forEach.call(f.elements, function(el){
+      if (el.name && el.value) fd.append(el.name, el.value);
+    });
+  }
+  try {
+    var r = await fetch('/admin-panel/permits/bulk-delete/', {
+      method:'POST', headers:{'X-CSRFToken':_apCsrf()}, body:fd,
+    });
+    var d = await r.json();
+    if (!r.ok || !d.ok){ throw new Error(d.error || ('HTTP ' + r.status)); }
+    window.apSel.clear();
+    alert('Deleted ' + d.deleted + ' record(s).');
+    window.apTable.ajax.reload(null, false);
+  } catch (e){ alert('Delete failed: ' + e.message); }
+}
+
+/* ── Manual permit editor ──────────────────────────────────────────
+ * Loads a permit's editable fields, renders one input per field
+ * (date fields get a date picker), flags previously-locked fields with
+ * a 🔒, and POSTs the edits back. Saved fields become locked so future
+ * scraper upserts can't overwrite them. */
+function _peEsc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+function _peCsrf(){
+  var m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+var _peCurrentId = null;
+
+async function openPermitEdit(pid){
+  _peCurrentId = pid;
+  var overlay = document.getElementById('peOverlay');
+  var wrap    = document.getElementById('peFields');
+  var errEl   = document.getElementById('peError');
+  errEl.style.display = 'none'; errEl.textContent = '';
+  document.getElementById('peId').textContent = '#' + pid;
+  wrap.innerHTML = '<div style="grid-column:1/-1;color:#64748b;">Loading…</div>';
+  overlay.style.display = 'flex';
+  try {
+    var r = await fetch('/admin-panel/permits/' + encodeURIComponent(pid) + '/edit/');
+    var d = await r.json();
+    if (!r.ok || !d.ok){ throw new Error(d.error || ('HTTP ' + r.status)); }
+    var locked = {};
+    (d.locked_fields || []).forEach(function(k){ locked[k] = true; });
+    var html = '';
+    var ctrlStyle = 'width:100%;padding:7px 9px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;';
+    (d.order || []).forEach(function(k){
+      var label = (d.labels && d.labels[k]) || k;
+      var val   = (d.fields && d.fields[k] != null) ? d.fields[k] : '';
+      var lock  = locked[k] ? ' 🔒' : '';
+      var w     = (d.widgets && d.widgets[k]) || {type:'text'};
+      var isWide = (k === 'address' || k === 'description');
+      // Date columns may arrive as full timestamps — keep only YYYY-MM-DD.
+      if (w.type === 'date' && val) { val = String(val).slice(0,10); }
+      var ctrl;
+      if (w.type === 'select'){
+        var opts = (w.options || []).map(function(o){
+          var sel = (String(o) === String(val)) ? ' selected' : '';
+          return '<option value="' + _peEsc(o) + '"' + sel + '>' + _peEsc(o === '' ? '—' : o) + '</option>';
+        }).join('');
+        ctrl = '<select data-field="' + _peEsc(k) + '" style="' + ctrlStyle + '">' + opts + '</select>';
+      } else {
+        var type = 'text', extra = '';
+        if (w.type === 'date') { type = 'date'; }
+        else if (w.type === 'money') { type = 'number'; extra = ' step="0.01" min="0"'; }
+        else if (w.type === 'number') {
+          type = 'number';
+          if (w.step != null) extra += ' step="' + w.step + '"';
+          if (w.min  != null) extra += ' min="'  + w.min  + '"';
+          if (w.max  != null) extra += ' max="'  + w.max  + '"';
+        }
+        ctrl = '<input type="' + type + '" data-field="' + _peEsc(k) + '" value="' + _peEsc(val) + '"' + extra
+          + ' style="' + ctrlStyle + '">';
+      }
+      html += '<div' + (isWide ? ' style="grid-column:1/-1;"' : '') + '>'
+        + '<label style="display:block;font-size:11.5px;font-weight:600;color:#475569;margin-bottom:4px;">'
+        + _peEsc(label) + lock + '</label>'
+        + ctrl
+        + '</div>';
+    });
+    wrap.innerHTML = html;
+  } catch (e){
+    wrap.innerHTML = '';
+    errEl.style.display = 'block';
+    errEl.textContent = 'Failed to load permit: ' + e.message;
+  }
+}
+function closePermitEdit(){
+  document.getElementById('peOverlay').style.display = 'none';
+  _peCurrentId = null;
+}
+(function(){
+  var overlay = document.getElementById('peOverlay');
+  var form    = document.getElementById('peForm');
+  if (!overlay || !form) return;
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) closePermitEdit(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && overlay.style.display === 'flex') closePermitEdit();
+  });
+  form.addEventListener('submit', async function(ev){
+    ev.preventDefault();
+    if (_peCurrentId == null) return;
+    var errEl = document.getElementById('peError');
+    var btn   = document.getElementById('peSave');
+    errEl.style.display = 'none'; errEl.textContent = '';
+    var fd = new FormData();
+    document.querySelectorAll('#peFields [data-field]').forEach(function(inp){
+      fd.append(inp.getAttribute('data-field'), inp.value.trim());
+    });
+    btn.disabled = true; var orig = btn.textContent; btn.textContent = 'Saving…';
+    try {
+      var r = await fetch('/admin-panel/permits/' + encodeURIComponent(_peCurrentId) + '/edit/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': _peCsrf()},
+        body: fd,
+      });
+      var d = {};
+      try { d = await r.json(); } catch(_) {}
+      if (r.ok && d.ok){
+        closePermitEdit();
+        if (window.apTable) window.apTable.ajax.reload(null, false);
+      } else {
+        errEl.style.display = 'block';
+        errEl.textContent = d.error || ('Save failed (HTTP ' + r.status + ')');
+        btn.disabled = false; btn.textContent = orig;
+      }
+    } catch (e){
+      errEl.style.display = 'block';
+      errEl.textContent = 'Network error: ' + e.message;
+      btn.disabled = false; btn.textContent = orig;
+    }
+  });
+})();
+</script>
+{% endblock %}

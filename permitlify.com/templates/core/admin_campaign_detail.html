@@ -1,0 +1,394 @@
+{% extends "core/admin_base.html" %}
+{% load static %}
+{% block title %}{{ c.name }} · Campaign · Admin{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+{% endblock %}
+
+{% block content %}
+<style>
+  .stat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
+  @media(max-width:1200px){.stat-grid{grid-template-columns:repeat(3,1fr)}}
+  .stat{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px}
+  .stat .label{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+  .stat .val{font-size:22px;font-weight:700;color:#0f172a;margin-top:4px}
+  .stat .sub{font-size:11px;color:#94a3b8;margin-top:2px}
+  .stat.sent .val{color:#1d4ed8} .stat.delivered .val{color:#059669}
+  .stat.failed .val{color:#dc2626} .stat.bounced .val{color:#b45309}
+  .stat.complained .val{color:#9333ea} .stat.unsub .val{color:#64748b}
+
+  .panel{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px}
+  .panel h2{margin:0 0 14px;font-size:16px;display:flex;align-items:center;justify-content:space-between}
+  .panel label{display:block;font-size:12px;font-weight:600;color:#334155;margin:10px 0 4px}
+  .panel input[type=text],.panel input[type=email],.panel input[type=number],.panel textarea{
+    width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;font:inherit
+  }
+  .panel textarea{min-height:240px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px}
+  .panel .row{display:grid;grid-template-columns:1fr 160px 1fr;gap:12px}
+  .panel .hint{font-size:12px;color:#64748b;margin-top:4px}
+
+  .btn{background:#1d4ed8;color:#fff;border:0;padding:9px 14px;border-radius:8px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;font-size:13px}
+  .btn:hover{background:#1e40af}
+  .btn-sec{background:#f1f5f9;color:#0f172a}
+  .btn-sec:hover{background:#e2e8f0}
+  .btn-warn{background:#f59e0b;color:#fff}.btn-warn:hover{background:#d97706}
+  .btn-danger{background:#dc2626;color:#fff}.btn-danger:hover{background:#b91c1c}
+  .btn-ok{background:#059669;color:#fff}.btn-ok:hover{background:#047857}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+  .preview-frame{width:100%;height:560px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc}
+
+  .tpl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.tpl-grid{grid-template-columns:1fr}}
+  .tpl-card{border:1px solid #e2e8f0;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s,box-shadow .15s}
+  .tpl-card:hover{border-color:#bfdbfe}
+  .tpl-card.active{border-color:#1d4ed8;box-shadow:0 0 0 2px rgba(29,78,216,.15)}
+  .tpl-name{font-size:15px;font-weight:700;color:#0f172a}
+  .tpl-desc{font-size:12.5px;color:#64748b;line-height:1.5;flex:1}
+  .tpl-actions{display:flex;gap:8px;margin-top:4px}
+  .tpl-actions .btn{font-size:12px;padding:7px 11px}
+
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;text-transform:uppercase}
+  .p-pending{background:#f1f5f9;color:#475569}
+  .p-sent{background:#dbeafe;color:#1d4ed8}
+  .p-delivered{background:#dcfce7;color:#16a34a}
+  .p-opened{background:#cffafe;color:#0891b2}
+  .p-failed{background:#fee2e2;color:#b91c1c}
+  .p-bounced{background:#fef3c7;color:#a16207}
+  .p-complained{background:#fae8ff;color:#9333ea}
+  .p-skipped{background:#f1f5f9;color:#94a3b8}
+  .p-unsubscribed{background:#e0e7ff;color:#4338ca}
+
+  .msg{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:14px}
+  .msg.ok{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+  .msg.err{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+
+  .header-bar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+  .status-pill{display:inline-block;padding:5px 12px;border-radius:99px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+  .sp-draft{background:#f1f5f9;color:#475569}
+  .sp-sending{background:#dbeafe;color:#1d4ed8}
+  .sp-paused{background:#fef3c7;color:#a16207}
+  .sp-done{background:#dcfce7;color:#16a34a}
+</style>
+
+<div class="header-bar">
+  <div>
+    <a href="/admin-panel/marketing/campaigns/" style="color:#64748b;text-decoration:none;font-size:13px">← All campaigns</a>
+    <h1 style="margin:4px 0 0;font-size:22px">
+      {{ c.name }} <span class="status-pill sp-{{ c.status }}">{{ c.status }}</span>
+    </h1>
+    <div style="color:#64748b;font-size:13px;margin-top:4px">
+      Created {{ c.created_at|date:"M j, Y H:i" }}
+      {% if c.started_at %} · Started {{ c.started_at|date:"M j, Y H:i" }}{% endif %}
+      · Daily cap {{ c.daily_cap }} · Sent in last 24h: {{ today_sent }} ({{ remaining_today }} remaining)
+    </div>
+  </div>
+  <div class="toolbar">
+    <form method="POST" style="display:inline">
+      {% csrf_token %}
+      {% if c.status == 'draft' or c.status == 'paused' %}
+        <button name="action" value="{% if c.status == 'paused' %}resume{% else %}start{% endif %}" class="btn btn-ok">▶ {% if c.status == 'paused' %}Resume{% else %}Start sending{% endif %}</button>
+      {% elif c.status == 'sending' %}
+        <button name="action" value="pause" class="btn btn-warn">⏸ Pause</button>
+      {% endif %}
+      <button name="action" value="delete" class="btn btn-danger" onclick="return confirm('Delete this campaign and all recipient rows?')">🗑 Delete</button>
+    </form>
+  </div>
+</div>
+
+{% if msg %}<div class="msg ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="msg err">{{ err }}</div>{% endif %}
+
+<div class="stat-grid">
+  <div class="stat"><div class="label">Recipients</div><div class="val">{{ c.total }}</div><div class="sub">in queue</div></div>
+  <div class="stat sent"><div class="label">Sent</div><div class="val">{{ c.sent_count }}</div></div>
+  <div class="stat delivered"><div class="label">Opened</div><div class="val">{{ c.opened_count }}</div></div>
+  <div class="stat failed"><div class="label">Failed</div><div class="val">{{ c.failed_count }}</div></div>
+  <div class="stat bounced"><div class="label">Bounced</div><div class="val">{{ c.bounced_count }}</div></div>
+  <div class="stat unsub"><div class="label">Skipped/Unsub</div><div class="val">{{ c.skipped_count|add:c.unsubscribed_count }}</div></div>
+</div>
+
+<!-- Automatic sending (cron) -->
+<div class="panel" style="border-color:#bfdbfe;background:#f8fbff">
+  <h2 style="display:block">
+    ⏱ Automatic sending (cron)
+    <span style="font-weight:400;font-size:12px;color:#64748b;display:block;margin-top:4px">
+      A campaign only ships when something pokes the dispatcher on a schedule. Nothing sends just by clicking <b>Start sending</b> — that flips the status to <code>sending</code>; the cron does the actual mailing.
+    </span>
+  </h2>
+
+  <ol style="margin:0 0 14px;padding-left:20px;font-size:13.5px;color:#334155;line-height:1.7">
+    <li><b>Enable it (one-time).</b> Add the workflow file <code>.github/workflows/campaigns_cron.yml</code> to the GitHub repo, then set the repo secret <code>SCRAPER_INGEST_KEY</code> (same value as the scraper-ingest / recovery-email crons). It then calls the tick endpoint <b>every 15 minutes</b> and any campaign in the <code>sending</code> state mails automatically. No server changes needed.</li>
+    <li><b>Each tick</b> runs the daily auto-pull top-up, then sends up to <code>per_tick</code> (20) recipients per active campaign, still bounded by the <b>Daily cap</b> below.</li>
+    <li><b>Pacing:</b> cap × ticks/day sets your ceiling. e.g. cap 200 + a tick every 15 min ≈ a gentle drip across the day — easy on Gmail/Outlook reputation while a domain warms up.</li>
+  </ol>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:600;color:#334155;margin-bottom:6px">Cron endpoint (any external scheduler can call this)</div>
+    <pre style="margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:#0f172a;white-space:pre-wrap;word-break:break-all">curl -X POST -H "X-Scraper-Key: &lt;SCRAPER_INGEST_KEY&gt;" \
+  "https://permitlify.com/api/cron/campaigns/tick/?per_tick=20"</pre>
+    <div class="hint" style="margin-top:6px">Auth = the same <code>SCRAPER_INGEST_KEY</code> used by the scraper ingest &amp; recovery-email crons. Header <code>X-Scraper-Key</code> or <code>?key=</code> querystring both work. Idempotent &amp; lock-safe, so overlapping calls never double-send.</div>
+  </div>
+
+  <details style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-bottom:12px">
+    <summary style="font-size:12px;font-weight:600;color:#334155;cursor:pointer">GitHub Actions workflow YAML — copy to <code>.github/workflows/campaigns_cron.yml</code></summary>
+    <pre style="margin:8px 0 0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:#0f172a;white-space:pre;overflow-x:auto;line-height:1.5">{% verbatim %}name: Campaigns cron
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 min (best-effort)
+  workflow_dispatch: {}
+concurrency:
+  group: campaigns-cron
+  cancel-in-progress: false
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fire campaigns tick
+        env:
+          SCRAPER_INGEST_KEY: ${{ secrets.SCRAPER_INGEST_KEY }}
+        run: |
+          curl -fsS -X POST -H "X-Scraper-Key: $SCRAPER_INGEST_KEY" \
+            "https://permitlify.com/api/cron/campaigns/tick/?per_tick=20"{% endverbatim %}</pre>
+    <div class="hint" style="margin-top:6px">Then add a repo secret named <code>SCRAPER_INGEST_KEY</code> under Settings → Secrets → Actions. Committing files under <code>.github/workflows/</code> requires a token with the <code>workflow</code> scope.</div>
+  </details>
+
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px">
+    <div style="font-size:12px;font-weight:600;color:#334155;margin-bottom:6px">Manual run (server shell) — e.g. to test or to send immediately</div>
+    <pre style="margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;color:#0f172a;white-space:pre-wrap;word-break:break-all">python manage.py campaigns_tick --campaign {{ c.id }} --per-tick 20
+# add --dry-run to preview without actually sending</pre>
+  </div>
+</div>
+
+<!-- Template picker -->
+<div class="panel">
+  <h2>
+    Start from a template
+    <span style="font-weight:400;font-size:12px;color:#64748b">Preview any design, then load it into the editor below to tweak.</span>
+  </h2>
+  <div class="tpl-grid">
+    {% for t in email_templates %}
+    <div class="tpl-card" data-key="{{ t.key }}">
+      <div class="tpl-name">{{ t.name }}</div>
+      <div class="tpl-desc">{{ t.desc }}</div>
+      <div class="tpl-actions">
+        <button type="button" class="btn btn-sec" onclick="previewTemplate('{{ t.key }}')">👁 Preview</button>
+        <button type="button" class="btn" onclick="useTemplate('{{ t.key }}')">Use this template</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Editor + preview side-by-side -->
+<div class="panel">
+  <h2>
+    Email content
+    <span style="font-weight:400;font-size:12px;color:#64748b">
+      Placeholders: {% verbatim %}<code>{{name}}</code> <code>{{email}}</code> <code>{{unsubscribe_url}}</code>{% endverbatim %}
+    </span>
+  </h2>
+  <form method="POST" id="campaign-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save">
+    <div class="row">
+      <div>
+        <label>Internal name</label>
+        <input type="text" name="name" value="{{ c.name }}" required>
+      </div>
+      <div>
+        <label>Daily cap</label>
+        <input type="number" name="daily_cap" value="{{ c.daily_cap }}" min="1" max="10000">
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:30px;font-size:13px;font-weight:500">
+          <input type="checkbox" name="skip_existing_users" {% if c.skip_existing_users %}checked{% endif %}> Skip existing Permitlify users
+        </label>
+      </div>
+    </div>
+
+    <div style="margin-top:10px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#0f172a;margin:0">
+        <input type="checkbox" name="auto_pull_enabled" id="auto-pull-enabled" {% if c.auto_pull_count %}checked{% endif %}>
+        Auto-pull fresh contractor leads daily
+      </label>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <span style="font-size:13px;color:#334155">Add up to</span>
+        <input type="number" name="auto_pull_count" id="auto-pull-count"
+               value="{{ c.auto_pull_count|default:50 }}" min="1" max="5000"
+               style="width:110px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit"
+               {% if not c.auto_pull_count %}disabled{% endif %}>
+        <span style="font-size:13px;color:#334155">new, highest-scored emails per day (auto-skips suppressed &amp; already-added).</span>
+      </div>
+      {% if c.last_auto_pull_at %}
+      <div class="hint" style="margin-top:6px">Last auto-pull: {{ c.last_auto_pull_at|date:"M j, Y H:i" }} UTC</div>
+      {% endif %}
+      <div class="hint" style="margin-top:4px">Runs once per day via the campaigns cron while the campaign is sending. The daily cap above still limits how many actually go out.</div>
+    </div>
+
+    <label>Subject</label>
+    <input type="text" name="subject" id="f-subject" value="{{ c.subject }}" required>
+
+    <label>HTML body</label>
+    <textarea name="body_html" id="f-body">{{ c.body_html }}</textarea>
+
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button type="submit" class="btn">💾 Save</button>
+      <button type="button" class="btn btn-sec" onclick="refreshPreview()">🔍 Refresh preview</button>
+      <span style="flex:1"></span>
+      <input type="email" id="test-email" placeholder="you@example.com" style="padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;width:240px">
+      <button type="button" class="btn btn-sec" onclick="sendTest()">✉️ Send test</button>
+    </div>
+  </form>
+
+  <h3 style="margin:24px 0 10px;font-size:14px;color:#334155">Visual preview — exactly what recipients see (ready-made templates render standalone; custom snippets use the branded shell)</h3>
+  <iframe id="preview-frame" class="preview-frame" src="about:blank"></iframe>
+</div>
+
+<!-- CSV upload -->
+<div class="panel">
+  <h2>Add recipients (CSV)</h2>
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upload_csv">
+    <input type="file" name="csv_file" accept=".csv,text/csv" required>
+    <button type="submit" class="btn" style="margin-left:8px">⬆ Upload CSV</button>
+    <span class="hint" style="margin-left:8px">Headers: <code>email,name</code> · duplicates auto-skipped · existing users auto-skipped at send time.</span>
+  </form>
+</div>
+
+<!-- Recipients DataTable -->
+<div class="panel">
+  <h2>
+    Recipients
+    <select id="status-filter" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font:inherit;font-size:13px">
+      <option value="">All statuses</option>
+      <option value="pending">Pending</option>
+      <option value="sending">Sending (in flight)</option>
+      <option value="sent">Sent</option>
+      <option value="delivered">Delivered</option>
+      <option value="opened">Opened</option>
+      <option value="failed">Failed</option>
+      <option value="bounced">Bounced</option>
+      <option value="complained">Complained</option>
+      <option value="skipped">Skipped</option>
+      <option value="unsubscribed">Unsubscribed</option>
+    </select>
+  </h2>
+  <table id="recip-table" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th>Email</th><th>Name</th><th>Status</th>
+        <th>Sent</th><th>Delivered</th><th>Opened</th><th>Note</th>
+      </tr>
+    </thead>
+  </table>
+</div>
+
+<!-- Hidden form for test send -->
+<form id="test-form" method="POST" style="display:none">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="send_test">
+  <input type="hidden" name="test_email" id="hidden-test-email">
+</form>
+
+{{ email_templates|json_script:"email-templates-data" }}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+const CSRF = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+const CID = {{ c.id }};
+const EMAIL_TEMPLATES = JSON.parse(document.getElementById('email-templates-data').textContent);
+
+function _tplByKey(key){ return EMAIL_TEMPLATES.find(t => t.key === key); }
+
+function _renderPreviewHtml(subject, body){
+  const fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('subject', subject);
+  fd.append('body_html', body);
+  return fetch('/admin-panel/marketing/campaigns/' + CID + '/preview/', {
+    method: 'POST', body: fd, credentials: 'same-origin'
+  }).then(r => r.text()).then(html => {
+    document.getElementById('preview-frame').srcdoc = html;
+  }).catch(e => alert('Preview failed: ' + e));
+}
+
+// Preview a starter template in the iframe WITHOUT touching the editor.
+function previewTemplate(key){
+  const t = _tplByKey(key);
+  if(!t) return;
+  _renderPreviewHtml(t.subject, t.body_html);
+}
+
+// Load a starter template into the editor (subject + body), then preview it.
+function useTemplate(key){
+  const t = _tplByKey(key);
+  if(!t) return;
+  const body = document.getElementById('f-body');
+  if(body.value.trim() && !confirm('Replace the current subject and email content with the "' + t.name + '" template?\nYour current content will be overwritten (Save afterwards to keep it).')) return;
+  document.getElementById('f-subject').value = t.subject;
+  body.value = t.body_html;
+  document.querySelectorAll('.tpl-card').forEach(c => c.classList.toggle('active', c.dataset.key === key));
+  refreshPreview();
+}
+
+function refreshPreview(){
+  const subj = document.getElementById('f-subject').value;
+  const body = document.getElementById('f-body').value;
+  return _renderPreviewHtml(subj, body);
+}
+
+function sendTest(){
+  const to = document.getElementById('test-email').value.trim();
+  if(!to || to.indexOf('@') < 0){ alert('Enter a valid test email.'); return; }
+  if(!confirm('Send a test of the CURRENT SAVED version to ' + to + '?\n(Save first if you have unsaved changes.)')) return;
+  document.getElementById('hidden-test-email').value = to;
+  document.getElementById('test-form').submit();
+}
+
+// Auto-pull: enable/disable the count field with its checkbox.
+(function(){
+  const cb = document.getElementById('auto-pull-enabled');
+  const num = document.getElementById('auto-pull-count');
+  if(cb && num){
+    cb.addEventListener('change', function(){
+      num.disabled = !cb.checked;
+      if(cb.checked && (!num.value || +num.value < 1)) num.value = 50;
+    });
+  }
+})();
+
+$(function(){
+  const tbl = $('#recip-table').DataTable({
+    serverSide: true, processing: true, pageLength: 50,
+    order: [[0, 'asc']], searching: true,
+    ajax: function(data, cb){
+      $.get('/admin-panel/marketing/campaigns/' + CID + '/recipients/', {
+        draw: data.draw, start: data.start, length: data.length,
+        search: data.search.value,
+        status: $('#status-filter').val(),
+      }, cb);
+    },
+    columns: [
+      { data: 'email' },
+      { data: 'name' },
+      { data: 'status', render: s => '<span class="pill p-' + s + '">' + s + '</span>' },
+      { data: 'sent_at' },
+      { data: 'delivered_at' },
+      { data: 'opened_at' },
+      { data: 'error', render: e => e ? '<span style="color:#b91c1c;font-size:12px">' + $('<div>').text(e).html() + '</span>' : '' },
+    ],
+  });
+  $('#status-filter').on('change', () => tbl.ajax.reload());
+  // Auto-render initial preview
+  refreshPreview();
+  // Auto-refresh stats + table every 30s while sending
+  {% if c.status == 'sending' %}
+  setInterval(function(){ tbl.ajax.reload(null, false); }, 30000);
+  {% endif %}
+});
+</script>
+{% endblock %}

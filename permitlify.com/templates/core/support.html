@@ -1,0 +1,157 @@
+{% extends "core/base.html" %}
+{% block title %}Support · Permitlify{% endblock %}
+{% block nav_support %}active{% endblock %}
+{% block content %}
+{% include "core/_locked_banner.html" %}
+<style>
+.sup-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:16px;}
+.sup-title{font-size:22px;font-weight:700;color:var(--tx);font-family:'DM Sans',sans-serif;}
+.sup-subtitle{font-size:13px;color:var(--tx2);margin-top:3px;}
+.sup-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.sup-stats{display:flex;gap:10px;}
+.sup-stat{background:var(--sur);border:1px solid var(--b1);border-radius:12px;padding:10px 18px;text-align:center;}
+.sup-stat-num{font-size:20px;font-weight:700;color:var(--pr);font-family:'DM Sans',sans-serif;line-height:1;}
+.sup-stat-lbl{font-size:10px;color:var(--tx2);margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
+.sup-new-btn{display:inline-flex;align-items:center;gap:7px;background:var(--pr);color:#fff;border:none;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;font-family:'DM Sans',sans-serif;text-decoration:none;}
+.sup-new-btn:hover{opacity:.88;}
+.tickets-grid{display:flex;flex-direction:column;gap:10px;}
+.ticket-card{background:var(--sur);border:1px solid var(--b1);border-radius:14px;padding:16px 18px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;transition:box-shadow .18s,border-color .18s;text-decoration:none;color:inherit;}
+.ticket-card:hover{border-color:var(--pr);box-shadow:0 4px 20px rgba(28,47,116,.07);}
+.t-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.t-icon.open{background:#eff6ff;}
+.t-icon.in_progress{background:#fff7ed;}
+.t-icon.resolved{background:#f0fdf4;}
+.t-icon.closed{background:#f8fafc;}
+.t-body{flex:1;min-width:0;}
+.t-ref{font-size:10.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace;margin-bottom:2px;}
+.t-subject{font-size:14px;font-weight:600;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.t-preview{font-size:12.5px;color:var(--tx2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.t-meta{display:flex;align-items:center;gap:7px;margin-top:7px;flex-wrap:wrap;}
+.tbadge{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;white-space:nowrap;}
+.tbadge-open{background:#dbeafe;color:#1d4ed8;}
+.tbadge-in_progress{background:#ffedd5;color:#c2410c;}
+.tbadge-resolved{background:#dcfce7;color:#15803d;}
+.tbadge-closed{background:#f1f5f9;color:#64748b;}
+.tbadge-cat{background:var(--sur2);color:var(--tx2);}
+.t-date{font-size:11px;color:var(--tx3);margin-left:auto;white-space:nowrap;}
+.tbadge-prio-urgent{background:#fef2f2;color:#dc2626;}
+.tbadge-prio-normal{background:#f8fafc;color:#64748b;}
+.tbadge-prio-low{background:#f0fdf4;color:#15803d;}
+.t-arrow{color:var(--tx3);margin-left:4px;flex-shrink:0;}
+.empty-wrap{text-align:center;padding:72px 20px;}
+.empty-icon-box{width:68px;height:68px;background:var(--sur2);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;}
+.empty-title{font-size:17px;font-weight:700;color:var(--tx);margin-bottom:7px;}
+.empty-sub{font-size:13px;color:var(--tx2);max-width:340px;margin:0 auto 22px;line-height:1.6;}
+/* FAQ strip */
+.faq-strip{margin-top:40px;border-top:1px solid var(--b1);padding-top:32px;}
+.faq-strip-title{font-size:15px;font-weight:700;color:var(--tx);margin-bottom:14px;}
+.faq-item{border:1px solid var(--b1);border-radius:10px;margin-bottom:8px;overflow:hidden;background:var(--sur);}
+.faq-q{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;cursor:pointer;gap:10px;font-size:13.5px;font-weight:600;color:var(--tx);}
+.faq-q svg{flex-shrink:0;transition:transform .2s;color:var(--tx3);}
+.faq-item.open .faq-q svg{transform:rotate(180deg);}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .28s ease,padding .28s ease;font-size:13px;color:var(--tx2);line-height:1.7;}
+.faq-item.open .faq-a{max-height:300px;padding:0 16px 14px;}
+</style>
+
+<div class="sup-header">
+  <div>
+    <div class="sup-title">Support Center</div>
+    <div class="sup-subtitle">View your tickets or start a new conversation with our team</div>
+  </div>
+  <div class="sup-right">
+    {% if tickets %}
+    <div class="sup-stats">
+      <div class="sup-stat">
+        <div class="sup-stat-num">{{ tickets|length }}</div>
+        <div class="sup-stat-lbl">Total</div>
+      </div>
+      <div class="sup-stat">
+        <div class="sup-stat-num" style="color:#1d4ed8;">{{ open_count }}</div>
+        <div class="sup-stat-lbl">Open</div>
+      </div>
+    </div>
+    {% endif %}
+    <button class="sup-new-btn" onclick="openChatWidget()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      New Ticket
+    </button>
+  </div>
+</div>
+
+{% if tickets %}
+<div class="tickets-grid">
+  {% for t in tickets %}
+  <a class="ticket-card" href="{% url 'support_ticket_detail' t.id %}">
+    <div class="t-icon {{ t.status }}">
+      {% if t.status == 'open' %}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      {% elif t.status == 'in_progress' %}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2" stroke-linecap="round"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+      {% elif t.status == 'resolved' %}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      {% else %}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      {% endif %}
+    </div>
+    <div class="t-body">
+      <div class="t-ref">{{ t.ticket_id }}</div>
+      <div class="t-subject" style="display:flex;align-items:center;gap:7px;">
+        {{ t.subject }}
+        {% with last_msg=t.messages|last %}{% if last_msg.sender == 'agent' %}<span style="display:inline-block;width:8px;height:8px;background:#1d4ed8;border-radius:50%;flex-shrink:0;" title="New reply from Support"></span>{% endif %}{% endwith %}
+      </div>
+      {% with msgs=t.messages %}{% if msgs %}{% with last_msg=msgs|last %}
+      <div class="t-preview">
+        {% if last_msg.sender == 'agent' %}<span style="color:#1d4ed8;font-weight:600;font-size:11px;margin-right:3px;">Support:</span>{% else %}<span style="color:var(--tx3);font-size:11px;margin-right:3px;">You:</span>{% endif %}{{ last_msg.text|truncatechars:80 }}
+      </div>
+      {% endwith %}{% endif %}{% endwith %}
+      <div class="t-meta">
+        <span class="tbadge tbadge-{{ t.status }}">
+          {% if t.status == 'open' %}● Open{% elif t.status == 'in_progress' %}⟳ In Progress{% elif t.status == 'resolved' %}✓ Resolved{% else %}✕ Closed{% endif %}
+        </span>
+        {% if t.priority == 'urgent' %}<span class="tbadge tbadge-prio-urgent">🔴 Urgent</span>{% elif t.priority == 'low' %}<span class="tbadge tbadge-prio-low">🟢 Low</span>{% endif %}
+        {% if t.category and t.category != 'general' %}
+        <span class="tbadge tbadge-cat">{{ t.category|title }}</span>
+        {% endif %}
+        <span class="t-date">Updated {{ t.updated_fmt }}</span>
+      </div>
+    </div>
+    <svg class="t-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-wrap">
+  <div class="empty-icon-box">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--tx3)" stroke-width="1.5" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+  </div>
+  <div class="empty-title">No tickets yet</div>
+  <div class="empty-sub">Have a question or ran into an issue? Open a chat and our team will get back to you quickly.</div>
+  <button class="sup-new-btn" onclick="openChatWidget()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    Start a conversation
+  </button>
+</div>
+{% endif %}
+
+<!-- FAQ strip -->
+<div class="faq-strip">
+  <div class="faq-strip-title">Frequently Asked Questions</div>
+  {% for fq in faq_items %}
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.closest('.faq-item').classList.toggle('open')">
+      <span>{{ fq.q }}</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="faq-a">{{ fq.a }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) { window.location.reload(); }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% comment %}
+Marketing analytics & pixel snippets.
+
+Included near the end of the page head on BOTH public_base.html and
+the logged-in base.html so every page is tracked. Pixel IDs come from
+the `marketing` context processor (which reads them from system_settings
+— admin manages at /admin-panel/marketing/analytics/).
+
+Every snippet is guarded with an "if marketing.SOME_ID" check so the
+head stays empty (and Lighthouse-clean) until an admin actually pastes
+an ID. Conversion events fire from core/views.py via the session key
+fire_conversion = start_trial / become_paid / etc. — read by the inline
+JS below and translated to per-network gtag/fbq/uetq calls.
+{% endcomment %}
+
+{# Google Analytics 4 #}
+{% if marketing.ga4_id %}
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ marketing.ga4_id }}"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '{{ marketing.ga4_id }}', { 'anonymize_ip': true });
+{% if marketing.google_ads_id %}gtag('config', '{{ marketing.google_ads_id }}');{% endif %}
+</script>
+{% elif marketing.google_ads_id %}
+<script async src="https://www.googletagmanager.com/gtag/js?id={{ marketing.google_ads_id }}"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '{{ marketing.google_ads_id }}');
+</script>
+{% endif %}
+
+{# Meta (Facebook) Pixel #}
+{% if marketing.meta_pixel_id %}
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '{{ marketing.meta_pixel_id }}');
+fbq('track', 'PageView');
+</script>
+{% endif %}
+
+{# Microsoft Advertising UET tag (Bing Ads) #}
+{% if marketing.uet_tag_id %}
+<script>(function(w,d,t,r,u){var f,n,i;w[u]=w[u]||[],f=function(){var o={ti:"{{ marketing.uet_tag_id }}"};o.q=w[u],w[u]=new UET(o),w[u].push("pageLoad")},n=d.createElement(t),n.src=r,n.async=1,n.onload=n.onreadystatechange=function(){var s=this.readyState;s&&s!=="loaded"&&s!=="complete"||(f(),n.onload=n.onreadystatechange=null)},i=d.getElementsByTagName(t)[0],i.parentNode.insertBefore(n,i)})(window,document,"script","//bat.bing.com/bat.js","uetq");</script>
+{% endif %}
+
+{# Admin-controlled custom HTML snippet, pasted verbatim into the page #}
+{# head. Use for tools we don't have a first-class field for (Hotjar,  #}
+{# Clarity, Plausible, Mixpanel and similar). #}
+{% if marketing.custom_head_html %}
+{{ marketing.custom_head_html|safe }}
+{% endif %}
+
+{# Server-stamped conversion events. When a view wants the browser to    #}
+{# fire a conversion (start_trial / become_paid / etc.) it stamps        #}
+{# request.session['fire_conversion'] which the marketing ctx processor  #}
+{# surfaces here so the snippet below can translate it to gtag/fbq/uetq. #}
+{% if marketing.fire_conversion %}
+<script>
+(function () {
+  var ev = "{{ marketing.fire_conversion }}";
+  var val = {{ marketing.fire_conversion_value|default:"0" }};
+  try {
+    if (window.gtag) {
+      gtag('event', ev, { 'value': val, 'currency': 'USD' });
+      {% if marketing.google_ads_id and marketing.google_ads_conv_label %}
+      if (ev === 'start_trial' || ev === 'become_paid') {
+        gtag('event', 'conversion', {
+          'send_to': '{{ marketing.google_ads_id }}/{{ marketing.google_ads_conv_label }}',
+          'value': val, 'currency': 'USD'
+        });
+      }
+      {% endif %}
+    }
+    if (window.fbq) {
+      if (ev === 'start_trial')  fbq('track', 'StartTrial',  { value: val, currency: 'USD' });
+      if (ev === 'become_paid')  fbq('track', 'Purchase',    { value: val, currency: 'USD' });
+      if (ev === 'start_signup') fbq('track', 'Lead');
+      if (ev === 'view_pricing') fbq('track', 'ViewContent', { content_name: 'Pricing' });
+    }
+    if (window.uetq) {
+      window.uetq.push('event', ev, { revenue_value: val, currency: 'USD' });
+    }
+  } catch (e) { /* never let a tracking error break the page */ }
+})();
+</script>
+{% endif %}

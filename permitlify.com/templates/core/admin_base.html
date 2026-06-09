@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>{% block title %}Dashboard{% endblock %} — Permitlify Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+{% block extra_head %}{% endblock %}
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sidebar:#fff;--sidebar-hover:#f1f5f9;--sidebar-active-bg:#eff6ff;--sidebar-active:#1d4ed8;
+  --sidebar-border:#e2e8f0;--sidebar-text:#475569;--sidebar-section:#94a3b8;
+  --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;
+  --blue:#1d4ed8;--green:#059669;--amber:#d97706;--red:#dc2626;--purple:#7c3aed;
+  --grad:linear-gradient(135deg,#1d4ed8 0%,#059669 100%);
+  --brand-permit:#1C2F74;--brand-lify:#49C85B;
+  --sh-grad:0 2px 10px rgba(29,78,216,.3);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+
+/* Sidebar */
+.sidebar{width:240px;min-height:100vh;background:var(--sidebar);border-right:1px solid var(--sidebar-border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:100;box-shadow:1px 0 0 var(--sidebar-border)}
+.sb-logo{padding:18px 16px 14px;border-bottom:1px solid var(--sidebar-border)}
+.sb-logo a{display:flex;align-items:center;gap:10px;text-decoration:none}
+.sb-logo-icon{width:34px;height:34px;background:var(--grad);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:var(--sh-grad)}
+.sb-logo-icon svg{width:18px;height:18px;display:block}
+.sb-logo-text{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;color:var(--brand-permit);white-space:nowrap;overflow:hidden;letter-spacing:-.3px}
+.sb-logo-text span{color:var(--brand-lify)}
+.sb-badge{font-size:9px;font-weight:700;letter-spacing:.06em;background:#e0e7ff;color:#3730a3;padding:2px 7px;border-radius:4px;margin-top:5px;display:inline-block;white-space:nowrap}
+.sb-section{padding:14px 14px 5px;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--sidebar-section);text-transform:uppercase;white-space:nowrap;overflow:hidden}
+/* Collapsible nav groups — each <details class="sb-group"> wraps a
+ * topic (Scrapers, Content, Settings…). The <summary> is the topic
+ * header (clickable, replaces the old static .sb-section). Open state
+ * persists per-group in localStorage; the group containing the active
+ * link auto-opens on every render. */
+.sb-group{margin:0;}
+.sb-group > summary{list-style:none;cursor:pointer;padding:11px 14px 5px;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--sidebar-section);text-transform:uppercase;white-space:nowrap;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:6px;user-select:none;}
+.sb-group > summary::-webkit-details-marker{display:none;}
+.sb-group > summary::after{content:'›';font-size:13px;line-height:1;color:var(--sidebar-section);transform:rotate(90deg);transition:transform .15s;flex-shrink:0;}
+.sb-group[open] > summary::after{transform:rotate(-90deg);}
+.sb-group > summary:hover{color:var(--text);}
+/* Pin-open groups (e.g. Content) can never be collapsed — hide the
+   chevron and the pointer cursor so the summary doesn't *look* like
+   it's interactive. */
+.sb-group[data-pin-open] > summary{cursor:default;}
+.sb-group[data-pin-open] > summary::after{display:none;}
+.sb-group[data-pin-open] > summary:hover{color:var(--sidebar-section);}
+.sb-nav{flex:1;padding:6px 10px;overflow-y:auto;overflow-x:hidden}
+.sb-link{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;color:var(--sidebar-text);text-decoration:none;font-size:13px;font-weight:500;transition:background .15s,color .15s;margin-bottom:1px;white-space:nowrap;overflow:hidden}
+.sb-link:hover{background:var(--sidebar-hover);color:var(--text)}
+.sb-link.active{background:var(--sidebar-active-bg);color:var(--sidebar-active);font-weight:600}
+.sb-link.active .sb-icon{filter:none}
+.sb-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.sb-divider{height:1px;background:var(--sidebar-border);margin:8px 10px}
+.sb-footer{padding:12px;border-top:1px solid var(--sidebar-border)}
+.sb-user{display:flex;align-items:center;gap:9px;overflow:hidden}
+.sb-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--green));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.sb-user-name{font-size:12px;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-user-role{font-size:10px;color:var(--muted)}
+
+/* Main */
+.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:14px 26px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px}
+.topbar-meta{font-size:12px;color:var(--muted);margin-top:1px}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.btn-sm{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:7px;border:1px solid var(--border);background:var(--bg);font-size:12px;font-weight:500;color:var(--text);text-decoration:none;cursor:pointer;transition:background .15s;font-family:inherit}
+.btn-sm:hover{background:#e2e8f0}
+
+/* ── Admin notification bell + dropdown ─────────────────────── */
+.adm-bell-wrap{position:relative;}
+.adm-bell-btn{position:relative;width:36px;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--text);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,border-color .15s;}
+.adm-bell-btn:hover{background:var(--bg);border-color:#cbd5e1;}
+.adm-bell-badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#dc2626;color:#fff;font-size:10.5px;font-weight:800;display:none;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif;border:2px solid var(--card);box-shadow:0 1px 4px rgba(220,38,38,.4);}
+.adm-bell-badge.show{display:inline-flex;}
+.adm-dd{position:absolute;top:calc(100% + 10px);right:0;width:380px;max-width:calc(100vw - 24px);background:var(--card);border:1px solid var(--border);border-radius:13px;box-shadow:0 12px 40px rgba(15,23,42,.18);opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .18s,transform .18s,visibility .18s;z-index:200;}
+.adm-dd.open{opacity:1;visibility:visible;transform:translateY(0);}
+.adm-dd-head{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.adm-dd-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;color:var(--text);}
+.adm-dd-sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.adm-dd-clear{background:transparent;border:none;color:var(--blue);font-size:11.5px;font-weight:600;cursor:pointer;padding:4px 6px;border-radius:5px;font-family:inherit;display:none;}
+.adm-dd-clear:hover{background:#eff6ff;}
+.adm-dd-list{max-height:420px;overflow-y:auto;padding:6px;}
+.adm-dd-empty{padding:30px 16px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.6;}
+.adm-dd-empty-icon{width:44px;height:44px;margin:0 auto 10px;background:#f0fdf4;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#16a34a;}
+.adm-dd-empty-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.adm-dd-item{display:block;padding:11px 12px;border-radius:9px;background:linear-gradient(90deg,#fef3c7 0%,#fffbeb 60%,#fff 100%);border:1px solid #fcd34d;margin-bottom:6px;text-decoration:none;color:inherit;cursor:pointer;transition:transform .12s,box-shadow .12s;position:relative;}
+.adm-dd-item:hover{transform:translateY(-1px);box-shadow:0 3px 12px rgba(217,119,6,.18);}
+.adm-dd-item::before{content:'';position:absolute;left:-2px;top:14px;width:7px;height:7px;border-radius:50%;background:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.22);animation:admPulse 1.6s ease-in-out infinite;}
+@keyframes admPulse{0%,100%{box-shadow:0 0 0 3px rgba(217,119,6,.22);}50%{box-shadow:0 0 0 7px rgba(217,119,6,.04);}}
+
+/* ── Admin avatar / profile dropdown — replaces the bare "← App" + "Sign out"
+   buttons with a single trigger that mirrors the user-facing dropdown
+   in templates/core/base.html. Reuses the .adm-dd open/close mechanic
+   (and CSS positioning) so the bell and the avatar feel like siblings. ── */
+.adm-prof-wrap{position:relative;}
+.adm-prof-btn{display:inline-flex;align-items:center;gap:8px;padding:5px 10px 5px 5px;border-radius:99px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:background .15s,border-color .15s;}
+.adm-prof-btn:hover{background:var(--bg);border-color:#cbd5e1;}
+/* Base avatar: applies whether it's in the trigger button or the
+   dropdown header. Header context only overrides size/font. The
+   architect caught a missing-base-style bug here on first pass. */
+.adm-prof-av{width:28px;height:28px;border-radius:50%;background:var(--grad);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:.02em;flex-shrink:0;}
+.adm-prof-btn .adm-prof-name{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.adm-prof-btn .adm-prof-chev{color:var(--muted);flex-shrink:0;}
+.adm-prof-dd{position:absolute;top:calc(100% + 10px);right:0;width:260px;background:var(--card);border:1px solid var(--border);border-radius:13px;box-shadow:0 12px 40px rgba(15,23,42,.18);opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .18s,transform .18s,visibility .18s;z-index:200;padding:8px;}
+.adm-prof-dd.open{opacity:1;visibility:visible;transform:translateY(0);}
+.adm-prof-head{display:flex;align-items:center;gap:10px;padding:10px 10px 12px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+.adm-prof-head .adm-prof-av{width:38px;height:38px;font-size:13px;}
+.adm-prof-head-meta{min-width:0;}
+.adm-prof-head-name{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.adm-prof-head-role{font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+.adm-prof-link{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--text);text-decoration:none;font-size:12.5px;font-weight:600;transition:background .12s;}
+.adm-prof-link svg{width:15px;height:15px;flex-shrink:0;color:var(--muted);}
+.adm-prof-link:hover{background:var(--bg);}
+.adm-prof-link.danger{color:#b91c1c;}
+.adm-prof-link.danger svg{color:#b91c1c;}
+.adm-prof-link.danger:hover{background:#fef2f2;}
+.adm-prof-divider{height:1px;background:var(--border);margin:6px 4px;}
+.adm-dd-row1{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.adm-dd-tag{font-size:9.5px;font-weight:800;color:#fff;background:#d97706;padding:2px 7px;border-radius:99px;letter-spacing:.3px;text-transform:uppercase;}
+.adm-dd-time{font-size:10.5px;color:var(--muted);}
+.adm-dd-subj{font-size:13px;font-weight:700;color:#78350f;line-height:1.35;margin-bottom:3px;}
+.adm-dd-quote{font-size:11.5px;color:#92400e;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;background:rgba(255,255,255,.6);border-left:2px solid #f59e0b;padding:4px 8px;border-radius:0 4px 4px 0;margin:4px 0 6px;}
+.adm-dd-row2{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.adm-dd-meta{font-size:11px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:5px;min-width:0;}
+.adm-dd-meta strong{color:#78350f;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;}
+.adm-dd-cta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;color:#b45309;}
+.adm-dd-foot{display:block;text-align:center;padding:10px;font-size:12px;font-weight:600;color:var(--blue);text-decoration:none;border-top:1px solid var(--border);}
+.adm-dd-foot:hover{background:var(--bg);}
+.btn-danger{border-color:#fecaca;background:#fff5f5;color:var(--red)}
+.btn-danger:hover{background:#fee2e2}
+/* Brand gradient CTA -- use this for primary save / submit / confirm actions
+   so every admin page has the same blue→green button as the public site. */
+.btn-grad{display:inline-flex;align-items:center;gap:6px;padding:8px 20px;border-radius:8px;border:none;background:var(--grad);color:#fff;font-size:12.5px;font-weight:700;font-family:inherit;cursor:pointer;text-decoration:none;box-shadow:var(--sh-grad);transition:opacity .18s,transform .18s,box-shadow .18s}
+.btn-grad:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 4px 16px rgba(29,78,216,.35)}
+.btn-grad:active{transform:translateY(0);opacity:.88}
+.btn-grad:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-grad svg{width:13px;height:13px;flex-shrink:0}
+.content{padding:24px 26px;flex:1}
+
+/* Toast */
+.toast{position:fixed;top:20px;right:24px;z-index:999;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.15);animation:slideIn .25s ease}
+.toast-ok{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+.toast-fail{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.toast-warn{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+@keyframes slideIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:20px}
+.card-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;margin-bottom:3px}
+.card-sub{font-size:11px;color:var(--muted);margin-bottom:16px}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:13px;padding:18px 20px}
+.kpi-label{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.kpi-value{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:28px;line-height:1;margin-bottom:5px}
+.kpi-sub{font-size:11px;color:var(--muted)}
+.kpi-up{color:var(--green)}
+.kpi-card.blue .kpi-value{color:var(--blue)}
+.kpi-card.green .kpi-value{color:var(--green)}
+.kpi-card.purple .kpi-value{color:var(--purple)}
+.kpi-card.amber .kpi-value{color:var(--amber)}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.02em}
+.badge-starter{background:#f1f5f9;color:#475569}
+.badge-pro{background:#dbeafe;color:#1d4ed8}
+.badge-agency{background:#ede9fe;color:#7c3aed}
+.badge-no-plan{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.badge-active{background:#d1fae5;color:#065f46}
+.badge-admin{background:#fef3c7;color:#92400e}
+.badge-ok{background:#d1fae5;color:#065f46}
+.badge-warn{background:#fef3c7;color:#92400e}
+.badge-danger{background:#fee2e2;color:#991b1b}
+
+/* Tables */
+.users-card{background:var(--card);border:1px solid var(--border);border-radius:13px;overflow:hidden;margin-bottom:28px}
+.users-header{padding:18px 20px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.search-row{display:flex;align-items:center;gap:8px}
+.search-wrap{position:relative}
+.search-wrap input{padding:7px 11px 7px 32px;border:1px solid var(--border);border-radius:7px;font-size:12px;width:200px;background:var(--bg);color:var(--text);outline:none;font-family:inherit}
+.search-wrap input:focus{border-color:var(--blue);background:#fff}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;pointer-events:none}
+.filter-select{padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:12px;background:var(--bg);font-family:inherit;color:var(--text);outline:none;cursor:pointer}
+.filter-select:focus{border-color:var(--blue)}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 14px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);background:#f8fafc;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#f8fafc}
+tbody td{padding:0;vertical-align:top}
+
+/* User table cells */
+.user-summary{display:flex;align-items:center;gap:0;cursor:pointer;padding:0}
+.td-expand{padding:12px 6px 12px 14px;width:30px}
+.expand-btn{background:none;border:none;cursor:pointer;font-size:12px;color:var(--muted);padding:2px 4px;border-radius:4px;transition:background .1s}
+.expand-btn:hover{background:var(--border)}
+td.td-user{padding:12px 14px}
+td.td-plan{padding:12px 14px;white-space:nowrap}
+td.td-rev{padding:12px 14px;white-space:nowrap}
+td.td-city{padding:12px 14px;white-space:nowrap}
+td.td-joined{padding:12px 14px;white-space:nowrap;font-size:11px;color:var(--muted)}
+td.td-status{padding:12px 14px}
+td.td-actions{padding:10px 14px;white-space:nowrap}
+.user-cell{display:flex;align-items:center;gap:9px}
+.u-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#059669);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.u-name{font-weight:600;font-size:13px;display:flex;align-items:center;gap:5px}
+.u-email{font-size:11px;color:var(--muted);margin-top:1px}
+.detail-row{display:none;background:#f8fafc}
+.detail-row.open{display:table-row}
+.detail-inner{padding:0 14px 16px 54px;border-top:1px dashed var(--border)}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding-top:14px}
+.detail-field{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.detail-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.detail-value{font-size:12px;color:var(--text);word-break:break-all;font-family:'JetBrains Mono',monospace}
+.detail-value.mono{font-size:10px;color:var(--muted)}
+.detail-cities{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.city-tag{font-size:10px;padding:2px 7px;border-radius:99px;background:#dbeafe;color:#1e40af;font-weight:600}
+.price-paid{color:var(--green);font-weight:600;font-size:12px}
+.price-zero{color:var(--muted);font-size:12px}
+
+/* Scrapers */
+.danger-banner{background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:14px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
+.danger-banner-icon{width:38px;height:38px;border-radius:10px;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.danger-banner-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:14px;color:#991b1b;margin-bottom:3px}
+.danger-banner-body{font-size:12px;color:#b91c1c;line-height:1.55}
+.warn-banner{background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:14px 18px;display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
+.warn-banner-icon{width:38px;height:38px;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.warn-banner-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:14px;color:#92400e;margin-bottom:3px}
+.warn-banner-body{font-size:12px;color:#b45309;line-height:1.55}
+.spark{display:flex;align-items:flex-end;gap:2px;height:22px}
+.spark-bar{width:5px;border-radius:2px 2px 0 0;min-height:2px}
+.no-leads-badge{display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#991b1b;font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px}
+.leads-count{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13px}
+.leads-zero{color:#dc2626}
+.leads-ok{color:#059669}
+.days-badge{display:inline-block;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700}
+.days-danger{background:#fee2e2;color:#991b1b}
+.days-warn{background:#fef3c7;color:#92400e}
+.days-ok{background:#d1fae5;color:#065f46;font-family:'JetBrains Mono',monospace}
+.scraper-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.test-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+.test-btn:hover{background:#dbeafe}
+.test-btn.testing{border-color:#fcd34d;background:#fef3c7;color:#92400e;cursor:wait}
+.test-btn.pass{border-color:#6ee7b7;background:#d1fae5;color:#065f46;cursor:default}
+.test-btn.fail{border-color:#fca5a5;background:#fee2e2;color:#991b1b;cursor:default}
+td.td-script{padding:12px 14px}
+td.td-status-s{padding:12px 14px;white-space:nowrap}
+td.td-leads{padding:12px 14px;text-align:center;white-space:nowrap}
+td.td-days{padding:12px 14px;text-align:center;white-space:nowrap}
+td.td-spark{padding:12px 14px}
+td.td-run{padding:12px 14px;white-space:nowrap;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+td.td-act{padding:10px 14px;white-space:nowrap}
+
+/* ── Hamburger button (mobile only) ───────────────────────────────── */
+.mob-sb-btn{display:none;background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:7px;color:var(--text);font-size:18px;line-height:1;align-items:center;justify-content:center;transition:background .15s;}
+.mob-sb-btn:hover{background:var(--border);}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Mobile responsive layout — three breakpoints, biggest to smallest:
+ *   ≤860px (tablet)  : sidebar collapses to a 56px icon rail; user
+ *                      can expand it to 240px via the hamburger.
+ *                      Content gets max-width:calc(100vw - 56px) so
+ *                      tables can horizontally scroll instead of
+ *                      overflowing the body.
+ *   ≤520px (phone)   : the 56px icon rail itself is hidden — it
+ *                      stole 15% of viewport width on a 375px phone
+ *                      and the icon-only links were essentially
+ *                      unreadable. Hamburger now opens an 86vw
+ *                      slide-in overlay sidebar (real labels visible).
+ *                      Topbar gets dense layout, content padding shrinks.
+ *   ≤420px (small)   : KPI grids collapse to 1-col, font scales down.
+ *
+ * ── Catch-all grid collapses (attribute selectors) ──
+ * Many admin pages use inline `grid-template-columns: …` on bare
+ * <div>s rather than named classes, so we have to match by attribute
+ * selector. We support the common patterns:
+ *   - repeat(N,1fr)  for N in 2..6
+ *   - 1fr 1fr / 1fr 1fr 1fr  (named-fraction lists)
+ *   - 2fr 1fr / 3fr 1fr      (split charts)
+ *   - 1fr 240px / 1fr 200px  (sidebar-style splits)
+ * Anything that doesn't match still works because the page can scroll
+ * horizontally inside .main; the catch-all just makes the common case
+ * collapse to a phone-friendly stack instead.
+ * ────────────────────────────────────────────────────────────────── */
+@media(max-width:860px){
+  .sidebar{width:56px;transition:width .22s cubic-bezier(.22,1,.36,1);overflow:hidden;z-index:300;}
+  .sidebar.sb-open{width:240px;box-shadow:4px 0 24px rgba(0,0,0,.12);}
+  .main{margin-left:56px;}
+  .mob-sb-btn{display:inline-flex;}
+  /* Overlay backdrop when sidebar is open via toggle */
+  .sb-backdrop{display:none;position:fixed;inset:0;z-index:299;background:rgba(0,0,0,.25);}
+  .sb-backdrop.show{display:block;}
+  /* ── Icon-only collapsed state ── */
+  .sidebar:not(.sb-open) .sb-link{font-size:0;gap:0;padding:10px 0;justify-content:center;}
+  .sidebar:not(.sb-open) .sb-link .sb-icon{font-size:17px;width:20px;}
+  .sidebar:not(.sb-open) .sb-section{opacity:0;height:18px;padding:4px 0;}
+  .sidebar:not(.sb-open) .sb-group > summary{font-size:0;padding:6px 0;justify-content:center;}
+  .sidebar:not(.sb-open) .sb-group > summary::after{display:none;}
+  .sidebar:not(.sb-open) .sb-logo-text,
+  .sidebar:not(.sb-open) .sb-badge{opacity:0;width:0;overflow:hidden;}
+  .sidebar:not(.sb-open) .sb-user-name,
+  .sidebar:not(.sb-open) .sb-user-role{opacity:0;width:0;overflow:hidden;}
+  .sidebar:not(.sb-open) .sb-footer{padding:10px 0;display:flex;justify-content:center;}
+  .sidebar:not(.sb-open) .sb-logo{padding:14px 0;display:flex;justify-content:center;}
+  .sidebar:not(.sb-open) .sb-logo a{justify-content:center;}
+  .sidebar:not(.sb-open) .sb-nav{padding:4px 6px;}
+  .sidebar:not(.sb-open) .sb-link span[style*="background"]{font-size:8px!important;}
+
+  /* ── Named-class grid collapses ── */
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .scraper-kpi{grid-template-columns:repeat(2,1fr);}
+  /* Dashboard-specific grids */
+  .charts-row{grid-template-columns:1fr!important;}
+  .bottom-row{grid-template-columns:1fr!important;}
+
+  /* ── Inline-style grid collapses (attribute selectors) ──
+   * IMPORTANT: rule order matters here. CSS attribute *= matches
+   * are substring matches with no word boundary, so a rule for
+   * `1fr 1fr` ALSO matches `1fr 1fr 1fr` and `1fr 1fr 1fr 1fr`.
+   * To get the 3- and 4-col lists to land on 2-col instead of being
+   * forced to 1-col by the shorter rule, the more-specific (longer)
+   * patterns must appear AFTER the shorter ones. Same trick for
+   * `2fr 1fr` vs `2fr 1fr 1fr`. Keep this order from least-specific
+   * to most-specific within each "family". */
+
+  /* 1. Repeat() patterns — no internal overlap (repeat(3 doesn't
+   *    substring-match repeat(4) etc.). All N≥3 → 2-col on tablet. */
+  [style*="grid-template-columns:repeat(6"],
+  [style*="grid-template-columns: repeat(6"],
+  [style*="grid-template-columns:repeat(5"],
+  [style*="grid-template-columns: repeat(5"],
+  [style*="grid-template-columns:repeat(4"],
+  [style*="grid-template-columns: repeat(4"],
+  [style*="grid-template-columns:repeat(3"],
+  [style*="grid-template-columns: repeat(3"]{grid-template-columns:repeat(2,1fr)!important;}
+
+  /* 2. Named-fraction equal lists. Order: 2-col → 3-col → 4-col so
+   *    the longer match wins via cascade and lands on 2-col. */
+  [style*="grid-template-columns:1fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr"]{grid-template-columns:1fr!important;}
+  [style*="grid-template-columns:1fr 1fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr 1fr"]{grid-template-columns:repeat(2,1fr)!important;}
+  [style*="grid-template-columns:1fr 1fr 1fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr 1fr 1fr"]{grid-template-columns:repeat(2,1fr)!important;}
+
+  /* 3. Chart splits — explicit two-token patterns (avoids matching
+   *    `1fr 2fr`, `12fr`, or `2fr 1fr 1fr` which is a 3-col layout). */
+  [style*="grid-template-columns:2fr 1fr;"],
+  [style*="grid-template-columns: 2fr 1fr;"],
+  [style*="grid-template-columns:3fr 1fr;"],
+  [style*="grid-template-columns: 3fr 1fr;"],
+  [style$="grid-template-columns:2fr 1fr"],
+  [style$="grid-template-columns: 2fr 1fr"],
+  [style$="grid-template-columns:3fr 1fr"],
+  [style$="grid-template-columns: 3fr 1fr"]{grid-template-columns:1fr!important;}
+  /* `2fr 1fr 1fr` is a 3-col layout — keep it 2-col on tablet (more
+   *  specific, must come after the 2-token rule above). */
+  [style*="grid-template-columns:2fr 1fr 1fr"],
+  [style*="grid-template-columns: 2fr 1fr 1fr"]{grid-template-columns:repeat(2,1fr)!important;}
+
+  /* 4. Sidebar-split layouts (1fr <px> etc.) → 1-col */
+  [style*="grid-template-columns:1fr 240px"],
+  [style*="grid-template-columns:1fr 280px"],
+  [style*="grid-template-columns:1fr 200px"],
+  [style*="grid-template-columns:240px 1fr"],
+  [style*="grid-template-columns:minmax(0,1fr) 240px"],
+  [style*="grid-template-columns: minmax(0,1fr) 240px"]{grid-template-columns:1fr!important;}
+
+  /* ── Constrain main content width so tables can scroll instead of overflow ── */
+  html,body{overflow-x:hidden;}
+  .main{width:calc(100vw - 56px);max-width:calc(100vw - 56px);min-width:0;}
+  .content{max-width:100%;min-width:0;overflow-x:hidden;}
+
+  /* ── Table horizontal scroll ──
+   * Apply overflow-x:auto to every known table-wrapper class used
+   * across the admin so wide tables become swipeable instead of
+   * forcing the page to overflow. Each pseudo-table that uses CSS
+   * grid for its rows also gets a min-width on the row so the
+   * columns don't squish into unreadable chunks. */
+  .users-card,
+  .sc-table-wrap,
+  .sl-table,
+  .sld-table{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .users-card table{min-width:600px;}
+  .sc-table-wrap table.sc-table{min-width:760px;}
+  .sl-table > .sl-row,
+  .sld-table > .sld-row{min-width:720px;}
+  /* Generic real-table fallback for any <table> rendered directly
+     inside a .card. Wrap with scroll, never let it blow out width. */
+  .card > table,
+  .card-body > table{display:block;overflow-x:auto;max-width:100%;}
+
+  /* ── Scraper-menu unwrapped tables ──
+   * Cron / Firecrawl / Claude / Stats render wide <table>s directly
+   * inside their own card classes (.scc-card, .fcu-card, .ccu-card,
+   * .st-runs) with no scroll wrapper, so they overflowed the page on
+   * mobile. Make the parent card scrollable horizontally and pin a
+   * sensible min-width on the table so columns stay readable. */
+  .scc-card,
+  .fcu-card,
+  .ccu-card,
+  .st-runs,
+  .st-chart-card{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .scc-batches{min-width:760px;}   /* 7 cols: # / start / fin / dur / scrs / status / note */
+  .fcu-fail{min-width:820px;}      /* 7 + 9-col tables on Firecrawl */
+  .ccu-fail{min-width:680px;}      /* 6 cols on Claude */
+  .st-table{min-width:720px;}      /* 6 cols on Stats */
+
+  /* Hard-pinned td widths break on mobile — let monospace url/error
+   * cells wrap and break long strings instead of forcing 380px.
+   * `!important` is required because the per-template <style> block
+   * lives in the page's content block which is rendered AFTER
+   * admin_base's <style> in the document, so same-specificity rules
+   * from the page (e.g. `.fcu-fail td.url{max-width:380px}`) would
+   * otherwise win the cascade. */
+  .fcu-fail td.url,
+  .fcu-fail td.err,
+  .ccu-fail td.err{max-width:none!important;white-space:normal!important;word-break:break-all;}
+
+  /* Firecrawl filter form: stack each field full-width instead of
+   * the desktop wrap-around row. Selects had min-width:150px which
+   * pushed the row past viewport. Same source-order rationale as
+   * above — `min-width:150px` from the per-template style block wins
+   * over a non-`!important` override here. */
+  .fcu-filter{flex-direction:column;align-items:stretch;}
+  .fcu-filter .fld{width:100%;}
+  .fcu-filter .fld select,
+  .fcu-filter .fld input{min-width:0!important;width:100%!important;}
+
+  /* Pager: prev / current / next stack rather than space-between row. */
+  .fcu-pager{flex-direction:column;align-items:flex-start;gap:8px;}
+
+  /* Cron terminal panel header: title + Close button often collide. */
+  #cronBatchPanel > div:first-child{flex-wrap:wrap;gap:8px;}
+
+  /* Stats chart card header: title + meta on separate lines. */
+  .st-chart-head{flex-direction:column;align-items:flex-start;gap:4px;}
+
+  /* ── Card header / search row ── */
+  .users-header{flex-direction:column;align-items:flex-start;gap:10px;}
+  .search-row{flex-wrap:wrap;width:100%;}
+  .search-wrap{flex:1;min-width:0;}
+  .search-wrap input{width:100%!important;min-width:0;}
+  .filter-select{width:100%;}
+
+  /* ── Topbar ── */
+  .topbar{padding:12px 16px;flex-wrap:nowrap;gap:8px;}
+  .topbar-title{font-size:16px;}
+  .topbar-meta{display:none;}
+  .topbar-right{gap:6px;}
+  .topbar-right .btn-sm:first-child{display:none;}
+  .adm-prof-btn .adm-prof-name{max-width:100px;font-size:11.5px;}
+}
+
+@media(max-width:520px){
+  /* ── Sidebar: hide the icon rail entirely; full slide-in overlay ──
+   * The 56px icon-only rail wastes ~15% of viewport on a 375px phone
+   * and the unlabeled icons were impossible to identify. On real
+   * phones the user opens the sidebar via the hamburger when needed,
+   * uses it as a labeled menu, and dismisses it. */
+  .sidebar{width:0;border-right:none;box-shadow:none;}
+  .sidebar.sb-open{width:min(86vw, 300px);box-shadow:4px 0 24px rgba(0,0,0,.18);}
+  .sidebar.sb-open .sb-link{font-size:13px;gap:9px;padding:8px 10px;justify-content:flex-start;}
+  .sidebar.sb-open .sb-section,
+  .sidebar.sb-open .sb-group > summary{font-size:10px;padding:11px 14px 5px;justify-content:space-between;}
+  .sidebar.sb-open .sb-group > summary::after{display:inline;}
+  .sidebar.sb-open .sb-logo-text,
+  .sidebar.sb-open .sb-badge,
+  .sidebar.sb-open .sb-user-name,
+  .sidebar.sb-open .sb-user-role{opacity:1;width:auto;}
+  .main{margin-left:0;width:100vw;max-width:100vw;}
+
+  /* All remaining multi-col inline grids → 1-col at very small phones */
+  [style*="grid-template-columns:repeat(6"],
+  [style*="grid-template-columns: repeat(6"],
+  [style*="grid-template-columns:repeat(5"],
+  [style*="grid-template-columns: repeat(5"],
+  [style*="grid-template-columns:repeat(4"],
+  [style*="grid-template-columns: repeat(4"],
+  [style*="grid-template-columns:repeat(3"],
+  [style*="grid-template-columns: repeat(3"],
+  [style*="grid-template-columns:repeat(2"],
+  [style*="grid-template-columns: repeat(2"],
+  [style*="grid-template-columns:1fr 1fr 1fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr 1fr 1fr"],
+  [style*="grid-template-columns:1fr 1fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr 1fr"]{grid-template-columns:1fr!important;}
+  .kpi-grid{grid-template-columns:1fr;}
+  .scraper-kpi{grid-template-columns:1fr;}
+
+  .topbar{padding:11px 12px;}
+  .content{padding:14px 12px;}
+  .topbar-title{font-size:15px;}
+
+  /* Modal: don't let it touch the screen edges */
+  .modal,.sld-modal,.rl-modal{max-width:calc(100vw - 24px);width:100%;}
+
+  /* Topbar bell + profile slightly tighter on phones */
+  .adm-bell-btn{width:34px;height:34px;}
+  .adm-prof-btn{padding:4px 8px 4px 4px;}
+  .adm-prof-btn .adm-prof-name{display:none;}
+  .adm-prof-btn .adm-prof-chev{display:none;}
+}
+
+/* Pagination */
+.pag-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border)}
+.pag-info{font-size:12px;color:var(--muted)}
+.pag-btns{display:flex;gap:4px}
+.pag-btn{padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);font-size:12px;cursor:pointer;font-family:inherit;color:var(--text);transition:background .1s}
+.pag-btn:hover:not(:disabled){background:#e2e8f0}
+.pag-btn:disabled{opacity:.4;cursor:not-allowed}
+.pag-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* Cities */
+.city-item{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)}
+.city-item:last-child{border-bottom:none}
+.city-name{font-size:12px;font-weight:500;min-width:140px}
+.city-bar-wrap{flex:1;margin:0 10px;background:var(--bg);border-radius:99px;height:5px;overflow:hidden}
+.city-bar{height:100%;background:var(--blue);border-radius:99px}
+.city-count{font-size:11px;color:var(--muted);min-width:28px;text-align:right;font-weight:600}
+
+/* Revenue */
+.stats-mini{display:flex;flex-direction:column;gap:10px}
+.stat-item{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;background:var(--bg);border-radius:9px}
+.stat-label{font-size:12px;color:var(--muted)}
+.stat-value{font-size:13px;font-weight:700}
+.plan-row{display:flex;flex-direction:column;gap:10px}
+.plan-item{display:flex;align-items:center;gap:10px}
+.plan-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.plan-name{flex:1;font-size:12px;font-weight:500}
+.plan-count{font-size:12px;color:var(--muted);margin-right:6px}
+.plan-bar-wrap{width:70px;background:var(--bg);border-radius:99px;height:5px;overflow:hidden}
+.plan-bar{height:100%;border-radius:99px}
+.chart-wrap{position:relative;height:200px}
+
+/* Modal */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+.modal-backdrop.open{display:flex}
+.modal{background:#fff;border-radius:14px;padding:28px 28px 22px;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:popIn .2s ease}
+@keyframes popIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal-icon{font-size:36px;margin-bottom:10px}
+.modal-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:18px;margin-bottom:6px}
+.modal-body{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:22px}
+.modal-body strong{color:var(--text)}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end}
+.btn-cancel{padding:9px 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--text)}
+.btn-cancel:hover{background:#e2e8f0}
+.btn-delete-confirm{padding:9px 18px;border-radius:8px;border:none;background:var(--red);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-delete-confirm:hover{background:#b91c1c}
+</style>
+
+<!-- htmx 2.x + Alpine 3.x — small (29KB total), deferred so no render-block -->
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+</head>
+<body>
+
+<a href="#main-content" class="skip-to-main" style="position:absolute;left:-9999px;top:0;z-index:9999;background:#1d4ed8;color:#fff;padding:10px 16px;border-radius:0 0 8px 0;font-weight:600;text-decoration:none" onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">Skip to main content</a>
+
+{% block toasts %}{% endblock %}
+{% block modals %}{% endblock %}
+
+<!-- Mobile sidebar backdrop -->
+<div class="sb-backdrop" id="sbBackdrop" onclick="closeSidebar()"></div>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <a href="/">
+      <div class="sb-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <div class="sb-logo-text">Permit<span>lify</span></div>
+    </a>
+    <span class="sb-badge">ADMIN</span>
+  </div>
+  {% comment %}
+     ── Collapsible nav groups ─────────────────────────────────────
+     Each <details class="sb-group" data-group="…"> persists open/close
+     state in localStorage (`sb-nav:<group>`). The group containing the
+     active link is force-opened on every render so the user always sees
+     where they are even after collapsing other groups.
+
+     NOTE: this MUST be {% verbatim %}{% comment %}{% endverbatim %}, not {% verbatim %}{# … #}{% endverbatim %} —
+     Django's {% verbatim %}{# … #}{% endverbatim %} syntax is single-line ONLY; multi-line {% verbatim %}{# #}{% endverbatim %}
+     blocks render as plain text in the page (which is what we
+     just hit and shipped to prod by accident).
+  {% endcomment %}
+  {% with as=active_section %}
+  <nav class="sb-nav" id="sbNav">
+    <div class="sb-section">Overview</div>
+    <a href="/admin-panel/" class="sb-link {% if as == 'overview' %}active{% endif %}">
+      <span class="sb-icon">📊</span> Dashboard
+    </a>
+
+    <details class="sb-group" data-group="scrapers" open {% if as == 'scrapers' or as == 'scraper_stats' or as == 'scraper_settings' or as == 'scraper_logs' or as == 'scraper_cron' or as == 'scraper_claude' or as == 'scraper_accela_search' or as == 'scraper_agent_plan' or as == 'inference_stats' or as == 'all_permits' %}data-active{% endif %}>
+      <summary>Scrapers</summary>
+      <a href="/admin-panel/scrapers/" class="sb-link {% if as == 'scrapers' %}active{% endif %}" style="{% if danger_count %}color:{% if as == 'scrapers' %}#fff{% else %}#fca5a5{% endif %}{% endif %}">
+        <span class="sb-icon">🤖</span> Scrapers
+        {% if broken_count %}<span style="background:{% if danger_count %}#dc2626{% else %}#d97706{% endif %};color:#fff;font-size:9px;padding:1px 5px;border-radius:99px;margin-left:auto;font-weight:700">{{ broken_count }}</span>{% endif %}
+      </a>
+      <a href="/admin-panel/scrapers/cron/" class="sb-link {% if as == 'scraper_cron' %}active{% endif %}">
+        <span class="sb-icon">⏰</span> Cron
+      </a>
+      <a href="/admin-panel/scrapers/accela-search/" class="sb-link {% if as == 'scraper_accela_search' %}active{% endif %}">
+        <span class="sb-icon">🔎</span> Accela Permit Search
+      </a>
+      <a href="/admin-panel/scrapers/agent-plan/" class="sb-link {% if as == 'scraper_agent_plan' %}active{% endif %}">
+        <span class="sb-icon">🗺️</span> Agent Scraper Plan
+      </a>
+      <a href="/admin-panel/scraper-stats/" class="sb-link {% if as == 'scraper_stats' %}active{% endif %}">
+        <span class="sb-icon">📈</span> Scraper Stats
+      </a>
+      <a href="/admin-panel/scrapers/inference-stats/" class="sb-link {% if as == 'inference_stats' %}active{% endif %}">
+        <span class="sb-icon">💸</span> Inference Stats
+      </a>
+      <a href="/admin-panel/scraper-logs/" class="sb-link {% if as == 'scraper_logs' %}active{% endif %}">
+        <span class="sb-icon">📜</span> Scraper Logs
+      </a>
+      <a href="/admin-panel/scraper-settings/" class="sb-link {% if as == 'scraper_settings' %}active{% endif %}">
+        <span class="sb-icon">🛰️</span> Scraper Settings
+      </a>
+      <a href="/admin-panel/permits/" class="sb-link {% if as == 'all_permits' %}active{% endif %}">
+        <span class="sb-icon">🗂️</span> All Permit Data
+      </a>
+    </details>
+
+    {% comment %}
+       Content group is `data-pin-open`: it only has 2 items and the
+       admin asked for them to be permanently visible (one user previously
+       collapsed it by accident and could no longer find Blog Posts). The
+       JS at the bottom of this file forces pin-open groups open on every
+       page load and clears any stale localStorage entry from when the
+       group was collapsible.
+    {% endcomment %}
+    <details class="sb-group" data-group="content" data-pin-open open {% if as == 'blog' or as == 'blog_settings' %}data-active{% endif %}>
+      <summary>Content</summary>
+      <a href="/admin-panel/blog/" class="sb-link {% if as == 'blog' %}active{% endif %}">
+        <span class="sb-icon">📝</span> Blog Posts
+      </a>
+      <a href="/admin-panel/blog-settings/" class="sb-link {% if as == 'blog_settings' %}active{% endif %}">
+        <span class="sb-icon">🤖</span> Blog AI Settings
+      </a>
+    </details>
+
+    <details class="sb-group" data-group="permits-cities" open {% if as == 'cities' or as == 'cities_manager' %}data-active{% endif %}>
+      <summary>Permits &amp; Cities</summary>
+      <a href="/admin-panel/cities/" class="sb-link {% if as == 'cities' %}active{% endif %}">
+        <span class="sb-icon">🏙️</span> Top Cities
+      </a>
+      <a href="/admin-panel/cities-manager/" class="sb-link {% if as == 'cities_manager' %}active{% endif %}">
+        <span class="sb-icon">🏗️</span> Cities Manager
+      </a>
+      <a href="/admin-panel/states/" class="sb-link {% if as == 'states' %}active{% endif %}">
+        <span class="sb-icon">🗺️</span> States Manager
+      </a>
+    </details>
+
+    <details class="sb-group" data-group="users-revenue" open {% if as == 'users' or as == 'revenue' or as == 'banned' %}data-active{% endif %}>
+      <summary>Users &amp; Revenue</summary>
+      <a href="/admin-panel/users/" class="sb-link {% if as == 'users' %}active{% endif %}">
+        <span class="sb-icon">👥</span> All Users
+      </a>
+      <a href="/admin-panel/revenue/" class="sb-link {% if as == 'revenue' %}active{% endif %}">
+        <span class="sb-icon">💰</span> Revenue
+      </a>
+      <a href="/admin-panel/banned/" class="sb-link {% if as == 'banned' %}active{% endif %}">
+        <span class="sb-icon">🚫</span> Banned Emails
+        {% if banned_count %}<span style="background:#dc2626;color:#fff;font-size:9px;padding:1px 5px;border-radius:99px;margin-left:auto;font-weight:700">{{ banned_count }}</span>{% endif %}
+      </a>
+    </details>
+
+    <details class="sb-group" data-group="database" open {% if as == 'db_utils' %}data-active{% endif %}>
+      <summary>Database</summary>
+      <a href="/admin-panel/db-utils/" class="sb-link {% if as == 'db_utils' %}active{% endif %}">
+        <span class="sb-icon">🗄️</span> DB Utilities
+      </a>
+    </details>
+
+    <details class="sb-group" data-group="marketing" open {% if as == 'mk_analytics' or as == 'mk_testimonials' or as == 'mk_recovery' or as == 'mk_prices' or as == 'mk_campaigns' %}data-active{% endif %}>
+      <summary>Marketing</summary>
+      <a href="/admin-panel/marketing/analytics/" class="sb-link {% if as == 'mk_analytics' %}active{% endif %}">
+        <span class="sb-icon">📈</span> Analytics &amp; Pixels
+      </a>
+      <a href="/admin-panel/marketing/testimonials/" class="sb-link {% if as == 'mk_testimonials' %}active{% endif %}">
+        <span class="sb-icon">💬</span> Testimonials
+      </a>
+      <a href="/admin-panel/marketing/campaigns/" class="sb-link {% if as == 'mk_campaigns' %}active{% endif %}">
+        <span class="sb-icon">📣</span> Campaigns
+      </a>
+      <a href="/admin-panel/marketing/recovery-emails/" class="sb-link {% if as == 'mk_recovery' %}active{% endif %}">
+        <span class="sb-icon">✉️</span> Recovery Emails
+      </a>
+      <a href="/admin-panel/marketing/pricing/" class="sb-link {% if as == 'mk_prices' %}active{% endif %}">
+        <span class="sb-icon">💵</span> Plan Pricing
+      </a>
+    </details>
+
+    <details class="sb-group" data-group="settings" open {% if as == 'email_settings' or as == 'whop_settings' or as == 'google_settings' %}data-active{% endif %}>
+      <summary>Settings</summary>
+      <a href="/admin-panel/email-settings/" class="sb-link {% if as == 'email_settings' %}active{% endif %}">
+        <span class="sb-icon">✉️</span> Email Settings
+      </a>
+      <a href="/admin-panel/whop-settings/" class="sb-link {% if as == 'whop_settings' %}active{% endif %}">
+        <span class="sb-icon">💳</span> Whop Integration
+      </a>
+      <a href="/admin-panel/google-settings/" class="sb-link {% if as == 'google_settings' %}active{% endif %}">
+        <span class="sb-icon">🔐</span> Google Sign-In
+      </a>
+    </details>
+
+    <details class="sb-group" data-group="support" open {% if as == 'support' %}data-active{% endif %}>
+      <summary>Support</summary>
+      <a href="/admin-panel/support/" class="sb-link {% if as == 'support' %}active{% endif %}">
+        <span class="sb-icon">🎧</span> Support Dashboard
+      </a>
+    </details>
+
+    <div class="sb-divider"></div>
+    <details class="sb-group" data-group="external" open>
+      <summary>External</summary>
+      <a href="/dashboard/" class="sb-link"><span class="sb-icon">🏠</span> App Dashboard</a>
+      <a href="/permits/" class="sb-link"><span class="sb-icon">📋</span> Permits</a>
+      <a href="/" class="sb-link"><span class="sb-icon">🌐</span> Public Site</a>
+    </details>
+  </nav>
+  {% endwith %}
+  <div class="sb-footer">
+    <div class="sb-user">
+      <div class="sb-avatar">{{ admin_initials }}</div>
+      <div>
+        <div class="sb-user-name">{{ admin_name }}</div>
+        <div class="sb-user-role">Super Admin</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="mob-sb-btn" onclick="toggleSidebar()" aria-label="Toggle menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div>
+        <div class="topbar-title">{% block page_title %}Admin Dashboard{% endblock %}</div>
+        <div class="topbar-meta">{{ today }}{% block page_meta %}{% endblock %}</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="adm-bell-wrap">
+        <button class="adm-bell-btn" id="admBellBtn" aria-label="Support notifications" type="button" aria-haspopup="menu" aria-controls="admBellDd" aria-expanded="false">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span class="adm-bell-badge" id="admBellBadge"></span>
+        </button>
+        <div class="adm-dd" id="admBellDd">
+          <div class="adm-dd-head">
+            <div>
+              <div class="adm-dd-title">Inbox</div>
+              <div class="adm-dd-sub" id="admBellSub">Loading…</div>
+            </div>
+            <button class="adm-dd-clear" id="admBellClear" type="button">Mark all read</button>
+          </div>
+          <div class="adm-dd-list" id="admBellList">
+            <div class="adm-dd-empty">Loading…</div>
+          </div>
+          <a class="adm-dd-foot" href="{% url 'admin_support' %}">View support queue →</a>
+        </div>
+      </div>
+      <!-- Avatar dropdown — replaces the bare "← App" + "Sign out"
+           buttons. Mirrors the user-facing dropdown in
+           templates/core/base.html so the admin sees the same
+           shortcuts (Dashboard, Profile, Settings, Sign Out) with
+           one click no matter which side of the app they're on. -->
+      <div class="adm-prof-wrap" id="admProfWrap">
+        <button class="adm-prof-btn" id="admProfBtn" type="button" aria-label="Account" aria-haspopup="menu" aria-controls="admProfDd" aria-expanded="false">
+          <span class="adm-prof-av">{{ admin_initials|default:"A" }}</span>
+          <span class="adm-prof-name">{{ admin_name|default:"Admin" }}</span>
+          <svg class="adm-prof-chev" aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="adm-prof-dd" id="admProfDd" role="menu" onclick="event.stopPropagation()">
+          <div class="adm-prof-head">
+            <span class="adm-prof-av">{{ admin_initials|default:"A" }}</span>
+            <div class="adm-prof-head-meta">
+              <div class="adm-prof-head-name">{{ admin_name|default:"Admin" }}</div>
+              <div class="adm-prof-head-role">Super Admin</div>
+            </div>
+          </div>
+          <a class="adm-prof-link" href="/dashboard/">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+            Dashboard
+          </a>
+          <a class="adm-prof-link" href="{% url 'profile' %}">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Profile
+          </a>
+          <a class="adm-prof-link" href="{% url 'settings' %}">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+            Settings
+          </a>
+          <div class="adm-prof-divider"></div>
+          <a class="adm-prof-link danger" href="/logout/">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main id="main-content" class="content" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script>
+// ── Mobile sidebar toggle ───────────────────────────────
+const _sb  = document.querySelector('.sidebar');
+const _bd  = document.getElementById('sbBackdrop');
+
+function toggleSidebar(){
+  const open = _sb.classList.toggle('sb-open');
+  if(_bd) _bd.classList.toggle('show', open);
+}
+function closeSidebar(){
+  _sb.classList.remove('sb-open');
+  if(_bd) _bd.classList.remove('show');
+}
+// Close sidebar when a nav link is tapped on mobile
+document.querySelectorAll('.sb-link').forEach(l => {
+  l.addEventListener('click', () => {
+    if(window.innerWidth <= 860) closeSidebar();
+  });
+});
+
+// ── Collapsible nav groups: per-group open/close state in localStorage
+//    `data-active` (server-rendered when the active page lives in this
+//    group) overrides any saved "closed" state — the user always sees
+//    where they are even if they previously collapsed that group.
+//    `data-pin-open` is even stronger: the group is *always* open, the
+//    saved localStorage entry is wiped, and the toggle handler is
+//    re-armed so any manual collapse re-opens on the next navigation.
+//    This exists for the Content group (Blog Posts / Blog AI Settings),
+//    which the admin asked to keep permanently visible after one of
+//    those items got "hidden" by an accidental click on the summary.
+(function(){
+  try {
+    document.querySelectorAll('.sb-group[data-group]').forEach(function(d){
+      var key = 'sb-nav:' + d.getAttribute('data-group');
+      var pinOpen = d.hasAttribute('data-pin-open');
+      if (pinOpen) {
+        d.open = true;
+        try { localStorage.removeItem(key); } catch(e){}
+        // Re-open immediately if the user collapses by clicking summary,
+        // so the items can never get lost again.
+        d.addEventListener('toggle', function(){
+          if (!d.open) { d.open = true; try { localStorage.removeItem(key); } catch(e){} }
+        });
+        return;
+      }
+      if (d.hasAttribute('data-active')) {
+        // Server says this group contains the current page — force open
+        // and don't touch localStorage so a manual collapse on the *next*
+        // (different) page is still respected.
+        d.open = true;
+      } else {
+        var saved = localStorage.getItem(key);
+        if (saved === '0')      d.open = false;
+        else                    d.open = true;
+        // Default-open: the user originally asked for the menu to be
+        // *organized*, not hidden behind clicks. Only an explicit prior
+        // collapse (saved === '0') keeps a group closed across reloads.
+      }
+      d.addEventListener('toggle', function(){
+        try { localStorage.setItem(key, d.open ? '1' : '0'); } catch(e){}
+      });
+    });
+  } catch(e) { /* localStorage may be blocked — fall back to defaults */ }
+})();
+
+// Sidebar anchor smooth scroll
+document.querySelectorAll('.sb-link[href^="#"]').forEach(l => {
+  l.addEventListener('click', e => {
+    e.preventDefault();
+    const el = document.querySelector(l.getAttribute('href'));
+    if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+});
+
+// Auto-dismiss toast
+const _toast = document.getElementById('adminToast');
+if (_toast) setTimeout(() => { _toast.style.opacity='0'; _toast.style.transition='opacity .4s'; }, 3500);
+
+// ── Admin support notification bell ─────────────────────────
+(function(){
+  var btn   = document.getElementById('admBellBtn');
+  var dd    = document.getElementById('admBellDd');
+  var badge = document.getElementById('admBellBadge');
+  var list  = document.getElementById('admBellList');
+  var sub   = document.getElementById('admBellSub');
+  var clear = document.getElementById('admBellClear');
+  if (!btn || !dd) return;
+
+  function admEsc(s){
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function admCsrf(){
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+  // Single source of truth — updates the bell badge for the admin top-bar.
+  function admSetBadge(n){
+    if (!badge) return;
+    if (n > 0){ badge.classList.add('show'); badge.textContent = n > 9 ? '9+' : String(n); }
+    else { badge.classList.remove('show'); badge.textContent = ''; }
+  }
+
+  function admIsUnread(t){
+    var s = (t.last_sender || '').toLowerCase();
+    return s === 'user'
+      && (t.status === 'open' || t.status === 'in_progress')
+      && !t.is_read;
+  }
+
+  function admPoll(){
+    fetch('{% url "admin_support_notifications" %}', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.ok) return;
+        var unread = (d.tickets || []).filter(admIsUnread);
+        admSetBadge(unread.length);
+      })
+      .catch(function(){});
+  }
+
+  function admLoadDropdown(){
+    list.innerHTML = '<div class="adm-dd-empty">Loading…</div>';
+    fetch('{% url "admin_support_notifications" %}', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d.ok){ list.innerHTML = '<div class="adm-dd-empty">Unable to load.</div>'; return; }
+        var unread = (d.tickets || []).filter(admIsUnread);
+        admSetBadge(unread.length);
+        if (sub) sub.textContent = unread.length
+          ? unread.length + ' new repl' + (unread.length === 1 ? 'y' : 'ies') + ' from users'
+          : 'You\'re all caught up';
+        if (clear) clear.style.display = unread.length ? '' : 'none';
+        if (!unread.length){
+          list.innerHTML =
+            '<div class="adm-dd-empty">' +
+              '<div class="adm-dd-empty-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>' +
+              '<div class="adm-dd-empty-title">Inbox zero</div>' +
+              'No users waiting on a reply.<br>Great job!' +
+            '</div>';
+          return;
+        }
+        list.innerHTML = '';
+        unread.forEach(function(t){
+          var item = document.createElement('a');
+          item.className = 'adm-dd-item';
+          item.href = '/admin-panel/support/' + t.id + '/';
+          item.innerHTML =
+            '<div class="adm-dd-row1">' +
+              '<span class="adm-dd-tag">User replied</span>' +
+              '<span class="adm-dd-time">' + admEsc(t.updated_fmt || '') + '</span>' +
+            '</div>' +
+            '<div class="adm-dd-subj">' + admEsc(t.subject || '(no subject)') + '</div>' +
+            '<div class="adm-dd-quote">' + admEsc(t.last_text || '') + '</div>' +
+            '<div class="adm-dd-row2">' +
+              '<div class="adm-dd-meta">From <strong>' + admEsc(t.user_name || t.user_email || 'Unknown') + '</strong></div>' +
+              '<span class="adm-dd-cta">Open ticket ' +
+                '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' +
+              '</span>' +
+            '</div>';
+          item.addEventListener('click', function(){
+            // Fire-and-forget mark-read; `keepalive:true` inside admMarkRead
+            // ensures the request completes even though the browser is
+            // navigating to the ticket detail page in the same tick.
+            window.admMarkRead(t.id, false);
+          });
+          list.appendChild(item);
+        });
+      })
+      .catch(function(){
+        list.innerHTML = '<div class="adm-dd-empty">Network error.</div>';
+      });
+  }
+
+  // ticketId: number | null
+  // all:      bool — mark every ticket
+  // Returns a promise resolving to true on success, false on failure.
+  // `keepalive:true` lets the request survive an immediate page navigation
+  // (e.g. when the user clicks a notification card and we navigate to the
+  // ticket detail page in the same tick).
+  window.admMarkRead = function(ticketId, all){
+    var body = new URLSearchParams();
+    if (all) body.set('all', '1');
+    else body.set('ticket_id', String(ticketId));
+    return fetch('{% url "admin_support_mark_read" %}', {
+      method: 'POST',
+      credentials: 'same-origin',
+      keepalive: true,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': admCsrf(),
+      },
+      body: body.toString(),
+    }).then(function(r){
+      var ok = !!(r && r.ok);
+      admPoll();
+      return ok;
+    }).catch(function(){ return false; });
+  };
+
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var willOpen = !dd.classList.contains('open');
+    // Close the sibling avatar dropdown so the two never overlap
+    // (architect found this on first pass — bell click was leaving
+    // an open profile dropdown stranded on screen).
+    var profDd  = document.getElementById('admProfDd');
+    var profBtn = document.getElementById('admProfBtn');
+    if (willOpen && profDd && profDd.classList.contains('open')){
+      profDd.classList.remove('open');
+      if (profBtn) profBtn.setAttribute('aria-expanded','false');
+    }
+    dd.classList.toggle('open', willOpen);
+    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    if (willOpen) admLoadDropdown();
+  });
+  if (clear){
+    clear.addEventListener('click', function(e){
+      e.stopPropagation();
+      window.admMarkRead(null, true).then(function(){
+        admLoadDropdown();
+      });
+    });
+  }
+  document.addEventListener('click', function(e){
+    if (!dd.contains(e.target) && !btn.contains(e.target)){
+      dd.classList.remove('open');
+      btn.setAttribute('aria-expanded','false');
+    }
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && dd.classList.contains('open')){
+      dd.classList.remove('open');
+      btn.setAttribute('aria-expanded','false');
+      btn.focus();
+    }
+  });
+  // Initial poll + every 60s.
+  admPoll();
+  setInterval(admPoll, 60000);
+})();
+
+// ── Admin avatar dropdown — open/close + outside-click + Esc ──────
+// Mirrors the bell's IIFE pattern for consistency. We close the bell
+// when the avatar opens (and vice versa) so two dropdowns never
+// overlap, and keep aria-expanded in sync for screen readers.
+(function(){
+  var btn    = document.getElementById('admProfBtn');
+  var dd     = document.getElementById('admProfDd');
+  var bellDd = document.getElementById('admBellDd');
+  var bellBtn = document.getElementById('admBellBtn');
+  if (!btn || !dd) return;
+  function setOpen(open){
+    dd.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  btn.addEventListener('click', function(e){
+    e.stopPropagation();
+    var willOpen = !dd.classList.contains('open');
+    if (willOpen && bellDd && bellDd.classList.contains('open')){
+      bellDd.classList.remove('open');
+      if (bellBtn) bellBtn.setAttribute('aria-expanded','false');
+    }
+    setOpen(willOpen);
+  });
+  document.addEventListener('click', function(e){
+    if (!dd.contains(e.target) && !btn.contains(e.target)) setOpen(false);
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && dd.classList.contains('open')){
+      setOpen(false);
+      btn.focus();
+    }
+  });
+})();
+</script>
+
+{# extra_scripts MUST be outside the wrapper <script> above. Child       #}
+{# templates emit their own <link>/<script src=…> tags here; if this     #}
+{# block were inside the wrapper script, the parser is in script-data   #}
+{# state and the FIRST </script> a child emits closes the wrapper       #}
+{# prematurely, so subsequent <script src=…> tags load OUT OF ORDER and #}
+{# any inline init runs without jQuery. (Caused the empty-DataTables    #}
+{# bug on /admin-panel/scrapers/. permits.html doesn't extend this base #}
+{# so it was never affected — that's why DataTables worked there.)      #}
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

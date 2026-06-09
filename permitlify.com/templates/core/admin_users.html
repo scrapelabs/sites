@@ -1,0 +1,459 @@
+{% extends "core/admin_base.html" %}
+{% block title %}All Users{% endblock %}
+{% block page_title %}All Users{% endblock %}
+{% block page_meta %} · {{ total_users }} accounts{% endblock %}
+
+{% block toasts %}
+{% if deleted == 'ok' %}<div class="toast toast-ok" id="adminToast">✅ User deleted successfully.</div>
+{% elif deleted == 'fail' %}<div class="toast toast-fail" id="adminToast">❌ Failed to delete user.</div>
+{% elif deleted == 'self' %}<div class="toast toast-warn" id="adminToast">⚠️ You cannot delete your own account.</div>
+{% elif banned == 'ok' %}<div class="toast toast-ok" id="adminToast">🚫 User banned and removed.</div>
+{% elif banned == 'self' %}<div class="toast toast-warn" id="adminToast">⚠️ You cannot ban your own account.</div>
+{% elif banned == 'fail' %}<div class="toast toast-fail" id="adminToast">❌ Could not ban user.</div>
+{% elif bulk_deleted %}<div class="toast toast-ok" id="adminToast">✅ Deleted {{ bulk_deleted }} user{{ bulk_deleted|pluralize }}.{% if bulk_self %} Your own account was skipped.{% endif %}{% if bulk_admin %} {{ bulk_admin }} admin account{{ bulk_admin|pluralize }} skipped.{% endif %}</div>
+{% elif mode_set == 'ok' %}<div class="toast toast-ok" id="adminToast">✅ User Whop mode set to <strong>{{ mode|upper }}</strong>.</div>
+{% elif mode_set == 'missing' %}<div class="toast toast-fail" id="adminToast">❌ User not found.</div>
+{% elif bulk_mode %}<div class="toast toast-ok" id="adminToast">✅ Set {{ bulk_mode }} user{{ bulk_mode|pluralize }} to <strong>{{ mode|upper }}</strong>.{% if bulk_self %} Your own account was skipped.{% endif %}{% if bulk_admin %} {{ bulk_admin }} admin account{{ bulk_admin|pluralize }} skipped.{% endif %}</div>
+{% elif bulk_synced or bulk_no_member or bulk_failed %}<div class="toast toast-ok" id="adminToast">🔄 Whop sync: <strong>{{ bulk_synced|default:0 }}</strong> synced{% if bulk_no_member %}, <strong>{{ bulk_no_member }}</strong> no membership{% endif %}{% if bulk_failed %}, <strong>{{ bulk_failed }}</strong> failed{% endif %}.{% if bulk_self %} Your own account was skipped.{% endif %}{% if bulk_admin %} {{ bulk_admin }} admin account{{ bulk_admin|pluralize }} skipped.{% endif %}</div>
+{% elif email_code_set == 'ok' %}<div class="toast toast-ok" id="adminToast">{% if email_code == 'on' %}🔒 Email-code verification <strong>enabled</strong> for that user.{% else %}🔓 Email-code verification <strong>disabled</strong> for that user — they can now sign in with just email + password.{% endif %}</div>
+{% elif email_code_set == 'self' %}<div class="toast toast-warn" id="adminToast">⚠️ You cannot change your own email-code verification setting — ask another admin to flip it for you.</div>
+{% elif email_code_set == 'missing' %}<div class="toast toast-fail" id="adminToast">❌ User not found.</div>
+{% endif %}
+{% endblock %}
+
+{% block modals %}
+<div class="modal-backdrop" id="deleteModal">
+  <div class="modal">
+    <div class="modal-icon">🗑️</div>
+    <div class="modal-title">Delete User?</div>
+    <div class="modal-body" id="modalBody">This action is permanent and cannot be undone.</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <form id="deleteForm" method="POST" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-delete-confirm">Delete User</button>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop" id="bulkDeleteModal">
+  <div class="modal">
+    <div class="modal-icon">🗑️</div>
+    <div class="modal-title">Delete <span id="bulkCount">0</span> Users?</div>
+    <div class="modal-body" id="bulkModalBody">You are about to permanently delete the selected accounts. This cannot be undone.</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeBulkModal()">Cancel</button>
+      <form id="bulkDeleteForm" method="POST" action="/admin-panel/bulk-delete/" style="display:inline">
+        {% csrf_token %}
+        <div id="bulkDeleteHidden"></div>
+        <button type="submit" class="btn-delete-confirm">Delete <span id="bulkCount2">0</span> Users</button>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="modal-backdrop" id="banModal">
+  <div class="modal">
+    <div class="modal-icon">🚫</div>
+    <div class="modal-title">Ban User?</div>
+    <div class="modal-body" id="banModalBody">This will delete the account and permanently block the email from signing up again.</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeBanModal()">Cancel</button>
+      <form id="banForm" method="POST" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-delete-confirm" style="background:#d97706">Ban & Block Email</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<style>
+/* Per-user Whop-mode pill (PROD = green, DEV = amber). Behaves like a
+   one-tap toggle: changing the dropdown auto-submits the form. */
+.mode-select{font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;
+  border:1px solid var(--border);background:#fff;cursor:pointer;font-family:inherit;
+  letter-spacing:.4px;appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3' stroke='%2364748b' stroke-width='1.5' fill='none'/></svg>");
+  background-repeat:no-repeat;background-position:right 6px center;padding-right:22px}
+.mode-select.mode-prod{border-color:#86efac;background-color:#f0fdf4;color:#166534}
+.mode-select.mode-dev {border-color:#fcd34d;background-color:#fffbeb;color:#92400e}
+.mode-select:focus{outline:2px solid #93c5fd;outline-offset:1px}
+.td-mode{padding:11px 14px;vertical-align:middle}
+
+/* Per-user email-code login verification toggle.
+   Same pill geometry as .mode-select so the actions cell stays
+   visually consistent. Two states:
+     .code-on  (default, secure) → green padlock pill
+     .code-off (admin opted out) → amber unlocked pill
+   Built as a <button type=submit> so a single click flips the
+   value (the form's hidden <input> already carries the inverse). */
+.code-toggle{display:inline-flex;align-items:center;gap:4px;
+  font-size:10.5px;font-weight:700;letter-spacing:.4px;
+  padding:4px 9px;border-radius:6px;cursor:pointer;font-family:inherit;
+  border:1px solid var(--border);background:#fff;line-height:1;
+  transition:transform .08s ease, box-shadow .12s ease, background-color .12s ease}
+.code-toggle:hover{transform:translateY(-1px);box-shadow:0 1px 3px rgba(15,23,42,.08)}
+.code-toggle:focus-visible{outline:2px solid #93c5fd;outline-offset:1px}
+.code-toggle.code-on {border-color:#86efac;background-color:#f0fdf4;color:#166534}
+.code-toggle.code-off{border-color:#fcd34d;background-color:#fffbeb;color:#92400e}
+.code-toggle svg{flex:0 0 auto}
+</style>
+
+<!-- KPI summary -->
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px">
+  <div class="kpi-card blue">
+    <div class="kpi-label">Total Users</div>
+    <div class="kpi-value">{{ total_users }}</div>
+    <div class="kpi-sub"><span class="kpi-up">↑ {{ new_this_month }} new</span> this month</div>
+  </div>
+  <div class="kpi-card" style="border-top:3px solid #ef4444">
+    <div class="kpi-label">No Plan</div>
+    <div class="kpi-value" style="color:#b91c1c;font-size:24px">{{ plan_counts.no_plan }}</div>
+    <div class="kpi-sub">Signed up — never paid</div>
+  </div>
+  <div class="kpi-card" style="border-top:3px solid #94a3b8">
+    <div class="kpi-label">Starter</div>
+    <div class="kpi-value" style="color:#64748b;font-size:24px">{{ plan_counts.starter }}</div>
+    <div class="kpi-sub">${{ pricing_prod.starter_monthly }}/mo</div>
+  </div>
+  <div class="kpi-card" style="border-top:3px solid var(--blue)">
+    <div class="kpi-label">Pro</div>
+    <div class="kpi-value" style="color:var(--blue);font-size:24px">{{ plan_counts.pro }}</div>
+    <div class="kpi-sub">${{ pricing_prod.pro_monthly }}/mo</div>
+  </div>
+  <div class="kpi-card purple">
+    <div class="kpi-label">Agency</div>
+    <div class="kpi-value" style="font-size:24px">{{ plan_counts.agency }}</div>
+    <div class="kpi-sub">${{ pricing_prod.agency_monthly }}/mo</div>
+  </div>
+</div>
+
+<!-- Users table -->
+<div class="users-card">
+  <div class="users-header">
+    <div>
+      <div class="card-title">All Users</div>
+      <div class="card-sub" style="margin-bottom:0">{{ total_users }} registered accounts — click any row to expand details</div>
+    </div>
+    <div class="search-row">
+      <select class="filter-select" id="planFilter" onchange="applyFilters()">
+        <option value="">All plans</option>
+        <option value="no_plan">No Plan</option>
+        <option value="starter">Starter</option>
+        <option value="pro">Pro</option>
+        <option value="agency">Agency</option>
+      </select>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="userSearch" placeholder="Search users…" oninput="applyFilters()">
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk action bar (visible when selections exist) -->
+  <div id="bulkBar" style="display:none;align-items:center;justify-content:space-between;gap:14px;padding:10px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin:0 16px 12px">
+    <div style="font-size:13px;color:#991b1b;font-weight:600">
+      <span id="bulkBarCount">0</span> user<span id="bulkBarPlural">s</span> selected
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button type="button" class="btn-sm" onclick="clearSelection()" style="background:#fff">Clear</button>
+      <button type="button" class="btn-sm" onclick="confirmBulkMode('prod')" style="background:#fff;border-color:#bbf7d0;color:#166534" title="Route selected users to live Whop billing">→ Set PROD</button>
+      <button type="button" class="btn-sm" onclick="confirmBulkMode('dev')" style="background:#fff;border-color:#fde68a;color:#92400e" title="Route selected users to $1 Whop test plans">→ Set DEV</button>
+      <button type="button" class="btn-sm" onclick="confirmBulkWhopSync()" style="background:#fff;border-color:#bfdbfe;color:#1d4ed8" title="Force a fresh Whop API sync — re-binds membership, plan, status, and renewal date">🔄 Sync Whop</button>
+      <button type="button" class="btn-sm btn-danger" onclick="confirmBulkDelete()">🗑 Delete selected</button>
+    </div>
+  </div>
+
+  <!-- Bulk Whop-sync confirm modal -->
+  <div class="modal-backdrop" id="bulkSyncModal">
+    <div class="modal">
+      <div class="modal-icon">🔄</div>
+      <div class="modal-title">Sync <span id="bulkSyncCount">0</span> Users with Whop?</div>
+      <div class="modal-body">For each selected user, we'll call the Whop API and refresh: plan, membership ID, active status, next-charge date, and cancellation flag. This bypasses the normal 1-hour throttle. Slow when selecting many users (≈ 1s each).</div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeBulkSyncModal()">Cancel</button>
+        <form id="bulkSyncForm" method="POST" action="/admin-panel/bulk-whop-sync/" style="display:inline">
+          {% csrf_token %}
+          <div id="bulkSyncHidden"></div>
+          <button type="submit" class="btn-delete-confirm" style="background:#1d4ed8" onclick="this.disabled=true;this.textContent='Syncing…';this.form.submit();">Sync now</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Whop-mode confirm modal (rendered next to existing bulk-delete modal) -->
+  <div class="modal-backdrop" id="bulkModeModal">
+    <div class="modal">
+      <div class="modal-icon">💳</div>
+      <div class="modal-title">Set <span id="bulkModeCount">0</span> Users to <span id="bulkModeTarget">PROD</span>?</div>
+      <div class="modal-body" id="bulkModeBody">These users will be billed against the selected Whop plan IDs at next checkout.</div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeBulkModeModal()">Cancel</button>
+        <form id="bulkModeForm" method="POST" action="/admin-panel/bulk-whop-mode/" style="display:inline">
+          {% csrf_token %}
+          <input type="hidden" name="whop_mode" id="bulkModeInput" value="prod">
+          <div id="bulkModeHidden"></div>
+          <button type="submit" class="btn-delete-confirm" style="background:#1d4ed8">Apply</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:34px;text-align:center"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)" title="Select all" style="cursor:pointer;width:15px;height:15px;vertical-align:middle"></th>
+        <th style="width:30px"></th>
+        <th>User</th>
+        <th>Plan</th>
+        <th>MRR</th>
+        <th>Cities</th>
+        <th>Joined</th>
+        <th>Status</th>
+        <th title="Whop billing mode — PROD = live plans, DEV = $1 test plans">Whop Mode</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    {% comment %}
+      The page chrome (sidebar + stats + table header) renders inline
+      and ships immediately. The body of the table is loaded async
+      via htmx (htmx is already pulled into admin_base.html) the
+      moment the tbody enters the DOM, and replaces this loading row
+      with the real <tr>s rendered by the _admin_users_rows.html
+      partial. Two perceptual wins:
+
+        1. Even on a cold worker, the admin sees the navigation, the
+           counts, and the "Loading users…" placeholder in <50 ms,
+           instead of staring at a blank tab for 200-300 ms.
+
+        2. Future filter / search / refresh actions can swap just
+           this tbody (hx-get + hx-target=#users-tbody) without
+           reloading the entire 100 KB page. The endpoint at
+           /admin-panel/users/_rows/ is already wired up.
+    {% endcomment %}
+    <tbody id="users-tbody"
+           hx-get="/admin-panel/users/_rows/"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+      <tr><td colspan="10" style="text-align:center;padding:32px;color:var(--muted)">
+        Loading users…
+      </td></tr>
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleDetail(id) {
+  const detail = document.getElementById('detail-'+id);
+  const row    = document.querySelector('[data-id="'+id+'"]');
+  const btn    = row.querySelector('.expand-btn');
+  const isOpen = detail.classList.contains('open');
+  detail.classList.toggle('open', !isOpen);
+  btn.textContent = isOpen ? '▶' : '▼';
+}
+function applyFilters() {
+  const q    = document.getElementById('userSearch').value.toLowerCase().trim();
+  const plan = document.getElementById('planFilter').value.toLowerCase();
+  document.querySelectorAll('.user-row').forEach(row => {
+    const show = (!q || row.dataset.name.includes(q) || row.dataset.email.includes(q)) &&
+                 (!plan || row.dataset.plan === plan);
+    row.style.display = show ? '' : 'none';
+    const d = document.getElementById('detail-'+row.dataset.id);
+    if (d) d.style.display = show ? '' : 'none';
+  });
+}
+function confirmDelete(id, name, email) {
+  document.getElementById('modalBody').innerHTML =
+    'You are about to permanently delete:<br><br><strong>'+name+'</strong> ('+email+')<br><br>This cannot be undone.';
+  document.getElementById('deleteForm').action = '/admin-panel/delete/'+id+'/';
+  document.getElementById('deleteModal').classList.add('open');
+}
+function closeModal() { document.getElementById('deleteModal').classList.remove('open'); }
+document.getElementById('deleteModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+function confirmBan(id, name, email) {
+  document.getElementById('banModalBody').innerHTML =
+    'You are about to <strong>ban and delete</strong>:<br><br><strong>'+name+'</strong> ('+email+')<br><br>Their account will be removed and this email will be permanently blocked.';
+  document.getElementById('banForm').action = '/admin-panel/ban/'+id+'/';
+  document.getElementById('banModal').classList.add('open');
+}
+function closeBanModal() { document.getElementById('banModal').classList.remove('open'); }
+document.getElementById('banModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeBanModal(); });
+
+/* ---------- bulk selection ---------- */
+function getVisibleChecks() {
+  return Array.from(document.querySelectorAll('.row-check')).filter(cb => {
+    const row = cb.closest('tr');
+    return row && row.style.display !== 'none';
+  });
+}
+function getCheckedChecks() {
+  return Array.from(document.querySelectorAll('.row-check')).filter(cb => cb.checked);
+}
+function updateSelection() {
+  const checked = getCheckedChecks();
+  const bar = document.getElementById('bulkBar');
+  document.getElementById('bulkBarCount').textContent = checked.length;
+  document.getElementById('bulkBarPlural').textContent = checked.length === 1 ? '' : 's';
+  bar.style.display = checked.length > 0 ? 'flex' : 'none';
+  // sync select-all checkbox state
+  const visible = getVisibleChecks();
+  const all = document.getElementById('selectAll');
+  if (visible.length === 0) {
+    all.checked = false; all.indeterminate = false;
+  } else {
+    const visChecked = visible.filter(cb => cb.checked).length;
+    all.checked = visChecked === visible.length;
+    all.indeterminate = visChecked > 0 && visChecked < visible.length;
+  }
+}
+function toggleSelectAll(box) {
+  getVisibleChecks().forEach(cb => { cb.checked = box.checked; });
+  updateSelection();
+}
+function clearSelection() {
+  document.querySelectorAll('.row-check').forEach(cb => { cb.checked = false; });
+  updateSelection();
+}
+/* Build a "preview list" of checked accounts safely (no innerHTML with
+   user-controlled name/email — those would be a stored XSS vector for any
+   admin viewing this page if a user signs up with HTML in their name). */
+function _buildPreviewNodes(parent, checked, max) {
+  parent.replaceChildren();
+  checked.slice(0, max).forEach((cb, i) => {
+    if (i > 0) parent.appendChild(document.createElement('br'));
+    const strong = document.createElement('strong');
+    strong.textContent = cb.dataset.name || '';
+    parent.appendChild(strong);
+    parent.appendChild(document.createTextNode(' (' + (cb.dataset.email || '') + ')'));
+  });
+  if (checked.length > max) {
+    parent.appendChild(document.createElement('br'));
+    const em = document.createElement('em');
+    em.textContent = '… and ' + (checked.length - max) + ' more';
+    parent.appendChild(em);
+  }
+}
+
+function confirmBulkDelete() {
+  const checked = getCheckedChecks();
+  if (checked.length === 0) return;
+  document.getElementById('bulkCount').textContent = checked.length;
+  document.getElementById('bulkCount2').textContent = checked.length;
+  const body = document.getElementById('bulkModalBody');
+  body.replaceChildren();
+  const lead = document.createElement('div');
+  lead.appendChild(document.createTextNode('You are about to permanently delete '));
+  const strong = document.createElement('strong');
+  strong.textContent = String(checked.length);
+  lead.appendChild(strong);
+  lead.appendChild(document.createTextNode(' account' + (checked.length === 1 ? '' : 's') + ':'));
+  body.appendChild(lead);
+  body.appendChild(document.createElement('br'));
+  const list = document.createElement('div');
+  _buildPreviewNodes(list, checked, 5);
+  body.appendChild(list);
+  body.appendChild(document.createElement('br'));
+  body.appendChild(document.createTextNode('This cannot be undone.'));
+  const hidden = document.getElementById('bulkDeleteHidden');
+  hidden.replaceChildren();
+  checked.forEach(cb => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'user_ids'; inp.value = cb.value;
+    hidden.appendChild(inp);
+  });
+  document.getElementById('bulkDeleteModal').classList.add('open');
+}
+function closeBulkModal() { document.getElementById('bulkDeleteModal').classList.remove('open'); }
+
+/* ---------- bulk Whop sync ---------- */
+function confirmBulkWhopSync() {
+  const checked = Array.from(document.querySelectorAll('.row-check:checked'));
+  if (!checked.length) return;
+  document.getElementById('bulkSyncCount').textContent = checked.length;
+  const hidden = document.getElementById('bulkSyncHidden');
+  hidden.innerHTML = '';
+  checked.forEach(cb => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'user_ids'; inp.value = cb.value;
+    hidden.appendChild(inp);
+  });
+  document.getElementById('bulkSyncModal').classList.add('open');
+}
+function closeBulkSyncModal() { document.getElementById('bulkSyncModal').classList.remove('open'); }
+
+
+/* ---------- bulk Whop-mode flip ---------- */
+function confirmBulkMode(mode) {
+  const checked = getCheckedChecks();
+  if (checked.length === 0) return;
+  const m = (mode === 'dev') ? 'dev' : 'prod';
+  document.getElementById('bulkModeCount').textContent = checked.length;
+  document.getElementById('bulkModeTarget').textContent = m.toUpperCase();
+  document.getElementById('bulkModeInput').value = m;
+
+  /* Build the modal body safely with DOM nodes — never innerHTML with the
+     user-controlled name/email strings (would be a stored XSS vector). */
+  const body = document.getElementById('bulkModeBody');
+  body.replaceChildren();
+  const lead = document.createElement('div');
+  lead.appendChild(document.createTextNode('You are about to set '));
+  const sCount = document.createElement('strong');
+  sCount.textContent = String(checked.length);
+  lead.appendChild(sCount);
+  lead.appendChild(document.createTextNode(' account' + (checked.length === 1 ? '' : 's') + ' to '));
+  const sMode = document.createElement('strong');
+  sMode.textContent = m.toUpperCase();
+  lead.appendChild(sMode);
+  lead.appendChild(document.createTextNode(':'));
+  body.appendChild(lead);
+  body.appendChild(document.createElement('br'));
+  const list = document.createElement('div');
+  _buildPreviewNodes(list, checked, 5);
+  body.appendChild(list);
+  body.appendChild(document.createElement('br'));
+  const blurbDiv = document.createElement('div');
+  blurbDiv.appendChild(document.createTextNode('Their next checkout will be billed against the '));
+  const sb = document.createElement('strong');
+  sb.textContent = (m === 'dev')
+    ? 'dev Whop plan IDs ($' + {{ pricing_dev.starter_monthly }} + ' / $' + {{ pricing_dev.pro_monthly }} + ' / $' + {{ pricing_dev.agency_monthly }} + ')'
+    : 'live Whop plan IDs ($' + {{ pricing_prod.starter_monthly }} + ' / $' + {{ pricing_prod.pro_monthly }} + ' / $' + {{ pricing_prod.agency_monthly }} + ')';
+  blurbDiv.appendChild(sb);
+  blurbDiv.appendChild(document.createTextNode(
+    m === 'dev' ? ' (live billing is paused for these accounts).' : '.'
+  ));
+  body.appendChild(blurbDiv);
+
+  const hidden = document.getElementById('bulkModeHidden');
+  hidden.replaceChildren();
+  checked.forEach(cb => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'user_ids'; inp.value = cb.value;
+    hidden.appendChild(inp);
+  });
+  document.getElementById('bulkModeModal').classList.add('open');
+}
+function closeBulkModeModal() { document.getElementById('bulkModeModal').classList.remove('open'); }
+document.getElementById('bulkModeModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeBulkModeModal(); });
+document.getElementById('bulkDeleteModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeBulkModal(); });
+
+/* keep selection bar accurate when filters hide rows */
+const _origApplyFilters = applyFilters;
+applyFilters = function() { _origApplyFilters(); updateSelection(); };
+
+/* When htmx finishes swapping the async-loaded rows into #users-tbody,
+   re-apply any search/plan filter the admin pre-typed (the inputs are
+   above the tbody so they're interactive *before* rows arrive) and
+   re-sync the bulk-selection bar. Without this the pre-typed filter
+   would silently fail until the admin types another character. */
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+  if (evt.target && evt.target.id === 'users-tbody') {
+    try { applyFilters(); } catch (_) {}
+  }
+});
+</script>
+{% endblock %}

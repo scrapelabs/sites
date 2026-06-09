@@ -1,0 +1,224 @@
+{% extends "core/admin_base.html" %}
+{% block title %}States Manager{% endblock %}
+{% block page_title %}States Manager{% endblock %}
+{% block page_meta %} · ban states from scrapers · per-state stats &amp; deletes{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="/lib/grid.min.css?v=3">
+<script src="/lib/core.min.js?v=3"></script>
+<script src="/lib/grid.min.js?v=3"></script>
+
+<style>
+.ss-card{background:var(--card,#fff);border:1px solid var(--border,#e5e7eb);border-radius:12px;padding:18px 20px;margin-bottom:18px}
+.ss-card h3{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--text)}
+.ss-card .sub{font-size:12px;color:var(--muted);margin-bottom:14px}
+.ss-banned-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.ss-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px 5px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:999px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;color:#991b1b}
+.ss-chip button{border:none;background:transparent;color:#991b1b;font-size:14px;cursor:pointer;line-height:1;padding:0 2px;font-weight:700}
+.ss-chip button:hover{color:#7f1d1d}
+.ss-empty{color:var(--muted);font-size:12px;font-style:italic}
+.ss-add{display:flex;gap:8px;align-items:center}
+.ss-add input{padding:7px 11px;border:1px solid var(--border);border-radius:7px;font-size:13px;width:90px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:1px}
+.ss-add button{padding:7px 14px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.ss-add button:hover{background:#b91c1c}
+.tier{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.tier.rich{background:#dcfce7;color:#15803d}
+.tier.solid{background:#dbeafe;color:#1d4ed8}
+.tier.thin{background:#fef3c7;color:#a16207}
+.tier.tiny{background:#f1f5f9;color:#64748b}
+.ss-state{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12.5px}
+.ss-banned-flag{margin-left:6px;font-size:10px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-weight:700}
+#ssTable{width:100%;border-collapse:separate;border-spacing:0}
+#ssTable th{text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:#f8fafc;border-bottom:1px solid var(--border);font-weight:700}
+#ssTable td{padding:11px 12px;font-size:13px;border-bottom:1px solid var(--border)}
+#ssTable td.num,#ssTable th.num{text-align:right;font-variant-numeric:tabular-nums}
+.btn-ban{padding:4px 9px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-ban:hover{background:#fee2e2}
+.btn-unban{padding:4px 9px;background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn-unban:hover{background:#d1fae5}
+.btn-del{padding:4px 9px;background:#fff;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-left:6px}
+.btn-del:hover{background:#fef2f2}
+.dataTables_wrapper{font-family:inherit}
+.dataTables_paginate{margin-top:12px;text-align:right}
+.dataTables_paginate .paginate_button{padding:4px 10px;margin:0 2px;background:#fff;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;color:var(--text)}
+.dataTables_paginate .paginate_button.current{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.dataTables_paginate .paginate_button.disabled{opacity:.4;cursor:not-allowed}
+.dataTables_info{font-size:11.5px;color:var(--muted);margin-top:12px;display:inline-block}
+.dataTables_length{display:inline-block;margin-right:14px;font-size:11.5px;color:var(--muted)}
+.dataTables_length select{padding:3px 6px;border:1px solid var(--border);border-radius:5px;margin:0 4px}
+.dataTables_filter{float:right;font-size:11.5px;color:var(--muted)}
+.dataTables_filter input{padding:5px 10px;border:1px solid var(--border);border-radius:6px;margin-left:6px;font-size:12px;width:160px}
+.dt-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:10px}
+</style>
+
+<div id="toast" style="display:none;position:fixed;top:20px;right:20px;padding:11px 16px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.15)"></div>
+
+<!-- ── Banned states ─────────────────────────────────────────── -->
+<div class="ss-card">
+  <h3>🚫 Banned states</h3>
+  <div class="sub">Scrapers will silently <strong>drop</strong> any permit whose state matches one of these codes. Existing permits are not affected — use the <em>Delete permits</em> button per row below for that.</div>
+
+  <div id="bannedGrid" class="ss-banned-grid">
+    {% for code in banned_states %}
+      <span class="ss-chip" data-code="{{ code }}">{{ code }}<button type="button" title="Unban {{ code }}" onclick="unban('{{ code }}')">×</button></span>
+    {% empty %}
+      <span class="ss-empty">No states are currently banned — scrapers accept every state.</span>
+    {% endfor %}
+  </div>
+
+  <form class="ss-add" onsubmit="event.preventDefault();ban(this.code.value)">
+    <input type="text" name="code" maxlength="2" placeholder="CA" autocomplete="off" required>
+    <button type="submit">Ban state</button>
+  </form>
+</div>
+
+<!-- ── Per-state stats DataTable ─────────────────────────────── -->
+<div class="ss-card">
+  <h3>📊 Permits by state</h3>
+  <div class="sub">5 rows per page — use search to jump to a specific state. Click <em>Delete</em> to hard-remove every permit for that state from the database.</div>
+
+  <table id="ssTable">
+    <thead>
+      <tr>
+        <th>State</th>
+        <th class="num">Today (24h)</th>
+        <th class="num">Last 7 days</th>
+        <th class="num">Last 30 days</th>
+        <th class="num">All-time</th>
+        <th>Tier (30d)</th>
+        <th style="width:220px">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+function showToast(msg, kind){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = kind === 'err' ? '#fef2f2' : '#ecfdf5';
+  t.style.color      = kind === 'err' ? '#991b1b' : '#065f46';
+  t.style.border     = '1px solid ' + (kind === 'err' ? '#fecaca' : '#bbf7d0');
+  t.style.display = 'block';
+  setTimeout(function(){ t.style.display = 'none'; }, 3200);
+}
+function csrf(){
+  var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+  return m ? m[1] : '';
+}
+function esc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function ban(raw){
+  var code = (raw || '').trim().toUpperCase();
+  if (code.length !== 2 || !/^[A-Z]{2}$/.test(code)){
+    showToast('Enter a 2-letter state code (e.g. CA).', 'err');
+    return;
+  }
+  fetch('/admin-panel/states/ban/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'action=add&state=' + encodeURIComponent(code),
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if (!j.ok){ showToast(j.error || 'Failed to ban state.', 'err'); return; }
+    showToast(code + ' banned from scraper ingest.');
+    renderBanned(j.banned_states);
+    reloadTable();
+  }).catch(function(){ showToast('Network error.', 'err'); });
+}
+
+function unban(code){
+  fetch('/admin-panel/states/ban/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'action=remove&state=' + encodeURIComponent(code),
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if (!j.ok){ showToast(j.error || 'Failed to unban.', 'err'); return; }
+    showToast(code + ' unbanned — scrapers will accept it again.');
+    renderBanned(j.banned_states);
+    reloadTable();
+  }).catch(function(){ showToast('Network error.', 'err'); });
+}
+
+function renderBanned(list){
+  var grid = document.getElementById('bannedGrid');
+  if (!list || !list.length){
+    grid.innerHTML = '<span class="ss-empty">No states are currently banned — scrapers accept every state.</span>';
+    return;
+  }
+  grid.innerHTML = list.map(function(c){
+    return '<span class="ss-chip" data-code="' + esc(c) + '">' + esc(c)
+      + '<button type="button" title="Unban ' + esc(c) + '" onclick="unban(\'' + esc(c) + '\')">×</button></span>';
+  }).join('');
+}
+
+function deletePermits(code, totalShown){
+  var prompt1 = 'This will PERMANENTLY DELETE every permit for ' + code
+    + ' (currently ~' + totalShown + ' rows). This cannot be undone.\n\n'
+    + 'Type the state code to confirm:';
+  var typed = window.prompt(prompt1, '');
+  if (typed == null) return;
+  if ((typed || '').trim().toUpperCase() !== code){
+    showToast('Confirmation did not match — nothing deleted.', 'err');
+    return;
+  }
+  fetch('/admin-panel/states/' + encodeURIComponent(code) + '/delete-permits/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'confirm=' + encodeURIComponent(code),
+  }).then(function(r){ return r.json(); }).then(function(j){
+    if (!j.ok){ showToast(j.error || 'Delete failed.', 'err'); return; }
+    showToast('Deleted ' + j.deleted + ' permits for ' + code + '.');
+    reloadTable();
+  }).catch(function(){ showToast('Network error.', 'err'); });
+}
+
+var _dt = null;
+function reloadTable(){ if (_dt) _dt.ajax.reload(null, false); }
+
+jQuery(function($){
+  _dt = $('#ssTable').DataTable({
+    ajax: { url: '/admin-panel/states/data.json', dataSrc: 'data' },
+    pageLength: 5,
+    lengthMenu: [[5,10,25,50],[5,10,25,50]],
+    order: [[4, 'desc']],
+    deferRender: true,
+    dom: 'frt<"dt-foot"lip>',
+    columns: [
+      {data: null, render: function(s){
+        var flag = s.banned ? '<span class="ss-banned-flag">BANNED</span>' : '';
+        return '<span class="ss-state">' + esc(s.state) + '</span>' + flag;
+      }},
+      {data: 'today', className: 'num'},
+      {data: 'd7',    className: 'num'},
+      {data: 'd30',   className: 'num', render: function(v){ return '<strong>' + esc(v) + '</strong>'; }},
+      {data: 'total', className: 'num'},
+      {data: null, render: function(s){
+        return '<span class="tier ' + esc(s.tier_kind) + '">' + esc(s.tier) + '</span>';
+      }},
+      {data: null, orderable: false, render: function(s){
+        var banBtn = s.banned
+          ? '<button class="btn-unban" onclick="unban(\'' + esc(s.state) + '\')">Unban</button>'
+          : '<button class="btn-ban"   onclick="ban(\''   + esc(s.state) + '\')">Ban</button>';
+        var delBtn = '<button class="btn-del" onclick="deletePermits(\'' + esc(s.state) + '\',' + (s.total|0) + ')">Delete permits</button>';
+        return banBtn + delBtn;
+      }},
+    ],
+    language: {
+      search: 'Filter:',
+      lengthMenu: 'Show _MENU_ per page',
+      info: '_START_–_END_ of _TOTAL_ states',
+      infoEmpty: 'No states',
+      infoFiltered: '(filtered from _MAX_)',
+      emptyTable: 'No permits in any state yet.',
+      zeroRecords: 'No states match the filter.',
+      paginate: { previous: '‹', next: '›' },
+    },
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% comment %}
+Noscript fallback pixels — rendered right after the opening body tag
+on every page. These cover ad-blockers / users with JS disabled, and
+emit nothing when no pixel id is configured.
+{% endcomment %}
+{% if marketing.meta_pixel_id %}
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id={{ marketing.meta_pixel_id }}&ev=PageView&noscript=1"
+alt=""></noscript>
+{% endif %}
+{% if marketing.ga4_id %}
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id={{ marketing.ga4_id }}"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+{% endif %}

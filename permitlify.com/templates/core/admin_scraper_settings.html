@@ -1,0 +1,237 @@
+{# templates/core/admin_scraper_settings.html — DO + proxy + extraction prompt for every per-source HTTP scraper. #}
+{% extends "core/admin_base.html" %}
+{% block title %}Scraper Settings{% endblock %}
+{% block page_title %}Scraper Settings{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; DigitalOcean GPT-OSS · proxy · extraction prompt{% endblock %}
+
+{% block extra_head %}
+<style>
+.ss-wrap{max-width:1180px;width:100%;}
+@media(max-width:1240px){.ss-wrap{max-width:100%;}}
+.ss-flash{margin-bottom:18px;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:500;}
+.ss-flash.ok{background:rgba(22,163,74,.10);color:#15803d;border:1px solid rgba(22,163,74,.25);}
+.ss-flash.err{background:rgba(220,38,38,.10);color:#b91c1c;border:1px solid rgba(220,38,38,.25);}
+
+.ss-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:18px;}
+.ss-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(29,78,216,.04),rgba(5,150,105,.04));}
+.ss-ico{width:38px;height:38px;border-radius:9px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.ss-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15px;color:var(--text);}
+.ss-sub{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.5;}
+.ss-sub code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+.ss-pill{margin-left:auto;font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',monospace;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;}
+.ss-pill.live{background:rgba(22,163,74,.12);color:#15803d;}
+.ss-pill.off{background:rgba(100,116,139,.14);color:#475569;}
+
+.ss-body{padding:18px 20px;}
+.ss-field{margin-bottom:14px;}
+.ss-field:last-child{margin-bottom:0;}
+.ss-label{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;font-family:'Plus Jakarta Sans',sans-serif;}
+.ss-label span{color:var(--muted);font-weight:500;}
+.ss-input{width:100%;font-family:'JetBrains Mono',monospace;font-size:12.5px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);box-sizing:border-box;}
+.ss-input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.ss-textarea{min-height:240px;font-size:11.5px;line-height:1.55;white-space:pre;}
+.ss-help{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5;}
+.ss-help a{color:var(--blue);text-decoration:none;font-weight:600;}
+.ss-help code{background:rgba(0,0,0,.05);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:10.5px;}
+
+.ss-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:860px){.ss-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:560px){.ss-grid{grid-template-columns:1fr;}}
+@media(max-width:560px){
+  .ss-head{padding:13px 14px;gap:10px;flex-wrap:wrap;}
+  .ss-body{padding:14px;}
+  .ss-pill{margin-left:auto;}
+  .ss-actions{flex-direction:column;align-items:stretch;}
+  .ss-save,.ss-clear{width:100%;text-align:center;}
+}
+
+.ss-row{display:flex;align-items:center;gap:10px;}
+.ss-toggle{appearance:none;width:42px;height:24px;background:#e2e8f0;border-radius:24px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+.ss-toggle:checked{background:var(--blue);}
+.ss-toggle::before{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.ss-toggle:checked::before{left:20px;}
+
+.ss-actions{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;}
+.ss-save{padding:10px 24px;background:var(--grad);color:#fff;border:0;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;}
+.ss-save:hover{filter:brightness(1.08);}
+.ss-clear{padding:10px 16px;background:#fff;color:#b91c1c;border:1px solid rgba(220,38,38,.3);border-radius:9px;font-weight:600;font-size:12px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;}
+.ss-clear:hover{background:rgba(220,38,38,.06);}
+
+.ss-callout{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;padding:11px 14px;border-radius:8px;font-size:11.5px;line-height:1.55;margin-top:10px;}
+.ss-callout b{font-weight:700;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ss-wrap">
+
+  {% if msg %}<div class="ss-flash ok">✅ {{ msg }}</div>{% endif %}
+  {% if err %}<div class="ss-flash err">⚠️ {{ err }}</div>{% endif %}
+
+  <form method="post" action="/admin-panel/scraper-settings/" autocomplete="off">
+    {% csrf_token %}
+
+    <!-- ───────── DigitalOcean GPT-OSS (parser) ───────── -->
+    <div class="ss-card">
+      <div class="ss-head">
+        <div class="ss-ico">🪶</div>
+        <div style="flex:1;min-width:0;">
+          <div class="ss-title">DigitalOcean Serverless Inference (GPT-OSS)</div>
+          <div class="ss-sub">Parses cleaned HTML into structured permit JSON. Used by every per-source HTTP scraper. <code>gpt-oss-20b</code> = $0.03 / $0.10 per 1M in/out tokens — about <b>1/30th</b> the cost of Claude Sonnet for the same page.</div>
+        </div>
+        <span class="ss-pill {% if has_do %}live{% else %}off{% endif %}">{% if has_do %}Configured{% else %}Not set{% endif %}</span>
+      </div>
+      <div class="ss-body">
+
+        <div class="ss-field">
+          <label class="ss-label" for="ss-do">API key <span>(starts with <code>doo_v1_</code>)</span></label>
+          {% if has_do %}
+          <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">
+            <input type="text" class="ss-input" id="ss-do-current" value="{{ do_api_key_value }}"
+                   readonly onclick="this.select()" spellcheck="false"
+                   style="font-family:'JetBrains Mono',ui-monospace,monospace;background:#f8fafc;color:#0f172a;flex:1">
+            <button type="button" class="btn" onclick="(function(b){var i=document.getElementById('ss-do-current');i.select();navigator.clipboard&&navigator.clipboard.writeText(i.value);var t=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=t},1200);})(this)"
+                    style="padding:0 14px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;cursor:pointer;font-weight:600">Copy</button>
+          </div>
+          {% endif %}
+          <input type="text" class="ss-input" id="ss-do" name="do_api_key"
+                 placeholder="{% if has_do %}Paste a new key here to replace the one above{% else %}doo_v1_xxxxxxxxxxxxxxxxxxxxxxxx{% endif %}"
+                 autocomplete="off" spellcheck="false">
+          <div class="ss-help">Current key shown above in plain text for easy copy. Create new keys at <a href="https://cloud.digitalocean.com/model-studio/serverless-inference" target="_blank" rel="noopener">cloud.digitalocean.com → AI → Inference → Manage → Create model access key</a>.</div>
+        </div>
+
+        <div class="ss-field">
+          <label class="ss-label" for="ss-base">Base URL</label>
+          <input type="text" class="ss-input" id="ss-base" name="do_base_url"
+                 value="{{ do_base_url }}" placeholder="{{ do_base_url_default }}" autocomplete="off" spellcheck="false">
+          <div class="ss-help">Default: <code>{{ do_base_url_default }}</code>. Change only if you proxy DO Inference through a private endpoint.</div>
+        </div>
+
+        <div class="ss-field">
+          <label class="ss-label" for="ss-om">Parser model</label>
+          <select class="ss-input" id="ss-om" name="accela_oss_model">
+            {% for m in oss_models %}
+            <option value="{{ m }}" {% if m == oss_model %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </select>
+          <div class="ss-help">Default: <code>openai-gpt-oss-20b</code> (cheapest, ~94% accuracy on Accela CapDetail). Switch to <code>openai-gpt-oss-120b</code> for the trickiest pages — ~3× the cost, marginal accuracy gain on clean tenants.</div>
+        </div>
+
+        <div class="ss-grid">
+          <div class="ss-field" style="margin-bottom:0;">
+            <label class="ss-label" for="ss-tmp">Temperature <span>(0 – 2)</span></label>
+            <input type="text" class="ss-input" id="ss-tmp" name="do_temperature"
+                   value="{{ do_temperature }}" placeholder="0" autocomplete="off">
+            <div class="ss-help">Default <code>0</code>. Raise only for free-text fields.</div>
+          </div>
+          <div class="ss-field" style="margin-bottom:0;">
+            <label class="ss-label" for="ss-mtk">Max tokens <span>(64 – 8000)</span></label>
+            <input type="text" class="ss-input" id="ss-mtk" name="do_max_tokens"
+                   value="{{ do_max_tokens }}" placeholder="1500" autocomplete="off">
+            <div class="ss-help">Default <code>1500</code>. JSON output rarely exceeds 1.2 K.</div>
+          </div>
+          <div class="ss-field" style="margin-bottom:0;">
+            <label class="ss-label" for="ss-tpp">Top-P <span>(0 – 1)</span></label>
+            <input type="text" class="ss-input" id="ss-tpp" name="do_top_p"
+                   value="{{ do_top_p }}" placeholder="1.0" autocomplete="off">
+            <div class="ss-help">Default <code>1.0</code>. Lower clamps creativity.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ───────── Outbound proxy ───────── -->
+    <div class="ss-card">
+      <div class="ss-head">
+        <div class="ss-ico">🛰️</div>
+        <div style="flex:1;min-width:0;">
+          <div class="ss-title">Outbound HTTP proxy</div>
+          <div class="ss-sub">Routes every per-source scraper request through a residential / datacenter proxy. Required for tenants that block App Platform IPs (Wyandotte UG occasionally throttles us).</div>
+        </div>
+        <span class="ss-pill {% if has_proxy %}live{% else %}off{% endif %}">{% if has_proxy %}Routed{% else %}Direct{% endif %}</span>
+      </div>
+      <div class="ss-body">
+
+        <div class="ss-field" style="margin-bottom:0;">
+          <label class="ss-label" for="ss-prx">Connection string</label>
+          <input type="text" class="ss-input" id="ss-prx" name="scraper_proxy"
+                 value="{{ scraper_proxy }}"
+                 placeholder="user:password@host:port  (or  http://user:password@host:port)"
+                 autocomplete="off" spellcheck="false">
+          <div class="ss-help">
+            Format: <code>user:password@host:port</code> — e.g. <code>RV6v2jY8MvCkq-ttl-0:DpSYOpTeYvEw6mE@dc.us-pr.plainproxies.com:1338</code>.
+            Scheme prefix optional (defaults to <code>http://</code>). Both http &amp; https requests get proxied.
+          </div>
+          {% if has_proxy %}
+          <div class="ss-callout">
+            <b>Active:</b> <code>{{ proxy_host }}:{{ proxy_port }}</code>
+            {% if proxy_user_present %}with auth credentials{% else %}no auth{% endif %}.
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ───────── Extraction prompt ───────── -->
+    <div class="ss-card">
+      <div class="ss-head">
+        <div class="ss-ico">📝</div>
+        <div style="flex:1;min-width:0;">
+          <div class="ss-title">Extraction prompt</div>
+          <div class="ss-sub">Single unified prompt sent to GPT-OSS for <b>every</b> permit page across every source. Edits live here; blank + save = restore the built-in default.</div>
+        </div>
+        <span class="ss-pill {% if is_prompt_overridden %}live{% else %}off{% endif %}">{% if is_prompt_overridden %}Custom override{% else %}Built-in default{% endif %}</span>
+      </div>
+      <div class="ss-body">
+        <div class="ss-field" style="margin-bottom:0;">
+          <textarea class="ss-input ss-textarea" name="extraction_prompt" spellcheck="false">{{ extraction_prompt }}</textarea>
+          <div class="ss-help">Wraps automatically with the cleaned page HTML at scrape time. Returns strict JSON (multi-dim PermitlifyExtractor schema — 9 sub-scores, 12 signals, tags, next-action).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────── Cron toggle ───────── -->
+    <div class="ss-card">
+      <div class="ss-head">
+        <div class="ss-ico">⏰</div>
+        <div style="flex:1;min-width:0;">
+          <div class="ss-title">Daily cron</div>
+          <div class="ss-sub">Runs every active scraper at the configured hour. Toggle off to pause without disabling individual scrapers.</div>
+        </div>
+      </div>
+      <div class="ss-body">
+        <div class="ss-row">
+          <input type="checkbox" class="ss-toggle" id="ss-cron" name="scrapers_cron_enabled" {% if scrapers_cron_enabled %}checked{% endif %}>
+          <label for="ss-cron" style="font-size:13px;font-weight:600;color:var(--text);cursor:pointer;">
+            {% if scrapers_cron_enabled %}Cron is <b style="color:#15803d;">ON</b>{% else %}Cron is <b style="color:#b91c1c;">OFF</b>{% endif %}
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="ss-actions">
+      <button name="action" value="save" class="ss-save" type="submit">Save settings</button>
+    </div>
+  </form>
+
+  <form method="post" action="/admin-panel/scraper-settings/" style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+    {% csrf_token %}
+    <button name="action" value="clear_do"     class="ss-clear" type="submit" onclick="return confirm('Clear the DigitalOcean OSS key? Every per-source scraper will stop working until a new key is set.');">Clear DO OSS key</button>
+    {% if has_proxy %}
+    <button name="action" value="clear_proxy"  class="ss-clear" type="submit" onclick="return confirm('Clear the outbound proxy? All scraper traffic will go direct from this server.');">Clear proxy</button>
+    {% endif %}
+    {% if is_prompt_overridden %}
+    <button name="action" value="reset_prompt" class="ss-clear" type="submit" onclick="return confirm('Drop the custom extraction prompt and go back to the built-in default?');">↺ Reset prompt</button>
+    {% endif %}
+  </form>
+
+  {# DigitalOcean Inference settings — Run-now agent toggle + model.   #}
+  {# Moved here 2026-05 from /admin-panel/scrapers/ so all scraper-    #}
+  {# wide knobs live on one page. Saves to /admin-panel/scrapers/      #}
+  {# agent/settings/ (independent endpoint from the forms above).      #}
+  {% include "core/_agent_settings_card.html" %}
+
+</div>
+{% endblock %}

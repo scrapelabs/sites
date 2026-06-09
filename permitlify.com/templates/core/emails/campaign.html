@@ -1,0 +1,39 @@
+{% extends "core/emails/_email_base.html" %}
+{% comment %}
+  Branded shell for outbound marketing/cold-email campaigns sent from
+  /admin-panel/marketing/campaigns/. Body HTML is admin-authored on the
+  campaign edit page and rendered via {{ body_html|safe }} below.
+
+  Context (set by ``_render_campaign_html`` in core/views.py):
+    * subject     — resolved subject line, used as hero title.
+    * body_html   — admin-configured HTML body (already variable-substituted).
+    * preheader   — first ~110 chars of plain text body, for inbox preview.
+    * unsubscribe_url — one-click unsubscribe (Gmail Feb-2024 requirement).
+    * year        — current year for footer.
+{% endcomment %}
+
+{% block title %}{{ subject }}{% endblock %}
+{% block preheader %}{{ preheader }}{% endblock %}
+
+{% block hero_class %}hero--welcome{% endblock %}
+{% block hero_inline_bg %}background:#1d4ed8;background:linear-gradient(135deg,#1d4ed8 0%,#2563eb 45%,#059669 110%);{% endblock %}
+
+{% block hero_icon %}
+  <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle">
+    <path d="M3 8l9 6 9-6"/>
+    <rect x="3" y="5" width="18" height="14" rx="2"/>
+  </svg>
+{% endblock %}
+
+{% block hero_tag %}<span class="hero-tag">Permitlify</span>{% endblock %}
+{% block hero_title %}{{ subject }}{% endblock %}
+{% block hero_sub %}AI-scored building permit leads for contractors who want their next job booked before competitors even see the filing.{% endblock %}
+
+{% block body %}
+  {{ body_html|safe }}
+{% endblock %}
+
+{% block footer_note %}
+  You're receiving this email because your business was identified as a likely fit for Permitlify.<br>
+  Not interested? <a href="{{ unsubscribe_url }}">Unsubscribe in one click</a> &middot; we'll never email you again.
+{% endblock %}

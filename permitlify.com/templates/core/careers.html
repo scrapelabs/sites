@@ -1,0 +1,124 @@
+{% extends "core/public_base.html" %}
+{% block title %}Careers{% endblock %}
+
+{% block extra_css %}
+.job-card{background:#fff;border:1px solid var(--b1);border-radius:16px;padding:28px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--sh);transition:box-shadow .2s;gap:20px;flex-wrap:wrap;}
+@media(max-width:480px){.job-card{padding:20px 16px;}.btn-apply{width:100%;text-align:center;}}
+.job-card:hover{box-shadow:var(--sh2);}
+.job-info h3{font-size:17px;font-weight:700;color:var(--tx);margin-bottom:6px;}
+.job-tags{display:flex;gap:8px;flex-wrap:wrap;}
+.job-tag{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;padding:3px 10px;border-radius:20px;}
+.job-tag.remote{background:var(--ad);color:var(--ac3);}
+.job-tag.dept{background:var(--pd);color:var(--bl3);}
+.job-tag.type{background:var(--bg3);color:var(--tx2);}
+.btn-apply{font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:700;color:#fff;background:var(--grad);border:none;padding:10px 22px;border-radius:10px;cursor:pointer;text-decoration:none;white-space:nowrap;transition:all .2s;display:inline-block;}
+.btn-apply:hover{opacity:.9;transform:translateY(-1px);}
+.jobs-list{display:flex;flex-direction:column;gap:14px;margin-top:32px;}
+.perk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:28px;}
+@media(max-width:720px){.perk-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:480px){.perk-grid{grid-template-columns:1fr;}}
+.perk-card{background:var(--bg2);border:1px solid var(--b1);border-radius:14px;padding:22px;text-align:center;}
+.perk-card .icon{font-size:28px;margin-bottom:10px;}
+.perk-card h4{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:6px;}
+.perk-card p{font-size:13px;color:var(--tx2);line-height:1.6;}
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-hero-inner">
+    <div class="page-breadcrumb"><a href="{% url 'index' %}">Home</a><span>/</span>About<span>/</span>Careers</div>
+    <h1>Help us put contractors first.</h1>
+    <p class="lead">We're a small, focused team building the permit intelligence platform for the US home services industry. We move fast, work remotely, and care deeply about the contractors who depend on us every morning.</p>
+  </div>
+</div>
+
+<div class="content-wrap">
+
+  <div class="sec-label">Why Permitlify</div>
+  <h2 style="font-size:26px;letter-spacing:-.5px;margin-bottom:16px;">A team that punches above its weight</h2>
+  <p style="font-size:16px;color:var(--tx2);line-height:1.8;margin-bottom:32px;">We're not a 500-person enterprise software company. We're a lean team that monitors 248+ city permit portals daily, processes 30,000+ permits, and delivers scored leads to contractors across the country — all before 6 AM. Every person on this team has outsized impact.</p>
+
+  <div class="perk-grid">
+    <div class="perk-card"><div class="icon">🌎</div><h4>Fully Remote</h4><p>Work from anywhere in the US. We have team members from Texas to New York to Oregon.</p></div>
+    <div class="perk-card"><div class="icon">🏥</div><h4>Health & Dental</h4><p>100% employer-paid health, dental, and vision coverage for you and your dependents.</p></div>
+    <div class="perk-card"><div class="icon">📈</div><h4>Equity</h4><p>Every full-time employee receives meaningful equity. We're building this together.</p></div>
+    <div class="perk-card"><div class="icon">🏖️</div><h4>Unlimited PTO</h4><p>We trust adults to manage their time. Minimum 2 weeks encouraged — no approval circus.</p></div>
+    <div class="perk-card"><div class="icon">💻</div><h4>$2K Tech Stipend</h4><p>Choose your own setup. MacBook, monitor, keyboard — you pick, we pay.</p></div>
+    <div class="perk-card"><div class="icon">📚</div><h4>Learning Budget</h4><p>$1,000/year for courses, conferences, books, or anything that makes you better at your craft.</p></div>
+  </div>
+
+  <div style="margin-top:48px;">
+    <div class="sec-label">Open Roles</div>
+    <h2 style="font-size:24px;letter-spacing:-.4px;margin-bottom:8px;">We're hiring</h2>
+    <p style="font-size:15px;color:var(--tx2);margin-bottom:8px;">All roles are remote. We operate primarily in US time zones (CT / ET preferred for customer-facing roles).</p>
+
+    <div class="jobs-list">
+      <div class="job-card">
+        <div class="job-info">
+          <h3>Senior Backend Engineer (Python / Django)</h3>
+          <div class="job-tags">
+            <span class="job-tag remote">Remote</span>
+            <span class="job-tag dept">Engineering</span>
+            <span class="job-tag type">Full-Time</span>
+          </div>
+        </div>
+        <a class="btn-apply" href="{% url 'contact' %}">Apply Now</a>
+      </div>
+      <div class="job-card">
+        <div class="job-info">
+          <h3>Data Engineer — Permit Scraping & Pipeline</h3>
+          <div class="job-tags">
+            <span class="job-tag remote">Remote</span>
+            <span class="job-tag dept">Engineering</span>
+            <span class="job-tag type">Full-Time</span>
+          </div>
+        </div>
+        <a class="btn-apply" href="{% url 'contact' %}">Apply Now</a>
+      </div>
+      <div class="job-card">
+        <div class="job-info">
+          <h3>Sales Development Representative (SDR)</h3>
+          <div class="job-tags">
+            <span class="job-tag remote">Remote</span>
+            <span class="job-tag dept">Sales</span>
+            <span class="job-tag type">Full-Time</span>
+          </div>
+        </div>
+        <a class="btn-apply" href="{% url 'contact' %}">Apply Now</a>
+      </div>
+      <div class="job-card">
+        <div class="job-info">
+          <h3>Customer Success Manager</h3>
+          <div class="job-tags">
+            <span class="job-tag remote">Remote</span>
+            <span class="job-tag dept">Customer Success</span>
+            <span class="job-tag type">Full-Time</span>
+          </div>
+        </div>
+        <a class="btn-apply" href="{% url 'contact' %}">Apply Now</a>
+      </div>
+      <div class="job-card">
+        <div class="job-info">
+          <h3>Product Designer (UI/UX)</h3>
+          <div class="job-tags">
+            <span class="job-tag remote">Remote</span>
+            <span class="job-tag dept">Design</span>
+            <span class="job-tag type">Full-Time</span>
+          </div>
+        </div>
+        <a class="btn-apply" href="{% url 'contact' %}">Apply Now</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose" style="margin-top:48px;">
+    <p style="background:var(--bg2);border:1px solid var(--b1);border-radius:12px;padding:20px 24px;font-size:14px;">Don't see your role? We're always looking for exceptional people. Send your resume and a note about what you'd build at Permitlify to <a href="mailto:careers@permitlify.com">careers@permitlify.com</a>.</p>
+  </div>
+
+  <div class="cta-strip">
+    <h2>Build with us</h2>
+    <p>Questions about a role or our team? Reach out and we'll get back to you within one business day.</p>
+    <a class="btn-white" href="{% url 'contact' %}">Get in Touch <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+  </div>
+</div>
+{% endblock %}

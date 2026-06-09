@@ -1,0 +1,2613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#1d4ed8">
+{# App pages are private (require login) — never index them or follow links #}
+{# from them. Stops dashboard/billing/admin URLs from leaking into Google. #}
+<meta name="robots" content="noindex,nofollow">
+<title>{% block title %}Permitlify{% endblock %}</title>
+{# Async font loading: render with fallback first, swap to web font when #}
+{# ready. Avoids the FOIT (flash of invisible text) caused by @import in a #}
+{# blocking <style> block. Browsers that don't support `onload` keep the #}
+{# tag as a normal stylesheet via the <noscript> fallback below. #}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" media="print" onload="this.media='all';this.onload=null;">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"></noscript>
+<style>
+{# Removed the blocking @import url(...) above — fonts are now loaded #}
+{# asynchronously via the <link> tags above to cut render-blocking CSS. #}
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --pr:#1d4ed8;--pr2:#3b82f6;--pr3:#1e3a8a;
+  --pd:rgba(29,78,216,.09);--pg:rgba(29,78,216,.18);
+  --ac:#059669;--ac2:#10b981;--ad:rgba(5,150,105,.09);
+  --grad:linear-gradient(135deg,#1d4ed8 0%,#059669 100%);
+  --gr:#22c55e;--gd:rgba(34,197,94,.1);
+  --ye:#d97706;--yd:rgba(217,119,6,.1);
+  --re:#dc2626;--rd:rgba(220,38,38,.08);
+  --bl:#2563eb;--bl2:#3b82f6;--bd:rgba(59,130,246,.1);
+  --bg:#f0f4f8;--sur:#ffffff;--sur2:#f8fafc;
+  --b1:rgba(0,0,0,.06);--b2:rgba(0,0,0,.10);
+  --tx:#0f172a;--tx2:#475569;--tx3:#94a3b8;
+  --sh:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --sh2:0 4px 16px rgba(0,0,0,.08),0 1px 4px rgba(0,0,0,.04);
+  --sh-pr:0 4px 14px rgba(29,78,216,.25);
+}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;padding:0 20px;height:60px;background:var(--sur);border-bottom:1px solid var(--b1);position:sticky;top:0;z-index:100;gap:10px;box-shadow:var(--sh);}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0;text-decoration:none;}
+.lico{width:34px;height:34px;border-radius:9px;background:var(--grad);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(29,78,216,.3);}
+.lico svg{width:19px;height:19px;}
+.lname{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;color:var(--tx);letter-spacing:-.4px;}
+.lname span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.top-nav{display:flex;align-items:center;gap:1px;margin-left:14px;}
+@media(max-width:960px){.top-nav{display:none;}}
+.nav-dd{position:relative;}
+.nav-btn{display:flex;align-items:center;gap:4px;padding:7px 11px;background:none;border:none;font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:500;color:var(--tx2);cursor:pointer;border-radius:8px;transition:all .18s;}
+.nav-btn:hover,.nav-dd.open .nav-btn{background:var(--sur2);color:var(--tx);}
+.nav-btn svg{width:13px;height:13px;transition:transform .2s;}
+.nav-dd.open .nav-btn svg{transform:rotate(180deg);}
+.nav-link-top{padding:7px 11px;font-size:13.5px;font-weight:500;color:var(--tx2);text-decoration:none;border-radius:8px;transition:all .18s;font-family:'DM Sans',sans-serif;}
+.nav-link-top:hover{background:var(--sur2);color:var(--tx);}
+.drop-menu{position:absolute;top:calc(100%+8px);left:0;min-width:220px;background:var(--sur);border:1px solid var(--b1);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.1),0 2px 8px rgba(0,0,0,.06);padding:6px;opacity:0;pointer-events:none;transform:translateY(-8px);transition:all .2s;z-index:200;}
+.nav-dd.open .drop-menu{opacity:1;pointer-events:auto;transform:translateY(0);}
+.drop-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;font-size:13px;font-weight:500;color:var(--tx2);text-decoration:none;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;}
+.drop-item:hover{background:var(--pd);color:var(--pr);}
+.drop-item svg{width:14px;height:14px;color:var(--pr);flex-shrink:0;}
+.drop-divider{height:1px;background:var(--b1);margin:4px 0;}
+.drop-label{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.9px;padding:8px 12px 4px;font-family:'JetBrains Mono',monospace;}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-left:auto;}
+.mob-menu-btn{display:none;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--tx2);}
+@media(max-width:960px){.mob-menu-btn{display:flex;align-items:center;justify-content:center;}}
+
+/* Topbar notification bell + profile menu */
+.tb-icon-btn{position:relative;background:none;border:1px solid var(--b1);border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx2);transition:background .15s,color .15s,border-color .15s;}
+.tb-icon-btn:hover{background:var(--sur2);color:var(--pr);border-color:#cbd5e1;}
+.tb-icon-btn svg{width:17px;height:17px;}
+.tb-badge{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;background:#ef4444;border-radius:9px;border:2px solid var(--sur);display:none;align-items:center;justify-content:center;color:#fff;font-size:9.5px;font-weight:700;font-family:'DM Sans',sans-serif;line-height:1;}
+.tb-badge.show{display:flex;}
+.tb-dd{position:relative;}
+.tb-dd-menu{position:absolute;top:calc(100%+8px);right:0;width:340px;background:var(--sur);border:1px solid var(--b1);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.1),0 2px 8px rgba(0,0,0,.06);padding:0;opacity:0;pointer-events:none;transform:translateY(-8px);transition:all .2s;z-index:200;overflow:hidden;}
+.tb-dd.open .tb-dd-menu{opacity:1;pointer-events:auto;transform:translateY(0);}
+.tb-dd-head{padding:13px 14px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;}
+.tb-dd-title{font-size:13.5px;font-weight:700;color:var(--tx);font-family:'DM Sans',sans-serif;}
+.tb-dd-sub{font-size:11px;color:var(--tx3);margin-top:1px;}
+.tb-dd-list{max-height:380px;overflow-y:auto;}
+.tb-dd-item{position:relative;display:block;padding:12px 14px 11px;cursor:pointer;border-bottom:1px solid var(--b1);text-decoration:none;color:inherit;transition:background .14s;}
+.tb-dd-item:last-child{border-bottom:none;}
+.tb-dd-item:hover{background:#f0f9f4;}
+.tb-dd-item:hover .tb-dd-cta{color:#15803d;transform:translateX(2px);}
+.tb-dd-item.unread::before{content:'';position:absolute;left:5px;top:18px;width:6px;height:6px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 2px rgba(22,163,74,.18);}
+.tb-dd-row1{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.tb-dd-tag{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:3px 7px;border-radius:99px;font-family:'DM Sans',sans-serif;flex-shrink:0;}
+.tb-dd-tag.t-support{background:#dcfce7;color:#15803d;}
+.tb-dd-tag.t-support::before{content:'';width:5px;height:5px;border-radius:50%;background:#16a34a;}
+.tb-dd-tag.t-system{background:#e0f2fe;color:#0369a1;}
+.tb-dd-time{margin-left:auto;font-size:10.5px;color:var(--tx3);font-weight:500;flex-shrink:0;}
+.tb-dd-subj{font-size:13px;font-weight:700;color:var(--tx);font-family:'DM Sans',sans-serif;line-height:1.3;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;}
+.tb-dd-quote{font-size:11.5px;color:var(--tx2);line-height:1.45;padding:6px 9px;background:var(--sur2);border-left:2.5px solid #16a34a;border-radius:0 6px 6px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-style:normal;margin-bottom:7px;}
+.tb-dd-row2{display:flex;align-items:center;justify-content:space-between;}
+.tb-dd-meta{font-size:10.5px;color:var(--tx3);}
+.tb-dd-cta{font-size:11.5px;font-weight:700;color:#16a34a;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:3px;transition:color .14s,transform .14s;}
+.tb-dd-empty{padding:30px 18px;text-align:center;color:var(--tx2);font-size:12.5px;line-height:1.55;}
+.tb-dd-empty-icon{width:48px;height:48px;border-radius:14px;background:#dcfce7;color:#15803d;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;}
+.tb-dd-empty-icon svg{width:22px;height:22px;}
+.tb-dd-empty-title{font-size:13px;font-weight:700;color:var(--tx);font-family:'DM Sans',sans-serif;margin-bottom:3px;}
+.tb-dd-foot{padding:10px 14px;border-top:1px solid var(--b1);text-align:center;background:var(--sur2);}
+.tb-dd-foot a{font-size:11.5px;font-weight:700;color:var(--pr);text-decoration:none;display:inline-flex;align-items:center;gap:4px;}
+.tb-dd-foot a:hover{text-decoration:underline;}
+.tb-dd-head .tb-dd-clear{font-size:10.5px;font-weight:600;color:var(--tx3);background:none;border:1px solid var(--b1);padding:4px 8px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .14s;}
+.tb-dd-head .tb-dd-clear:hover{color:var(--pr);border-color:var(--pr);}
+
+/* Profile menu */
+.tb-profile-btn{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;background:none;border:1px solid var(--b1);border-radius:99px;cursor:pointer;transition:background .15s,border-color .15s;}
+.tb-profile-btn:hover{background:var(--sur2);border-color:#cbd5e1;}
+.tb-avatar{width:30px;height:30px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;font-family:'DM Sans',sans-serif;flex-shrink:0;}
+.tb-profile-name{font-size:12.5px;font-weight:600;color:var(--tx);font-family:'DM Sans',sans-serif;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+@media(max-width:560px){.tb-profile-name{display:none;}}
+.tb-profile-menu{width:240px;}
+.tb-profile-head{padding:14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--b1);}
+.tb-profile-head .tb-avatar{width:38px;height:38px;font-size:13px;}
+.tb-profile-meta{min-width:0;flex:1;}
+.tb-profile-meta-name{font-size:13px;font-weight:700;color:var(--tx);font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tb-profile-meta-mail{font-size:11px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.tb-profile-link{display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:12.5px;font-weight:500;color:var(--tx2);text-decoration:none;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:'DM Sans',sans-serif;transition:background .12s,color .12s;}
+.tb-profile-link:hover{background:var(--sur2);color:var(--pr);}
+.tb-profile-link svg{width:14px;height:14px;color:var(--tx3);flex-shrink:0;}
+.tb-profile-link:hover svg{color:var(--pr);}
+.tb-profile-link.danger{color:#dc2626;}
+.tb-profile-link.danger svg{color:#dc2626;}
+.tb-profile-link.danger:hover{background:#fef2f2;color:#b91c1c;}
+.tb-profile-divider{height:1px;background:var(--b1);margin:0;}
+
+/* Support widget priority chip */
+.cp-prio-chip{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 6px;border-radius:99px;flex-shrink:0;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:3px;}
+.cp-prio-low{background:#dcfce7;color:#15803d;}
+.cp-prio-normal{background:#f1f5f9;color:#475569;}
+.cp-prio-urgent{background:#fee2e2;color:#b91c1c;}
+
+/* ── LAYOUT ── */
+.main{display:flex;flex:1;position:relative;}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.3);z-index:85;backdrop-filter:blur(2px);}
+.mob-overlay.show{display:block;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;flex-shrink:0;background:var(--sur);border-right:1px solid var(--b1);padding:18px 12px;display:flex;flex-direction:column;gap:2px;min-height:calc(100vh - 60px);}
+@media(max-width:960px){
+  .sidebar{position:fixed;top:60px;left:0;bottom:0;z-index:90;transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:6px 0 24px rgba(0,0,0,.1);}
+  .sidebar.mob-open{transform:translateX(0);}
+}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;font-size:13.5px;font-weight:500;color:var(--tx2);transition:all .18s;text-decoration:none;font-family:'DM Sans',sans-serif;}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;}
+.nav-item:hover{background:var(--sur2);color:var(--tx);}
+.nav-item.active{background:var(--pd);color:var(--pr);font-weight:600;}
+.nav-item.active svg{color:var(--pr);}
+.nav-section{font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:500;color:var(--tx3);text-transform:uppercase;letter-spacing:1.1px;padding:14px 12px 5px;margin-top:2px;}
+.sidebar-bottom{margin-top:auto;padding-top:14px;border-top:1px solid var(--b1);}
+.plan-card{background:linear-gradient(145deg,#0f2d9e 0%,#1d4ed8 42%,#0a7060 78%,#059669 100%);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden;box-shadow:0 6px 20px rgba(15,45,158,.35);}
+.plan-card::before{content:'';position:absolute;top:-28px;right:-28px;width:110px;height:110px;background:radial-gradient(circle,rgba(255,255,255,.13),transparent 70%);border-radius:50%;}
+.plan-card::after{content:'';position:absolute;bottom:-24px;left:-18px;width:80px;height:80px;background:radial-gradient(circle,rgba(5,150,105,.35),transparent 70%);border-radius:50%;}
+.plan-name{font-size:12px;font-weight:700;color:rgba(255,255,255,.9);margin-bottom:2px;font-family:'Plus Jakarta Sans',sans-serif;position:relative;z-index:1;}
+.plan-desc{font-size:11px;color:rgba(255,255,255,.62);margin-bottom:10px;position:relative;z-index:1;}
+.plan-msg{margin-top:10px;font-size:11.5px;line-height:1.55;color:rgba(255,255,255,.82);position:relative;z-index:1;font-family:'DM Sans',sans-serif;}
+.plan-msg strong{color:#fff;font-weight:700;}
+
+/* ── CONTENT AREA ── */
+.content{flex:1;padding:26px 30px;overflow:auto;min-width:0;}
+@media(max-width:640px){.content{padding:16px;}}
+.page-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;color:var(--tx);letter-spacing:-.5px;margin-bottom:4px;}
+.page-desc{font-size:13px;color:var(--tx3);margin-bottom:22px;}
+
+/* ── STAT CARDS ──
+   auto-fit avoids the "lonely card on its own row" problem when
+   pages render 3 or 5 cards instead of 4. Cards never shrink
+   below 220px so labels/numbers stay legible. */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:22px;}
+@media(max-width:500px){.stats-row{grid-template-columns:1fr 1fr;}}
+.stat-card{background:var(--sur);border:1px solid var(--b1);border-radius:14px;padding:18px 20px;box-shadow:var(--sh);transition:box-shadow .2s;}
+.stat-card:hover{box-shadow:var(--sh2);}
+.stat-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.9px;margin-bottom:10px;}
+.stat-num{font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;color:var(--tx);letter-spacing:-1.2px;margin-bottom:4px;}
+.stat-sub{font-size:12px;color:var(--tx3);}
+.stat-sub.up{color:var(--gr);font-weight:500;}
+.stat-sub.pr{color:var(--pr);font-weight:500;}
+
+/* ── SECTION CARDS ── */
+.section-card{background:var(--sur);border:1px solid var(--b1);border-radius:16px;overflow:hidden;margin-bottom:18px;box-shadow:var(--sh);}
+.section-head{padding:18px 22px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.section-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;color:var(--tx);display:flex;align-items:center;gap:9px;}
+.section-title svg{width:16px;height:16px;color:var(--pr);}
+.section-sub{font-size:12px;color:var(--tx3);margin-top:2px;}
+.section-body{padding:20px 22px;display:flex;flex-direction:column;gap:18px;}
+
+/* ── BUTTONS ── */
+.btn{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:9px 20px;border-radius:10px;border:none;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:7px;text-decoration:none;}
+.btn svg{width:14px;height:14px;}
+.btn.primary{background:var(--grad);color:#fff;box-shadow:var(--sh-pr);}
+.btn.primary:hover{opacity:.9;transform:translateY(-1px);}
+.btn.secondary{background:var(--sur2);color:var(--tx2);border:1px solid var(--b2);}
+.btn.secondary:hover{border-color:var(--pr);color:var(--pr);background:#fff;}
+.btn.danger{background:var(--rd);color:var(--re);border:1px solid rgba(220,38,38,.2);}
+.btn.sm{padding:7px 14px;font-size:12px;}
+.row-btns{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+
+/* ── FORMS ── */
+.field{display:flex;flex-direction:column;gap:6px;}
+.field.full{grid-column:1/-1;}
+.field label{font-size:11.5px;font-weight:600;color:var(--tx3);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;text-transform:uppercase;}
+.field input,.field select,.field textarea{padding:10px 13px;background:var(--sur2);border:1px solid var(--b1);border-radius:10px;color:var(--tx);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:all .2s;}
+.field textarea{resize:vertical;min-height:80px;line-height:1.6;}
+.field input::placeholder,.field textarea::placeholder{color:var(--tx3);}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:rgba(29,78,216,.4);box-shadow:0 0 0 3px rgba(29,78,216,.08);background:#fff;}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:640px){.field-grid{grid-template-columns:1fr;}}
+
+/* ── TABLE ── */
+.th-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.th-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:700;color:var(--tx);letter-spacing:-.3px;}
+.th-sub{font-size:12px;color:var(--tx3);margin-top:2px;}
+.filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.fb{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;padding:6px 13px;border-radius:8px;border:1px solid var(--b2);background:var(--sur2);color:var(--tx2);cursor:pointer;transition:all .18s;text-decoration:none;display:inline-block;background:none;font-family:'DM Sans',sans-serif;font-size:13px;}
+.fb:hover,.fb.active{background:var(--pd);border-color:rgba(29,78,216,.25);color:var(--pr);}
+.exp-btn{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--tx2);background:var(--sur2);border:1px solid var(--b2);border-radius:9px;padding:7px 13px;cursor:pointer;transition:all .18s;font-family:'DM Sans',sans-serif;}
+.exp-btn:hover{border-color:var(--pr);color:var(--pr);background:#fff;}
+.exp-btn svg{width:13px;height:13px;}
+.tw{position:relative;}
+/* tw-scroll = the scrollable rounded card the table lives inside.
+   Used on /permits and /dashboard so the table can scroll
+   horizontally on narrow screens without breaking the page card. */
+.tw-scroll{overflow-x:auto;border:1.5px solid var(--b1);border-radius:14px;background:#fff;box-shadow:var(--sh);}
+/* Trial-cap CTA banner — sits above .tw on dashboard/permits
+   for trial users. Replaces ~14 lines of inline cssText that
+   used to be duplicated in dashboard.html + permits.html. */
+.trial-cap-banner{
+  margin:6px 0 14px;padding:14px 18px;border:1px solid #fed7aa;
+  background:linear-gradient(95deg,#fff7ed 0%,#fffbf5 60%,#fff 100%);
+  border-radius:12px;display:flex;align-items:center;justify-content:space-between;
+  gap:16px;font-size:13px;color:#7c2d12;line-height:1.5;
+  box-shadow:0 1px 2px rgba(124,45,18,.04);
+}
+.trial-cap-banner .tcb-msg{flex:1;min-width:0;}
+.trial-cap-banner .tcb-msg b{color:#9a3412;}
+.trial-cap-banner .tcb-cta{
+  flex-shrink:0;background:var(--pr);color:#fff;padding:9px 16px;border-radius:9px;
+  text-decoration:none;font-weight:700;white-space:nowrap;font-size:12.5px;
+  display:inline-flex;align-items:center;gap:5px;transition:all .18s;
+  box-shadow:0 2px 8px rgba(29,78,216,.22);
+}
+.trial-cap-banner .tcb-cta:hover{background:#1e40af;box-shadow:0 4px 14px rgba(29,78,216,.32);transform:translateY(-1px);}
+@media(max-width:640px){
+  .trial-cap-banner{flex-direction:column;align-items:flex-start;gap:10px;padding:12px 14px;}
+  .trial-cap-banner .tcb-cta{width:100%;justify-content:center;}
+}
+.tw-scroll::-webkit-scrollbar{height:8px;}
+.tw-scroll::-webkit-scrollbar-track{background:transparent;}
+.tw-scroll::-webkit-scrollbar-thumb{background:var(--b2);border-radius:4px;}
+.tw-scroll::-webkit-scrollbar-thumb:hover{background:var(--tx3);}
+/* border-collapse:separate is required for sticky thead to render
+   its bottom border + background correctly across all browsers.
+   Row dividers therefore use border-top on tr+tr td instead of
+   border-bottom on tr (which doubles up with separate). */
+.tbl{width:100%;border-collapse:separate;border-spacing:0;min-width:820px;}
+
+/* ── Permits / leads tables (used by /permits and /dashboard) ─
+   Both pages share the same 10-column layout so a single class
+   covers both. We dropped Expires + Project Value (the latter
+   was empty for most rows; expiry is just issued+6mo) so the
+   table fits comfortably at typical content-area widths
+   without horizontal scrolling. Short fields (rec, status,
+   date, phone, email, score, actions) are locked to one line
+   so they don't wrap to 3 rows; the text-heavy columns (city,
+   permit type, owner) absorb leftover space.
+
+   10-col order shared by both tables:
+     1 rec | 2 city | 3 type | 4 status | 5 issued
+     6 phone | 7 email | 8 owner | 9 score | 10 actions
+   Both .permits-tbl and .leads-tbl resolve to the same rules. */
+.permits-tbl,.leads-tbl{min-width:0;table-layout:auto;}
+.permits-tbl th,.permits-tbl td,
+.leads-tbl   th,.leads-tbl   td{padding:10px 10px;}
+.permits-tbl tbody td:nth-child(1),
+.permits-tbl tbody td:nth-child(4),
+.permits-tbl tbody td:nth-child(5),
+.permits-tbl tbody td:nth-child(6),
+.permits-tbl tbody td:nth-child(7),
+.permits-tbl tbody td:nth-child(9),
+.permits-tbl tbody td:nth-child(10),
+.leads-tbl   tbody td:nth-child(1),
+.leads-tbl   tbody td:nth-child(4),
+.leads-tbl   tbody td:nth-child(5),
+.leads-tbl   tbody td:nth-child(6),
+.leads-tbl   tbody td:nth-child(7),
+.leads-tbl   tbody td:nth-child(9),
+.leads-tbl   tbody td:nth-child(10){white-space:nowrap;}
+/* email cell — keep one line but ellipsis if super long */
+.permits-tbl tbody td:nth-child(7),
+.leads-tbl   tbody td:nth-child(7){max-width:220px;overflow:hidden;text-overflow:ellipsis;}
+.permits-tbl tbody td:nth-child(9),
+.leads-tbl   tbody td:nth-child(9){text-align:center;}
+.permits-tbl tbody td:nth-child(10),
+.leads-tbl   tbody td:nth-child(10){text-align:right;}
+/* Sticky thead — header stays pinned when the user scrolls a
+   long table inside .tw-scroll. background must be opaque or
+   rows will bleed through. */
+.tbl thead th{
+  position:sticky;top:0;z-index:2;
+  background:#f8fafc;color:var(--tx2);
+  text-align:left;white-space:nowrap;
+  font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;
+  letter-spacing:.9px;text-transform:uppercase;
+  padding:12px 14px;border-bottom:1.5px solid var(--b1);
+}
+.tbl tbody tr{transition:background .12s;}
+.tbl tbody tr:hover{background:#f8fafc;}
+/* Row dividers via border-top on tr+tr td — required when
+   border-collapse is separate (border-bottom on tr would double
+   up against the sticky thead's bottom border). */
+.tbl tbody tr + tr td{border-top:1px solid var(--b1);}
+.tbl td{padding:12px 14px;font-size:13px;color:var(--tx2);vertical-align:middle;}
+.rec{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500;color:var(--pr);}
+.pt{font-weight:600;color:var(--tx);font-size:13px;}
+.pd2{font-size:11px;color:var(--tx3);margin-top:2px;}
+.sb_{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+.st-approved{background:var(--gd);color:#16a34a;border:1px solid rgba(34,197,94,.25);}
+.st-pending{background:var(--yd);color:var(--ye);border:1px solid rgba(217,119,6,.25);}
+.st-expired{background:var(--rd);color:var(--re);border:1px solid rgba(220,38,38,.2);}
+.st-review{background:var(--bd);color:var(--bl2);border:1px solid rgba(59,130,246,.25);}
+.st-issued{background:rgba(8,145,178,.10);color:#0e7490;border:1px solid rgba(8,145,178,.25);}
+.st-open{background:rgba(99,102,241,.10);color:#4338ca;border:1px solid rgba(99,102,241,.25);}
+.st-unknown{background:rgba(100,116,139,.10);color:#475569;border:1px solid rgba(100,116,139,.25);}
+.st-other{background:rgba(100,116,139,.10);color:#475569;border:1px solid rgba(100,116,139,.25);}
+.sr{width:38px;height:38px;border-radius:50%;border:2.5px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.sn{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:800;line-height:1;}
+.sg{font-family:'JetBrains Mono',monospace;font-size:8px;line-height:1;margin-top:1px;}
+.ar{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;}
+/* Round action buttons (call / email) using the brand
+   blue→green gradient (--grad). Both share the same look so
+   the action column reads as one cohesive control. */
+.ab{width:30px;height:30px;border-radius:50%;border:1px solid transparent;background:var(--grad);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .18s,box-shadow .18s,opacity .18s;text-decoration:none;box-shadow:0 2px 6px rgba(29,78,216,.18);}
+.ab svg{width:13px;height:13px;color:#fff;display:block;}
+.ab:hover{transform:translateY(-1px);box-shadow:0 4px 10px rgba(29,78,216,.28);opacity:.95;}
+.pager{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-top:1px solid var(--b1);flex-wrap:wrap;gap:10px;}
+.pager-info{font-size:12px;color:var(--tx3);font-family:'JetBrains Mono',monospace;}
+.pager-btns{display:flex;gap:6px;}
+.pb{width:30px;height:30px;border-radius:8px;border:1px solid var(--b2);background:var(--sur2);font-size:12px;font-weight:600;color:var(--tx2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .18s;}
+.pb:hover{border-color:var(--pr);color:var(--pr);}
+.pb.active{background:var(--grad);border-color:transparent;color:#fff;box-shadow:var(--sh-pr);}
+
+/* ── TOGGLE SWITCHES ── */
+.sw{position:relative;width:44px;height:24px;flex-shrink:0;cursor:pointer;}
+.sw input{opacity:0;width:0;height:0;position:absolute;}
+.sw-track{position:absolute;inset:0;background:var(--sur2);border:1px solid var(--b2);border-radius:12px;transition:all .22s;}
+.sw-thumb{position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:2px;left:2px;transition:transform .22s;box-shadow:0 1px 4px rgba(0,0,0,.2);}
+.sw input:checked ~ .sw-track{background:var(--grad);border-color:transparent;}
+.sw input:checked ~ .sw-thumb{transform:translateX(20px);}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--b1);gap:16px;}
+.toggle-row:last-child{border:none;padding-bottom:0;}
+.toggle-info .t{font-size:13.5px;font-weight:500;color:var(--tx);}
+.toggle-info .s{font-size:12px;color:var(--tx3);margin-top:3px;}
+
+/* ── SETTINGS ── */
+.stab-row{display:flex;gap:4px;background:var(--sur2);border:1px solid var(--b1);border-radius:11px;padding:4px;width:fit-content;margin-bottom:22px;flex-wrap:wrap;}
+.stab{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;color:var(--tx2);cursor:pointer;border:none;background:none;transition:all .15s;display:flex;align-items:center;gap:7px;font-family:'DM Sans',sans-serif;}
+.stab svg{width:13px;height:13px;}
+.stab.active{background:var(--sur);color:var(--pr);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.stab-wrap{position:relative;margin-bottom:22px;}
+.stab-wrap .stab-row{margin-bottom:0;}
+.stab-fade{display:none;position:absolute;top:0;right:0;bottom:0;width:48px;pointer-events:none;border-radius:0 11px 11px 0;background:linear-gradient(to right,transparent,var(--bg) 85%);}
+@media(max-width:700px){
+  .stab-row{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:11px;}
+  .stab-row::-webkit-scrollbar{display:none;}
+  .stab{padding:8px 13px;font-size:12px;white-space:nowrap;flex-shrink:0;}
+  .stab-fade{display:block;}
+}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;}
+.city-tile{background:var(--sur2);border:1.5px solid var(--b1);border-radius:12px;padding:13px 15px 10px;cursor:pointer;transition:all .18s;position:relative;display:flex;flex-direction:column;}
+.city-tile:hover{border-color:rgba(29,78,216,.25);box-shadow:var(--sh);}
+.city-tile.active{border-color:rgba(29,78,216,.4);background:var(--pd);}
+.city-tile .ct-name{font-size:13px;font-weight:600;color:var(--tx);}
+.city-tile .ct-state{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx3);margin-top:3px;}
+.city-tile .ct-count{font-size:11px;color:var(--ac);margin-top:6px;font-weight:500;}
+.city-check{position:absolute;top:10px;right:10px;width:18px;height:18px;background:var(--grad);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;}
+.city-tile:hover .city-check,.city-tile.active .city-check{opacity:1;}
+.city-tile.active .city-check{background:var(--grad);}
+.city-tile:hover:not(.active) .city-check{background:var(--b2);}
+.city-check svg{width:10px;height:10px;color:#fff;}
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:720px){.plan-grid{grid-template-columns:1fr;}}
+.plan-opt{background:var(--sur2);border:2px solid var(--b1);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;transition:all .2s;}
+.plan-opt:hover{border-color:rgba(29,78,216,.2);box-shadow:var(--sh);}
+.plan-opt.current{border-color:rgba(29,78,216,.35);background:var(--pd);}
+.plan-opt .po-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:800;color:var(--tx);}
+.plan-opt .po-price{font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.8px;}
+.plan-opt .po-price span{font-size:12px;font-weight:400;color:var(--tx3);-webkit-text-fill-color:var(--tx3);}
+.plan-opt .po-feats{list-style:none;display:flex;flex-direction:column;gap:6px;flex:1;}
+.plan-opt .po-feats li{font-size:12.5px;color:var(--tx2);display:flex;align-items:center;gap:8px;}
+.plan-opt .po-feats li svg{width:13px;height:13px;stroke:var(--ac);flex-shrink:0;}
+.cur-badge{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;background:var(--grad);color:#fff;padding:2px 9px;border-radius:10px;width:fit-content;}
+.ch-item{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--b1);}
+.ch-item:last-child{border:none;padding-bottom:0;}
+.ch-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ch-name{font-size:13.5px;font-weight:500;color:var(--tx);flex:1;}
+.ch-desc{font-size:12px;color:var(--tx3);margin-top:2px;}
+.ch-st{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 10px;border-radius:20px;font-weight:600;}
+.ch-st.on{background:var(--gd);color:#16a34a;border:1px solid rgba(34,197,94,.2);}
+.ch-st.off{background:var(--sur2);color:var(--tx3);border:1px solid var(--b2);}
+.danger-item{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--b1);gap:16px;flex-wrap:wrap;}
+.danger-item:last-child{border:none;padding-bottom:0;}
+.danger-info .t{font-size:13.5px;font-weight:500;color:var(--tx);}
+.danger-info .s{font-size:12px;color:var(--tx3);margin-top:3px;}
+
+/* ── PROFILE ── */
+.big-avatar{width:72px;height:72px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;flex-shrink:0;position:relative;font-family:'Plus Jakarta Sans',sans-serif;box-shadow:0 4px 16px rgba(29,78,216,.3);}
+.avatar-change{position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;background:var(--grad);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid var(--sur);}
+.avatar-change svg{width:10px;height:10px;color:#fff;}
+.mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:18px 22px;border-bottom:1px solid var(--b1);}
+.mini-stat{text-align:center;}
+.mini-stat .n{font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.5px;}
+.mini-stat .l{font-size:11px;color:var(--tx3);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+.activity-item{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--b1);}
+.activity-item:last-child{border:none;padding-bottom:0;}
+.act-ico{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.act-ico.pr{background:var(--pd);}
+.act-ico.gr{background:var(--gd);}
+.act-ico.bl{background:var(--bd);}
+.act-ico svg{width:14px;height:14px;}
+.act-text{flex:1;}
+.act-title{font-size:13px;font-weight:500;color:var(--tx);}
+.act-desc{font-size:12px;color:var(--tx3);margin-top:2px;}
+.act-time{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3);white-space:nowrap;}
+/* ── PERMITLIFY LOGO ── */
+.pl-logo-text{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px;line-height:1;letter-spacing:-0.5px;}
+.pl-logo-text .pl-permit{color:#1C2F74;}
+.pl-logo-text .pl-lify{color:#49C85B;}
+/* ── FOOTER ── */
+.site-footer{background:var(--bg);border-top:1px solid var(--b1);padding:48px 24px 28px;}
+.site-footer-inner{max-width:1100px;margin:0 auto;}
+.site-footer-top{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:40px;}
+@media(max-width:768px){.site-footer-top{grid-template-columns:1fr 1fr;}}
+@media(max-width:480px){.site-footer-top{grid-template-columns:1fr;}}
+.site-footer-brand .sfb-name{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;color:var(--tx);margin-bottom:7px;}
+.site-footer-brand p{font-size:13.5px;color:var(--tx3);line-height:1.7;max-width:260px;}
+.site-footer-col h4{font-size:11px;font-weight:600;color:var(--tx);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;font-family:'JetBrains Mono',monospace;}
+.site-footer-col a{display:block;font-size:13.5px;color:var(--tx3);text-decoration:none;margin-bottom:9px;transition:color .18s;}
+.site-footer-col a:hover{color:var(--pr);}
+.site-footer-bottom{display:flex;align-items:center;justify-content:space-between;padding-top:24px;border-top:1px solid var(--b1);flex-wrap:wrap;gap:12px;}
+.site-footer-copy{font-size:12px;color:var(--tx3);}
+.site-footer-copy a{color:var(--tx3);text-decoration:none;}
+.site-footer-copy a:hover{color:var(--pr);}
+.site-footer-socials{display:flex;gap:8px;}
+.sfsocial{width:30px;height:30px;border-radius:8px;background:#fff;border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--tx3);transition:all .18s;}
+.sfsocial:hover{border-color:var(--pr);color:var(--pr);}
+.sfsocial svg{width:14px;height:14px;}
+
+/* ── SHARED FILTER PANEL (pf-*) ──────────────────────────────
+   Used by /dashboard and /permits to render the filter card
+   above each table. Was previously duplicated in both
+   templates' extra_css — promoted here so it stays in sync. */
+.pf-panel{
+  background:#fff;
+  border:1.5px solid var(--b1);
+  border-radius:16px;
+  padding:20px 22px;
+  margin-bottom:20px;
+  display:flex;flex-direction:column;gap:14px;
+  box-shadow:var(--sh);
+}
+.pf-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+.pf-group{display:flex;flex-direction:column;gap:5px;min-width:110px;}
+.pf-group.pf-grow{flex:1;min-width:140px;}
+.pf-label{
+  font-size:10.5px;font-weight:800;
+  color:var(--tx);
+  font-family:'DM Sans',sans-serif;
+  text-transform:uppercase;letter-spacing:.6px;
+}
+.pf-sel,.pf-inp{
+  height:37px;
+  border:1.5px solid var(--b2);
+  border-radius:10px;
+  padding:0 11px;
+  font-size:13px;font-weight:500;
+  font-family:'DM Sans',sans-serif;
+  color:var(--tx);
+  background:#fff;
+  outline:none;
+  transition:border-color .15s,box-shadow .15s;
+  width:100%;
+}
+.pf-sel{
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;padding-right:28px;
+}
+.pf-sel:focus,.pf-inp:focus{
+  border-color:var(--pr);
+  box-shadow:0 0 0 3px rgba(29,78,216,.1);
+}
+.pf-sel:hover,.pf-inp:hover{border-color:var(--pr);}
+.pf-inp::placeholder{color:#94a3b8;}
+.pf-inp[type="date"]{font-size:12.5px;color-scheme:light;}
+.pf-inp[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.6;filter:invert(35%) sepia(60%) saturate(400%) hue-rotate(155deg);}
+.pf-inp[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1;}
+.pf-clear{
+  height:37px;padding:0 15px;
+  border:1.5px solid rgba(220,38,38,.25);
+  border-radius:10px;
+  background:#fff5f5;
+  color:#b91c1c;
+  font-size:12px;font-weight:700;cursor:pointer;
+  font-family:'DM Sans',sans-serif;
+  transition:all .15s;white-space:nowrap;align-self:flex-end;
+  letter-spacing:.2px;
+}
+.pf-clear:hover{background:#fee2e2;border-color:#dc2626;color:#dc2626;}
+.pf-divider{width:1px;height:28px;background:var(--b2);align-self:flex-end;margin:0 3px;}
+.pcount{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx3);}
+.pcount b{color:var(--tx);}
+@media(max-width:640px){
+  .pf-panel{padding:14px 14px;}
+  .pf-group{min-width:calc(50% - 5px);flex:1 1 calc(50% - 5px);}
+  .pf-group.pf-grow{flex:1 1 100%;}
+  .pf-divider{display:none;}
+  .pf-row{gap:8px;}
+  .th-row > div:last-child{flex-wrap:wrap;gap:6px;}
+}
+
+/* ── SORTABLE TABLE HEADERS ──────────────────────────────────
+   Shared by every page that uses .tbl with a sortable header
+   (currently /permits and /dashboard, but available to any). */
+th.sortable{cursor:pointer;user-select:none;white-space:nowrap;}
+th.sortable:hover{color:var(--pr);}
+th.sortable .si{display:inline-block;margin-left:3px;opacity:.22;font-size:9px;transition:opacity .15s,transform .15s;vertical-align:middle;}
+th.sortable.sort-asc .si,th.sortable.sort-desc .si{opacity:1;color:var(--pr);}
+th.sortable.sort-desc .si{display:inline-block;transform:rotate(180deg);}
+
+/* ── DATATABLES THEME ────────────────────────────────────────
+   Overrides the default DataTables 1.x styles so paginate +
+   length + processing chrome match the rest of the brand. Used
+   by /permits, /dashboard, and every /admin-panel/* page that
+   mounts a server-side DataTable. */
+.tw .dataTables_processing{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:#fff;border:1.5px solid var(--b1);border-radius:10px;
+  padding:8px 16px;font-size:12px;font-weight:600;color:var(--tx2);
+  font-family:'DM Sans',sans-serif;
+  box-shadow:0 4px 14px rgba(15,23,42,.08);z-index:30;
+}
+.dt-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:16px 6px 4px;flex-wrap:wrap;
+  font-family:'DM Sans',sans-serif;
+}
+.dataTables_info{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx3);}
+.dataTables_paginate{display:flex;align-items:center;gap:6px;}
+.dataTables_paginate .paginate_button{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:34px;height:34px;padding:0 10px;
+  border:1.5px solid var(--b2);border-radius:9px;
+  background:#fff;color:var(--tx2);
+  font-size:12.5px;font-weight:600;cursor:pointer;
+  font-family:'DM Sans',sans-serif;
+  transition:all .15s;text-decoration:none;
+}
+.dataTables_paginate .paginate_button:hover{border-color:var(--pr);color:var(--pr);background:#f8fafc;}
+.dataTables_paginate .paginate_button.current,
+.dataTables_paginate .paginate_button.current:hover{background:var(--pr);border-color:var(--pr);color:#fff;}
+.dataTables_paginate .paginate_button.disabled,
+.dataTables_paginate .paginate_button.disabled:hover{
+  opacity:.4;cursor:not-allowed;color:var(--tx3);border-color:var(--b2);background:#fff;
+}
+.dataTables_paginate .paginate_button:focus{outline:none;box-shadow:0 0 0 3px rgba(29,78,216,.15);}
+.dataTables_paginate .ellipsis{padding:0 4px;color:var(--tx3);font-weight:600;}
+.dataTables_length{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--tx2);}
+.dataTables_length label{display:flex;align-items:center;gap:8px;margin:0;}
+.dataTables_length select{
+  height:32px;border:1.5px solid var(--b2);border-radius:8px;
+  padding:0 24px 0 9px;font-size:12px;font-weight:600;color:var(--tx);
+  background:#fff;cursor:pointer;
+  font-family:'DM Sans',sans-serif;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 7px center;
+  transition:border-color .15s,box-shadow .15s;
+}
+.dataTables_length select:hover{border-color:var(--pr);}
+.dataTables_length select:focus{border-color:var(--pr);box-shadow:0 0 0 3px rgba(29,78,216,.1);outline:none;}
+
+/* ── TIER TABS (used in .th-row on /permits) ─────────────── */
+.th-row .tier-tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.th-row .tier-tabs .tab{
+  padding:6px 13px;border-radius:9px;border:1.5px solid var(--b2);
+  background:#fff;font-size:12px;font-weight:600;color:var(--tx2);
+  font-family:'DM Sans',sans-serif;cursor:pointer;
+  transition:all .15s;display:inline-flex;align-items:center;gap:6px;
+}
+.th-row .tier-tabs .tab:hover{border-color:var(--pr);color:var(--pr);}
+.th-row .tier-tabs .tab.active{background:var(--pr);border-color:var(--pr);color:#fff;}
+
+{% block extra_css %}{% endblock %}
+</style>
+{% block extra_head %}{% endblock %}
+
+<!-- htmx 2.x + Alpine 3.x — small (29KB total), deferred so no render-block -->
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+{% include 'core/_analytics_head.html' %}
+</head>
+<body{% if trial_state and not trial_state.is_paid and not is_admin %} class="pl-trial-active"{% endif %}>
+{% include 'core/_analytics_body.html' %}
+
+<a href="#main-content" class="skip-to-main" style="position:absolute;left:-9999px;top:0;z-index:9999;background:#1d4ed8;color:#fff;padding:10px 16px;border-radius:0 0 8px 0;font-weight:600;text-decoration:none" onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">Skip to main content</a>
+
+{# ─── Sticky red trial / expired bar (card-free 3-day local trial) ─── #}
+{% if trial_state and not trial_state.is_paid and not is_admin %}
+<style>
+  /* When the trial bar is present, push the topbar's sticky offset down
+     by the bar's height (38px) so both can stick simultaneously. */
+  body.pl-trial-active .topbar { top: 38px; }
+  .pl-trial-bar {
+    position: sticky; top: 0; z-index: 110;
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; padding: 9px 16px; min-height: 38px;
+    font: 600 13.5px/1.2 'DM Sans', system-ui, sans-serif;
+    color: #fff; letter-spacing: .01em;
+    background: linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #b91c1c 100%);
+    border-bottom: 1px solid #7f1d1d;
+    box-shadow: 0 2px 6px rgba(127,29,29,.25);
+  }
+  .pl-trial-bar.pl-trial-expired {
+    animation: plTrialPulse 2.2s ease-in-out infinite;
+  }
+  @keyframes plTrialPulse {
+    0%, 100% { background: linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #b91c1c 100%); }
+    50%      { background: linear-gradient(90deg, #991b1b 0%, #ef4444 50%, #991b1b 100%); }
+  }
+  .pl-trial-bar .pl-tb-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 0 0 rgba(255,255,255,.7);
+    animation: plTrialDot 1.6s ease-out infinite;
+  }
+  @keyframes plTrialDot {
+    0%   { box-shadow: 0 0 0 0 rgba(255,255,255,.7); }
+    70%  { box-shadow: 0 0 0 10px rgba(255,255,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  }
+  .pl-trial-bar .pl-tb-msg { display: inline-flex; align-items: center; gap: 8px; }
+  .pl-trial-bar .pl-tb-msg b { font-weight: 800; letter-spacing: .02em; }
+  .pl-trial-bar .pl-tb-cta {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 999px;
+    background: #fff; color: #b91c1c; text-decoration: none;
+    font-weight: 800; font-size: 12.5px; white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,.18);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .pl-trial-bar .pl-tb-cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0,0,0,.25);
+  }
+  @media (max-width: 640px) {
+    .pl-trial-bar { font-size: 12px; gap: 8px; padding: 8px 10px; }
+    .pl-trial-bar .pl-tb-msg span.pl-tb-long { display: none; }
+  }
+</style>
+<div class="pl-trial-bar {% if trial_state.is_expired %}pl-trial-expired{% endif %}"
+     data-ends-at="{{ trial_state.ends_at }}"
+     data-expired="{% if trial_state.is_expired %}1{% else %}0{% endif %}"
+     role="status" aria-live="polite">
+  <span class="pl-tb-dot" aria-hidden="true"></span>
+  <span class="pl-tb-msg">
+    {% if trial_state.is_expired %}
+      <span>🚨 Your free trial has ended.</span>
+      <span class="pl-tb-long">Subscribe to unlock the full feed, contact info &amp; CSV exports.</span>
+    {% else %}
+      <span>🔥 Free trial:</span>
+      <b id="plTrialCountdown">{{ trial_state.days_left }}d {{ trial_state.hours_left }}h left</b>
+      <span class="pl-tb-long">— pick a plan to unlock the full feed.</span>
+    {% endif %}
+  </span>
+  <a class="pl-tb-cta" href="/pricing/">
+    {% if trial_state.is_expired %}Subscribe now{% else %}See plans{% endif %}
+    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+  </a>
+</div>
+<script>
+(function(){
+  var bar = document.querySelector('.pl-trial-bar');
+  if (!bar || bar.dataset.expired === '1') return;
+  var endsAt = parseInt(bar.dataset.endsAt, 10) || 0;
+  var spot = document.getElementById('plTrialCountdown');
+  if (!endsAt || !spot) return;
+  function tick(){
+    var left = endsAt - Math.floor(Date.now()/1000);
+    if (left <= 0) {
+      spot.textContent = 'expired';
+      // Page-reload so the server-side state flips to expired and the
+      // bar restyles + the feed switches to masked contact info.
+      setTimeout(function(){ window.location.reload(); }, 600);
+      return;
+    }
+    var d = Math.floor(left/86400);
+    var h = Math.floor((left%86400)/3600);
+    var m = Math.floor((left%3600)/60);
+    var s = left % 60;
+    var out;
+    if (d > 0)      out = d + 'd ' + h + 'h left';
+    else if (h > 0) out = h + 'h ' + m + 'm left';
+    else            out = m + 'm ' + (s<10?'0':'') + s + 's left';
+    spot.textContent = out;
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+{% endif %}
+
+<div class="topbar">
+  <a class="logo" href="{% url 'dashboard' %}">
+    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" height="34" viewBox="0 0 512 512" fill="none" style="width:auto;display:block;flex-shrink:0">
+      <defs>
+        <linearGradient id="gBlueGreen" x1="128" y1="90" x2="350" y2="360" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#4DB8FF"/><stop offset="0.55" stop-color="#2B8CFF"/><stop offset="1" stop-color="#63D95C"/>
+        </linearGradient>
+        <linearGradient id="gDocShadow" x1="40" y1="160" x2="230" y2="360" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#27B8D8"/><stop offset="1" stop-color="#77E34E"/>
+        </linearGradient>
+        <linearGradient id="gNavy" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#1F347E"/><stop offset="1" stop-color="#162A6A"/>
+        </linearGradient>
+        <filter id="lgShadow" x="-20%" y="-20%" width="140%" height="160%">
+          <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#16306b" flood-opacity="0.14"/>
+        </filter>
+      </defs>
+      <g transform="translate(44,58)" filter="url(#lgShadow)">
+        <rect x="0" y="82" width="172" height="232" rx="26" fill="url(#gDocShadow)" opacity="0.96"/>
+        <path d="M52 24H238C252.359 24 264 35.641 264 50V250L204 314H52C37.641 314 26 302.359 26 288V50C26 35.641 37.641 24 52 24Z" fill="white"/>
+        <path d="M52 24H238C252.359 24 264 35.641 264 50V250L204 314H52C37.641 314 26 302.359 26 288V50C26 35.641 37.641 24 52 24Z" stroke="#BFD2F7" stroke-width="12"/>
+        <path d="M264 250L204 314L148 314L214 242C226 229 245 236 264 250Z" fill="url(#gNavy)"/>
+        <path d="M84 106L110 132L155 85" stroke="#39C38B" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="86" y="170" width="76" height="12" rx="6" fill="#CFD9F2"/>
+        <rect x="86" y="208" width="92" height="12" rx="6" fill="#CFD9F2"/>
+        <rect x="86" y="246" width="70" height="12" rx="6" fill="#CFD9F2"/>
+        <g transform="translate(112,48)">
+          <path d="M148 8C82 8 28 61 28 127C28 212 128 298 140 313C144 319 153 319 157 313C169 298 268 215 268 127C268 61 214 8 148 8Z" fill="url(#gBlueGreen)"/>
+          <circle cx="149" cy="125" r="54" fill="white"/>
+          <path d="M148 8C82 8 28 61 28 127C28 212 128 298 140 313C144 319 153 319 157 313C168 300 235 229 258 158C225 142 194 134 161 135C132 136 103 146 77 165C84 201 111 240 148 276C183 234 216 198 241 157C225 118 192 89 152 82C150 57 149 33 148 8Z" fill="#1B77E8" fill-opacity="0.35"/>
+          <path d="M259 153C234 133 202 123 166 125C138 127 109 136 82 154C95 211 146 259 184 293C208 269 247 223 265 169C262 163 261 158 259 153Z" fill="#9EE75A" fill-opacity="0.55"/>
+        </g>
+      </g>
+    </svg>
+    <span class="pl-logo-text"><span class="pl-permit">Permit</span><span class="pl-lify">lify</span></span>
+  </a>
+  <div class="topbar-right">
+    {% if user_email %}
+    <!-- Notifications bell -->
+    <div class="tb-dd" id="tbAlertsDD">
+      <button class="tb-icon-btn" onclick="tbToggleAlerts(event)" title="Notifications">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="tb-badge" id="tbAlertsBadge">0</span>
+      </button>
+      <div class="tb-dd-menu" id="tbAlertsMenu" onclick="event.stopPropagation()">
+        <div class="tb-dd-head">
+          <div>
+            <div class="tb-dd-title">Notifications</div>
+            <div class="tb-dd-sub" id="tbAlertsSub">Recent updates from support</div>
+          </div>
+          <button type="button" class="tb-dd-clear" id="tbAlertsClear" onclick="tbMarkAllRead(event)" style="display:none">Mark all read</button>
+        </div>
+        <div class="tb-dd-list" id="tbAlertsList">
+          <div class="tb-dd-empty"><div class="tb-dd-empty-icon"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>Loading…</div>
+        </div>
+        <div class="tb-dd-foot"><a href="{% url 'support' %}">View all support tickets →</a></div>
+      </div>
+    </div>
+
+    <!-- Profile menu -->
+    <div class="tb-dd" id="tbProfileDD">
+      <button class="tb-profile-btn" onclick="tbToggleProfile(event)" title="Account">
+        <span class="tb-avatar">{{ user_initials|default:"U" }}</span>
+        <span class="tb-profile-name">{{ user_name|default:user_email }}</span>
+        <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="color:var(--tx3);margin-right:2px"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="tb-dd-menu tb-profile-menu" id="tbProfileMenu" onclick="event.stopPropagation()">
+        <div class="tb-profile-head">
+          <span class="tb-avatar">{{ user_initials|default:"U" }}</span>
+          <div class="tb-profile-meta">
+            <div class="tb-profile-meta-name">{{ user_name|default:"My Account" }}</div>
+            <div class="tb-profile-meta-mail">{{ user_email }}</div>
+          </div>
+        </div>
+        <a class="tb-profile-link" href="{% url 'dashboard' %}">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+          Dashboard
+        </a>
+        <a class="tb-profile-link" href="{% url 'profile' %}">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Profile
+        </a>
+        <a class="tb-profile-link" href="{% url 'settings' %}">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Settings
+        </a>
+        <a class="tb-profile-link" href="{% url 'support' %}">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Support
+        </a>
+        <div class="tb-profile-divider"></div>
+        <a class="tb-profile-link danger" href="{% url 'logout' %}">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
+        </a>
+      </div>
+    </div>
+    {% endif %}
+    <button class="mob-menu-btn" onclick="toggleSidebar()"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  </div>
+</div>
+
+{% if user_email %}
+<script>
+(function(){
+  function escHtml(s){
+    return (s == null ? '' : String(s)).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+  function closeAll(except){
+    ['tbAlertsDD','tbProfileDD'].forEach(function(id){
+      if (id === except) return;
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('open');
+    });
+  }
+  window.tbToggleAlerts = function(e){
+    e.stopPropagation();
+    var dd = document.getElementById('tbAlertsDD');
+    var willOpen = !dd.classList.contains('open');
+    closeAll(willOpen ? 'tbAlertsDD' : null);
+    dd.classList.toggle('open', willOpen);
+    if (willOpen) tbLoadAlerts();
+  };
+  window.tbToggleProfile = function(e){
+    e.stopPropagation();
+    var dd = document.getElementById('tbProfileDD');
+    var willOpen = !dd.classList.contains('open');
+    closeAll(willOpen ? 'tbProfileDD' : null);
+    dd.classList.toggle('open', willOpen);
+  };
+  document.addEventListener('click', function(){ closeAll(null); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeAll(null);
+  });
+
+  function tbLoadAlerts(){
+    var list = document.getElementById('tbAlertsList');
+    var sub  = document.getElementById('tbAlertsSub');
+    list.innerHTML = '<div class="tb-dd-empty">Loading…</div>';
+    fetch('{% url "support_widget_tickets" %}', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d.ok){ list.innerHTML = '<div class="tb-dd-empty">Unable to load notifications.</div>'; return; }
+        // Notifications = open/in-progress tickets where support replied last.
+        // Admin replies are stored with sender='agent' (or 'admin'); 'user'/'system' don't count.
+        var alerts = (d.tickets || []).filter(function(t){
+          var s = (t.last_sender || '').toLowerCase();
+          var isSupport = (s === 'agent' || s === 'admin' || s === 'support' || s === 'staff');
+          return isSupport && (t.status === 'open' || t.status === 'in_progress') && !t.is_read;
+        });
+        tbUpdateBadge(alerts.length);
+        if (sub) sub.textContent = alerts.length
+            ? alerts.length + ' new repl' + (alerts.length === 1 ? 'y' : 'ies') + ' from support'
+            : 'You\'re all caught up';
+        var clearBtn = document.getElementById('tbAlertsClear');
+        if (clearBtn) clearBtn.style.display = alerts.length ? '' : 'none';
+        if (!alerts.length){
+          list.innerHTML =
+            '<div class="tb-dd-empty">' +
+              '<div class="tb-dd-empty-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>' +
+              '<div class="tb-dd-empty-title">You\'re all caught up</div>' +
+              'No new replies from support.<br>We\'ll let you know the moment we respond.' +
+            '</div>';
+          return;
+        }
+        list.innerHTML = '';
+        alerts.forEach(function(t){
+          var item = document.createElement('a');
+          item.className = 'tb-dd-item unread';
+          item.href = '#';
+          var supportName = escHtml(t.last_name || 'Support team');
+          item.innerHTML =
+            '<div class="tb-dd-row1">' +
+              '<span class="tb-dd-tag t-support">Support replied</span>' +
+              '<span class="tb-dd-time">'+escHtml(t.updated_fmt || '')+'</span>' +
+            '</div>' +
+            '<div class="tb-dd-subj">'+escHtml(t.subject || '(no subject)')+'</div>' +
+            '<div class="tb-dd-quote">'+escHtml(t.last_text || '')+'</div>' +
+            '<div class="tb-dd-row2">' +
+              '<span class="tb-dd-meta">'+supportName+'</span>' +
+              '<span class="tb-dd-cta">Check answer ' +
+                '<svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>' +
+              '</span>' +
+            '</div>';
+          item.addEventListener('click', function(e){
+            e.preventDefault();
+            closeAll(null);
+            tbMarkRead(t.id);
+            if (typeof window.openChatWidget === 'function'){
+              window.openChatWidget();
+              setTimeout(function(){
+                if (typeof window.cpOpenConv === 'function') window.cpOpenConv(t.id);
+              }, 60);
+            } else {
+              window.location.href = '{% url "support" %}';
+            }
+          });
+          list.appendChild(item);
+        });
+      })
+      .catch(function(){
+        list.innerHTML = '<div class="tb-dd-empty">Network error.</div>';
+      });
+  }
+
+  function tbCsrf(){
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+  function tbMarkRead(ticketId){
+    var fd = new FormData();
+    fd.append('ticket_id', ticketId);
+    return fetch('{% url "support_widget_mark_read" %}', {
+      method: 'POST', credentials: 'same-origin', body: fd,
+      headers: {'X-CSRFToken': tbCsrf()}
+    }).then(function(){ tbPollBadge(); }).catch(function(){});
+  }
+  window.tbMarkAllRead = function(e){
+    if (e) e.stopPropagation();
+    var fd = new FormData();
+    fd.append('all', '1');
+    fetch('{% url "support_widget_mark_read" %}', {
+      method: 'POST', credentials: 'same-origin', body: fd,
+      headers: {'X-CSRFToken': tbCsrf()}
+    }).then(function(){
+      tbPollBadge();
+      tbLoadAlerts();
+    }).catch(function(){});
+  };
+  // expose for chat-widget integration
+  window.tbMarkRead = tbMarkRead;
+
+  // Single source of truth: ALWAYS update the bell badge AND the floating
+  // chat-bubble badge together, from every refresh path (poll, dropdown
+  // open, mark-read, list reload). Prevents the two surfaces from drifting.
+  function tbUpdateBadge(n){
+    var b = document.getElementById('tbAlertsBadge');
+    if (b){
+      if (n > 0){ b.classList.add('show'); b.textContent = n > 9 ? '9+' : String(n); }
+      else { b.classList.remove('show'); b.textContent = ''; }
+    }
+    var cn = document.getElementById('chat-notif');
+    if (cn){
+      if (n > 0){ cn.style.display = 'flex'; cn.textContent = n > 9 ? '9+' : String(n); }
+      else { cn.style.display = 'none'; cn.textContent = ''; }
+    }
+  }
+
+  // Initial badge populate + poll every 60s
+  function tbPollBadge(){
+    fetch('{% url "support_widget_tickets" %}', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.ok) return;
+        var n = (d.tickets || []).filter(function(t){
+          var s = (t.last_sender || '').toLowerCase();
+          var isSupport = (s === 'agent' || s === 'admin' || s === 'support' || s === 'staff');
+          // Only count unread support replies on still-active tickets.
+          return isSupport && (t.status === 'open' || t.status === 'in_progress') && !t.is_read;
+        }).length;
+        // tbUpdateBadge syncs both the bell and the floating chat-bubble badge.
+        tbUpdateBadge(n);
+      })
+      .catch(function(){});
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    tbPollBadge();
+    setInterval(tbPollBadge, 60000);
+  });
+})();
+</script>
+{% endif %}
+
+<div class="mob-overlay" id="mobOverlay" onclick="toggleSidebar()"></div>
+
+<div class="main">
+  <div class="sidebar" id="sidebar">
+    <a class="nav-item {% block nav_dashboard %}{% endblock %}" href="{% url 'dashboard' %}">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard
+    </a>
+    <a class="nav-item {% block nav_permits %}{% endblock %}" href="{% url 'permits' %}">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Permit History
+    </a>
+    <a class="nav-item {% block nav_notifications %}{% endblock %}" href="{% url 'notifications' %}">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notifications
+    </a>
+    <a class="nav-item {% block nav_api %}{% endblock %}" href="{% url 'api_portal' %}" style="{% if user_plan != 'Agency' %}opacity:.6{% endif %}">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>API
+      {% if user_plan != 'Agency' %}<span style="font-size:10px;background:var(--sur2);border:1px solid var(--b1);color:var(--tx3);border-radius:4px;padding:1px 5px;margin-left:auto;flex-shrink:0;">Agency</span>{% endif %}
+    </a>
+    <div class="nav-section">Account</div>
+    <a class="nav-item {% block nav_profile %}{% endblock %}" href="{% url 'profile' %}">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile
+    </a>
+    <a class="nav-item {% block nav_settings %}{% endblock %}" href="{% url 'settings' %}">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>Settings
+    </a>
+    <a class="nav-item {% block nav_support %}{% endblock %}" href="{% url 'support' %}">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Support
+    </a>
+    {% if is_admin %}
+    <div class="nav-section">Admin</div>
+    <a class="nav-item {% block nav_admin %}{% endblock %}" href="{% url 'admin_dashboard' %}" style="color:var(--pr);">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin Dashboard
+    </a>
+    {% endif %}
+    <a class="nav-item" href="{% url 'logout' %}" style="margin-top:4px;color:var(--re);">
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out
+    </a>
+    <div class="sidebar-bottom">
+      <div class="plan-card">
+        <div class="plan-name">{{ user_plan }} Plan</div>
+        {% if user_plan == 'Agency' %}
+        <div class="plan-msg">&#9733; <strong>You're on our best plan.</strong> Full city coverage, unlimited alerts, and priority AI scoring — no caps, ever.</div>
+        {% elif user_plan == 'Pro' %}
+        <div class="plan-msg">&#128200; <strong>You're ahead of the curve.</strong> Pro contractors close 3× more deals with targeted permit alerts. Keep it up.</div>
+        {% else %}
+        <div class="plan-msg">&#128640; <strong>Great start.</strong> You're already seeing real leads. Unlock more cities and alerts anytime you're ready.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <main id="main-content" tabindex="-1">
+    {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div class="site-footer-top">
+      <div class="site-footer-brand">
+        <div class="sfb-name"><span class="pl-permit" style="color:#1C2F74;">Permit</span><span class="pl-lify" style="color:#49C85B;">lify</span></div>
+        <p>Daily permit lead alerts scored by AI. Built for roofing, HVAC, plumbing, and electrical contractors across the US.</p>
+        <div style="margin-top:16px;display:flex;gap:8px;">
+          <a class="sfsocial" href="https://www.facebook.com/profile.php?id=61573295867251" target="_blank" rel="noopener" title="Facebook" style="background:#1877F2;border-color:#1877F2;">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="white"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.791-4.697 4.533-4.697 1.313 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.884v2.27h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
+          </a>
+          <a class="sfsocial" href="#"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
+          <a class="sfsocial" href="#"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg></a>
+        </div>
+      </div>
+      <div class="site-footer-col">
+        <h4>Product</h4>
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+        <a href="{% url 'permits' %}">Permit History</a>
+        <a href="{% url 'pricing' %}">Pricing</a>
+        <a href="{% url 'api_docs' %}">API &amp; Developers</a>
+        <a href="{% url 'signup' %}">Start Free Trial</a>
+      </div>
+      <div class="site-footer-col">
+        <h4>About</h4>
+        <a href="{% url 'blog' %}">Blog</a>
+        <a href="{% url 'careers' %}">Careers</a>
+        <a href="{% url 'press' %}">Press Kit</a>
+      </div>
+      <div class="site-footer-col">
+        <h4>Company</h4>
+        <a href="{% url 'contact' %}">Contact Us</a>
+        <a href="{% url 'support' %}">Support</a>
+        <a href="{% url 'privacy' %}">Privacy Policy</a>
+        <a href="{% url 'terms' %}">Terms of Service</a>
+      </div>
+    </div>
+    <div class="site-footer-bottom">
+      <div class="site-footer-copy">&copy; 2026 Permitlify.com &nbsp;&middot;&nbsp; <a href="{% url 'privacy' %}">Privacy</a> &nbsp;&middot;&nbsp; <a href="{% url 'terms' %}">Terms</a></div>
+      <div class="site-footer-socials">
+        <a class="sfsocial" href="https://www.facebook.com/profile.php?id=61573295867251" target="_blank" rel="noopener" title="Facebook" style="background:#1877F2;border-color:#1877F2;">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="white"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.791-4.697 4.533-4.697 1.313 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.884v2.27h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
+        </a>
+        <a class="sfsocial" href="#"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></a>
+        <a class="sfsocial" href="#"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/></svg></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ── Permit Profile Drawer ─────────────────────────────── -->
+<div id="pdOverlay" onclick="closeProfile()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.4);z-index:900;opacity:0;transition:opacity .25s;backdrop-filter:blur(2px);"></div>
+<aside id="pdDrawer" style="position:fixed;top:0;right:0;height:100vh;width:720px;max-width:96vw;background:#fff;z-index:901;box-shadow:-12px 0 48px rgba(0,0,0,.14);transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;">
+  <div id="pdInner" style="flex:1;display:flex;flex-direction:column;"></div>
+</aside>
+
+<style>
+#pdDrawer::-webkit-scrollbar{width:4px;}
+#pdDrawer::-webkit-scrollbar-thumb{background:var(--b2);border-radius:4px;}
+.pd-hdr{padding:28px 36px 22px;border-bottom:1px solid var(--b1);display:flex;align-items:flex-start;gap:20px;}
+.pd-ring{width:80px;height:80px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;border:3.5px solid;box-shadow:0 4px 20px rgba(0,0,0,.12);}
+.pd-ring-score{font-size:26px;font-weight:800;line-height:1;font-family:'Plus Jakarta Sans',sans-serif;}
+.pd-ring-grade{font-size:11px;font-weight:700;letter-spacing:.5px;margin-top:1px;}
+.pd-hdr-info{flex:1;min-width:0;}
+.pd-record{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3);margin-bottom:4px;letter-spacing:.5px;}
+.pd-type{font-size:16px;font-weight:700;color:var(--tx);line-height:1.3;margin-bottom:6px;}
+.pd-desc{font-size:13px;color:var(--tx2);margin-bottom:10px;}
+.pd-badges{display:flex;gap:6px;flex-wrap:wrap;}
+.pd-close{position:absolute;top:18px;right:24px;width:32px;height:32px;border-radius:8px;background:var(--sur2);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--tx3);transition:all .15s;}
+.pd-close:hover{background:var(--rd);color:var(--re);border-color:rgba(220,38,38,.2);}
+.pd-sec{padding:22px 36px;border-bottom:1px solid var(--b1);}
+.pd-sec-title{font-size:10.5px;font-weight:800;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;font-family:'DM Sans',sans-serif;}
+.pd-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px;}
+.pd-field{display:flex;flex-direction:column;gap:3px;}
+.pd-field-label{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.6px;}
+.pd-field-val{font-size:13px;font-weight:500;color:var(--tx);}
+.pd-field-val a{color:var(--pr);text-decoration:none;}
+.pd-field-val a:hover{text-decoration:underline;}
+.pd-factor{margin-bottom:16px;}
+.pd-factor:last-child{margin-bottom:0;}
+.pd-factor-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.pd-factor-name{font-size:12.5px;font-weight:700;color:var(--tx);}
+.pd-factor-pct{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.pd-factor-bar-bg{height:7px;background:var(--sur2);border-radius:99px;overflow:hidden;margin-bottom:6px;}
+.pd-factor-bar{height:100%;border-radius:99px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+.pd-factor-reason{font-size:12px;color:var(--tx2);line-height:1.55;}
+.pd-verdict{margin:22px 36px 28px;padding:16px 20px;border-radius:14px;border:1px solid;}
+.pd-verdict-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;}
+.pd-verdict-text{font-size:13px;line-height:1.6;}
+.pd-actions{padding:20px 36px;display:flex;gap:12px;border-top:1px solid var(--b1);background:#fff;position:sticky;bottom:0;}
+.pd-btn{flex:1;height:44px;border-radius:11px;border:none;font-size:13.5px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;transition:all .18s;}
+.pd-btn-call{background:#10b981;color:#fff;box-shadow:0 2px 10px rgba(16,185,129,.3);}
+.pd-btn-call:hover{background:#059669;box-shadow:0 4px 14px rgba(16,185,129,.42);transform:translateY(-1px);}
+.pd-btn-email{background:var(--pr);color:#fff;box-shadow:0 2px 10px rgba(29,78,216,.28);}
+.pd-btn-email:hover{background:#1e40af;box-shadow:0 4px 14px rgba(29,78,216,.4);transform:translateY(-1px);}
+
+/* ── MOBILE RESPONSIVE ────────────────────────────────── */
+@media(max-width:640px){
+  /* Settings tabs — horizontal scroll instead of wrap */
+  .stab-row{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;border-radius:11px;}
+  .stab-row::-webkit-scrollbar{display:none;}
+  .stab{padding:8px 14px;font-size:12px;white-space:nowrap;}
+
+  /* Profile drawer — tighter padding on small screens */
+  #pdDrawer{width:100% !important;max-width:100% !important;}
+  .pd-hdr{padding:18px 18px 16px;gap:14px;}
+  .pd-ring{width:64px;height:64px;}
+  .pd-ring-score{font-size:20px;}
+  .pd-ring-grade{font-size:10px;}
+  .pd-sec{padding:16px 18px;}
+  .pd-verdict{margin:16px 18px 20px;}
+  .pd-actions{padding:14px 18px;gap:10px;}
+  .pd-grid{grid-template-columns:1fr;}
+  .pd-factor-top{flex-wrap:wrap;gap:2px;}
+  .pd-factor-pct{font-size:11px;}
+  .pd-close{top:14px !important;right:14px !important;}
+
+  /* Tier filter buttons — scroll on overflow */
+  .filters{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-wrap:nowrap !important;}
+  .filters::-webkit-scrollbar{display:none;}
+  .fb{white-space:nowrap;}
+
+  /* Table action bar */
+  .th-row{gap:8px;}
+  .exp-btn{font-size:11px;padding:6px 10px;}
+}
+</style>
+
+<script>
+function toggleDD(id){document.querySelectorAll('.nav-dd').forEach(d=>{if(d.id!==id)d.classList.remove('open');});var el=document.getElementById(id);if(el)el.classList.toggle('open');}
+document.addEventListener('click',function(e){if(!e.target.closest('.nav-dd'))document.querySelectorAll('.nav-dd').forEach(d=>d.classList.remove('open'));});
+function toggleSidebar(){var sb=document.getElementById('sidebar'),ov=document.getElementById('mobOverlay');if(sb)sb.classList.toggle('mob-open');if(ov)ov.classList.toggle('show');}
+
+/* ── Plan tier for gating ───────────────────────────────── */
+var USER_PLAN = '{{ user_plan|lower }}'; // 'starter' | 'pro' | 'agency'
+
+/* ── AI scoring factors (12-factor model) ───────────────── */
+/* Presentation-lift constants — contractors read sub-70 lead scores as
+ * "junk", so we rescale every factor onto a confidence-building band via
+ * a single AFFINE transform (score' = FLOOR + SLOPE*score). Because it is
+ * affine, the equal-weight composite equals the same transform of the raw
+ * mean, so the ring STILL matches the mean of the factor bars shown under
+ * it. Mirror of SCORE_LIFT_* in core/permit_score.py — keep in lock-step. */
+var SCORE_LIFT_FLOOR = 55;
+var SCORE_LIFT_SLOPE = 0.45;
+
+function aiFactors(p){
+  var today=new Date();
+  var issued=new Date(p.issuedIso+'T00:00:00');
+  var expires=new Date(p.expiresIso+'T00:00:00');
+  var dOld=Math.floor((today-issued)/86400000);
+  var dLeft=Math.floor((expires-today)/86400000);
+  var mo=today.getMonth(); /* 0=Jan */
+  var desc=(p.desc||'').toLowerCase();
+  var owner=(p.owner||'').toLowerCase();
+  var f=[];
+
+  /* 1. Permit Status */
+  var s1,r1;
+  if(p.status==='approved'){s1=100;r1='Permit officially approved — contractor can begin work immediately. Highest conversion probability of any status type.';}
+  else if(p.status==='pending'){s1=62;r1='Awaiting municipal approval. Work is imminent once cleared — ideal time to reach out and land on the owner\'s shortlist before competitors do.';}
+  else if(p.status==='review'){s1=42;r1='Currently under city review. A short delay is expected before work begins. Early outreach now means you\'re first in line when it clears.';}
+  else{s1=8;r1='Permit has expired. The active opportunity window has likely passed unless the owner chooses to pull a renewal permit.';}
+  f.push({name:'Permit Status',score:s1,reason:r1,cat:'Lead Signal'});
+
+  /* 2. Trade Demand Index */
+  var s2,r2;
+  if(p.trade==='roofing'){s2=96;r2='Roofing leads convert at 3–4× the industry average. Storm and hail damage permits carry the highest urgency — homeowners are motivated and have insurance backing.';}
+  else if(p.trade==='solar'){s2=93;r2='Solar installation leads signal strong homeowner intent with high project values ($15k–$40k+). Battery + panel combos show the highest close rates.';}
+  else if(p.trade==='hvac'){s2=88;r2='HVAC replacement delivers strong contractor ROI. Homeowner-initiated permits mean an already-committed buyer who just needs the right contractor.';}
+  else if(p.trade==='electrical'){s2=70;r2='Electrical upgrades convert well, particularly 200A+ panel replacements and EV charger installs — two of the fastest-growing permit categories in metro markets.';}
+  else if(p.trade==='plumbing'){s2=62;r2='Plumbing leads convert but face significant local competition. Water main and sewer line replacements carry the highest per-lead value in this category.';}
+  else{s2=52;r2='Civil and general construction leads require more qualification effort. Commercial builds can offer substantially larger contract value for specialists.';}
+  f.push({name:'Trade Demand Index',score:s2,reason:r2,cat:'Lead Signal'});
+
+  /* 3. Estimated Job Value */
+  var s3,r3;
+  var isCommercial=/commercial|retail|office|industrial|sqft|sq ft|5,000|10,000/.test(desc)||/llc|corp|group|park|properties|retail/.test(owner);
+  var isFullScope=/full|complete|replacement|new build|new install|new service|entire|whole/.test(desc);
+  var hasSize=/\d+-panel|\d+ panel|\d+a\b|\d+-ton|\d+ ton|sq\s?ft|\d+,\d{3}/.test(desc);
+  if(isCommercial&&isFullScope){s3=97;r3='Commercial full-scope project — typically $50k–$500k+ contract value. High complexity but exceptional revenue opportunity for qualified contractors.';}
+  else if(isCommercial){s3=84;r3='Commercial project signals — estimated job value in the $25k–$150k range. Verify scope before pitching to align your proposal correctly.';}
+  else if(isFullScope&&hasSize){s3=88;r3='Full-scope residential project with clear size specifications. Strong value signals point to a $10k–$45k job — well worth prioritizing.';}
+  else if(isFullScope){s3=76;r3='Full replacement or complete installation — estimated $8k–$30k residential job value. Solid revenue opportunity with a motivated buyer.';}
+  else if(hasSize){s3=68;r3='Specific size or capacity mentioned in the permit description, suggesting a mid-sized project. Estimated $5k–$20k range depending on trade.';}
+  else{s3=48;r3='Permit description lacks specific scope markers. Could range from a small repair to a full project — qualify the job size early in your outreach.';}
+  f.push({name:'Estimated Job Value',score:s3,reason:r3,cat:'Opportunity'});
+
+  /* 4. Contact Completeness */
+  var hp=p.phone&&p.phone.length>5;
+  var he=p.email&&p.email.indexOf('@')>-1;
+  var s4,r4;
+  if(hp&&he){s4=100;r4='Both phone and email on file. Multi-channel outreach — call first, follow up by email within 24h — increases contact rate by up to 60% vs single-channel alone.';}
+  else if(hp){s4=68;r4='Phone number available. Direct calls are the highest-converting outreach method for permit leads. Lack of email limits your follow-up sequencing options.';}
+  else if(he){s4=48;r4='Email only. Structured follow-up sequences can work, but response rates are meaningfully lower than direct phone. Expect a longer sales cycle.';}
+  else{s4=10;r4='No direct contact info found in the permit record. A public records lookup or property owner database search may be required before outreach.';}
+  f.push({name:'Contact Completeness',score:s4,reason:r4,cat:'Reachability'});
+
+  /* 5. Owner Accessibility */
+  var s5,r5;
+  var isEntity=/llc|corp|inc\b|group|properties|partners|holdings|management|mgmt|retail|enterprises/.test(owner);
+  if(!isEntity&&hp&&he){s5=100;r5='Individual homeowner with full contact info — the most accessible lead type. Direct decision-maker with no gatekeepers, layers, or procurement processes.';}
+  else if(!isEntity&&hp){s5=82;r5='Individual homeowner with direct phone contact. High accessibility — expect to speak with the actual decision-maker on your first outreach attempt.';}
+  else if(!isEntity){s5=64;r5='Appears to be an individual owner. Moderate accessibility — contact data is partial but the decision-maker is likely reachable through the permit record.';}
+  else if(isEntity&&hp&&he){s5=52;r5='Business or property entity with both contact channels. Expect to navigate a point of contact before reaching the decision-maker. Professionalism is critical.';}
+  else if(isEntity){s5=35;r5='Business entity with limited contact info. Multiple gatekeepers likely. Prepare a business-facing pitch and expect a longer qualification cycle.';}
+  else{s5=45;r5='Owner profile is ambiguous. Could be individual or entity — verify before tailoring your outreach approach and sales pitch.';}
+  f.push({name:'Owner Accessibility',score:s5,reason:r5,cat:'Reachability'});
+
+  /* 6. Lead Freshness */
+  var s6,r6;
+  if(dOld<=1){s6=100;r6='Issued today or yesterday — you are inside the critical first-contact window. Research shows the fastest contractor to reach out wins the bid the majority of the time.';}
+  else if(dOld<=3){s6=85;r6='Issued '+dOld+' days ago. The early window is still open. Reaching out today puts you ahead of competitors who wait for weekly or monthly scrape cycles.';}
+  else if(dOld<=7){s6=68;r6='Issued '+dOld+' days ago. A strong lead, though some local contractors have likely already made contact. Differentiate your outreach with speed and professionalism.';}
+  else if(dOld<=14){s6=42;r6='Issued '+dOld+' days ago. The early contact advantage is diminishing. Lead with a strong value proposition, availability, and a quick-start offer.';}
+  else if(dOld<=30){s6=24;r6='Issued '+dOld+' days ago — this is an older lead. Competition has almost certainly been active. A referral, guarantee, or unique offer will be necessary to stand out.';}
+  else{s6=10;r6='Issued over a month ago. Significant competition saturation is expected. Only pursue if you have a specific competitive advantage or existing relationship with the owner.';}
+  f.push({name:'Lead Freshness',score:s6,reason:r6,cat:'Timing'});
+
+  /* 7. Permit Expiry Window */
+  var s7,r7;
+  if(dLeft<0){s7=0;r7='This permit has expired. No active work window remains unless the property owner files for a renewal permit with the local municipality.';}
+  else if(dLeft>=150){s7=88;r7=dLeft+' days remaining — a long runway gives you and the homeowner ample time to close, schedule, and complete the work without time pressure.';}
+  else if(dLeft>=90){s7=74;r7=dLeft+' days remaining — a healthy window. Standard scheduling applies; consider using the timeline to show reliability over speed in your pitch.';}
+  else if(dLeft>=30){s7=52;r7=dLeft+' days left — the owner will want to move soon. Use the approaching deadline to create momentum and urgency without being pushy.';}
+  else if(dLeft>=7){s7=28;r7='Only '+dLeft+' days remaining — high urgency. Frame your outreach around your fastest available start date to convert this timeline pressure into a booking.';}
+  else{s7=12;r7='Permit expires in '+dLeft+' day(s). The owner must act almost immediately. Urgency is your most powerful sales angle — lead with your fastest start date.';}
+  f.push({name:'Permit Expiry Window',score:s7,reason:r7,cat:'Timing'});
+
+  /* 8. Competition Risk */
+  var s8,r8;
+  var compBase=dOld<=2?20:dOld<=7?45:dOld<=14?65:80;
+  var tradeComp={roofing:15,solar:10,hvac:12,electrical:8,plumbing:10,civil:5};
+  var compRisk=Math.min(100,compBase+(tradeComp[p.trade]||8));
+  s8=Math.max(5,100-compRisk);
+  if(s8>=80){r8='Low competition risk — permit is very fresh in a less-saturated trade category. You have a strong first-mover advantage if you reach out today.';}
+  else if(s8>=60){r8='Moderate competition risk — some contractors may have already contacted this lead. A professional, personalized outreach with strong credentials will differentiate you.';}
+  else if(s8>=40){r8='Elevated competition risk — multiple contractors have likely reached out. Focus on speed-to-start, references, and a compelling guarantee to stand out.';}
+  else{r8='High competition risk — this lead has significant exposure and most local contractors have had opportunity to make contact. A referral or aggressive offer is recommended.';}
+  f.push({name:'Competition Risk',score:s8,reason:r8,cat:'Market'});
+
+  /* 9. Seasonal Demand Fit */
+  var s9,r9;
+  var spring=mo>=2&&mo<=4,summer=mo>=5&&mo<=7,fall=mo>=8&&mo<=10,winter=mo===11||mo<=1;
+  if(p.trade==='roofing'){
+    if(spring){s9=100;r9='Spring is peak roofing season — post-winter damage and pre-summer installs create maximum homeowner urgency. This is the highest-ROI outreach window of the year.';}
+    else if(summer){s9=90;r9='Summer roofing demand remains strong — long days enable faster job completion and homeowners are actively planning repairs before fall.';}
+    else if(fall){s9=72;r9='Fall roofing demand is solid — homeowners are motivated to weatherproof before winter. A good outreach window with moderate competition.';}
+    else{s9=45;r9='Winter roofing demand drops significantly in most markets. Weather conditions limit scheduling, though emergency repairs still generate urgent leads.';}
+  } else if(p.trade==='solar'){
+    if(spring||summer){s9=95;r9='Spring/summer is optimal for solar — longer days mean higher energy bills, making the ROI case easy to close. Homeowners are most receptive to solar pitches right now.';}
+    else if(fall){s9=70;r9='Fall solar demand is moderate — utility rate conversations and year-end tax credit deadlines can motivate late-season installs.';}
+    else{s9=52;r9='Winter solar demand is lower, though ITC tax credit discussions and utility rate increases can still drive motivated buyers in this period.';}
+  } else if(p.trade==='hvac'){
+    if(spring){s9=92;r9='Spring is prime HVAC season — homeowners are testing AC systems before summer heat and proactively replacing aging units. Urgency is naturally high.';}
+    else if(fall){s9=88;r9='Fall HVAC demand is strong — homeowners are switching from cooling to heating and servicing or replacing systems before cold arrives.';}
+    else if(summer){s9=65;r9='Summer HVAC replacements are reactive and urgent (broken units) rather than proactive. High-urgency but also peak competition from service calls.';}
+    else{s9=58;r9='Winter HVAC demand is driven by emergency heating failures. Reactive leads, but homeowners have immediate need and will move quickly.';}
+  } else if(p.trade==='electrical'){
+    s9=72;r9='Electrical upgrade demand is relatively stable year-round. EV charger installs tend to spike in Q1 (tax season) and Q3 (new vehicle deliveries).';}
+  else if(p.trade==='plumbing'){
+    if(winter){s9=80;r9='Winter creates elevated plumbing demand — pipe freeze risk and heating system failures drive urgent calls. Great season for plumbing outreach.';}
+    else{s9=65;r9='Plumbing demand is moderately steady year-round. Water main and sewer replacements are season-agnostic; other services peak in winter months.';}
+  } else {
+    if(spring||summer){s9=82;r9='Spring and summer are optimal for civil and general construction — favorable weather, longer daylight hours, and homeowner planning cycles align perfectly.';}
+    else{s9=55;r9='Off-season for most construction trades. Weather and daylight constraints reduce scheduling flexibility, but motivated owners may accelerate for year-end projects.';}
+  }
+  f.push({name:'Seasonal Demand Fit',score:s9,reason:r9,cat:'Market'});
+
+  /* 10. Project Scope Clarity */
+  var s10,r10;
+  var kwFull=/full replacement|complete replacement|new build|new install|new service|entire roof|whole system|ground-up/.test(desc);
+  var kwSize=/\d+-panel|\d+ panel|\d+a\b|\d+-ton|\d+ ton|sq\s?ft|\d+,\d{3}|400a|200a/.test(desc);
+  var kwType=/shingle|membrane|tpo|split|ductless|grid-tie|powerwall|sewer|water main|panel upgrade|ev charging|encroachment/.test(desc);
+  var clarity=(kwFull?30:0)+(kwSize?35:0)+(kwType?25:0)+10;
+  s10=Math.min(100,clarity);
+  if(s10>=90){r10='Permit description is highly specific — scope, system type, and size are clearly defined. You can prepare a precise, credible estimate before your first contact call.';}
+  else if(s10>=65){r10='Permit contains good scope signals. Key details are present to frame a relevant proposal, though a brief discovery call will sharpen the final estimate.';}
+  else if(s10>=40){r10='Permit description is partially clear. Some scope indicators present, but a qualification conversation is needed to define the full job before quoting.';}
+  else{r10='Permit description is vague — scope, system type, and size are not specified. Treat this as an exploratory lead; discovery questions will be essential on first contact.';}
+  f.push({name:'Project Scope Clarity',score:s10,reason:r10,cat:'Opportunity'});
+
+  /* 11. Market Saturation */
+  var s11,r11;
+  var bigMetro=/^(dallas|austin|houston|san antonio|fort worth|phoenix|denver|atlanta|chicago|los angeles|seattle|miami)$/i.test(p.city);
+  var midMarket=/^(arlington|plano|irving|garland|lubbock|el paso|corpus christi|laredo|gilbert|scottsdale|tempe)$/i.test(p.city);
+  if(bigMetro&&p.trade==='roofing'){s11=48;r11='Large metro roofing market — high homeowner density but also the highest contractor concentration. Strong branding and fast follow-up are essential to compete.';}
+  else if(bigMetro){s11=55;r11='Major metro market — strong lead volume but elevated competition. Differentiate through speed, reviews, licensing credentials, and a polished first impression.';}
+  else if(midMarket){s11=72;r11='Mid-size suburban market — solid demand with moderately lower contractor competition than core metro areas. Good balance of lead quality and market accessibility.';}
+  else{s11=85;r11='Smaller or secondary market with lower contractor saturation. First-mover advantage is significant here — fewer competitors means a higher close rate on quality leads.';}
+  f.push({name:'Market Saturation',score:s11,reason:r11,cat:'Market'});
+
+  /* 12. Outreach Conversion Probability */
+  var s12,r12;
+  var baseConv=(s1*0.25)+(s4*0.20)+(s5*0.15)+(s6*0.20)+(s8*0.20);
+  s12=Math.round(Math.min(100,Math.max(5,baseConv)));
+  if(s12>=85){r12='Very high estimated conversion probability — approved permit, fresh lead, full contact info, and low competition create a near-ideal outreach scenario. Call within hours.';}
+  else if(s12>=70){r12='High conversion probability — most success factors are aligned. A professional, timely pitch with strong references should convert this lead at above-average rates.';}
+  else if(s12>=55){r12='Moderate conversion probability — one or more factors are limiting. Focus on the strongest elements of your pitch and address potential objections proactively.';}
+  else if(s12>=35){r12='Below-average conversion probability — multiple friction points present. Invest time here only if you have competitive slack; prioritize higher-scoring leads first.';}
+  else{r12='Low estimated conversion probability — permit status, freshness, or contact data significantly limit outreach effectiveness. Monitor for status changes or prioritize elsewhere.';}
+  f.push({name:'Conversion Probability',score:s12,reason:r12,cat:'Lead Signal'});
+
+  /* Apply the presentation lift to every factor in ONE place so BOTH the
+   * composite (mean of these scores) and the per-factor bars rendered in
+   * the modal move together — the ring always equals the breakdown.
+   * Ordering is preserved, so sorting/filtering still rank leads
+   * correctly; the numbers just present in a 70-100-most-of-the-time
+   * range. Reasons are intentionally left on the raw buckets (they
+   * describe the underlying fact, not the displayed number). */
+  for(var li=0; li<f.length; li++){
+    f[li].score = Math.max(0, Math.min(100, Math.round(SCORE_LIFT_FLOOR + SCORE_LIFT_SLOPE * f[li].score)));
+  }
+
+  return f;
+}
+
+/* ── Composite score derivation ────────────────────────────────────────
+ *  Re-derive p.score (and p.grade) from the deterministic 12-factor
+ *  model so the ring users see ALWAYS matches the per-factor breakdown
+ *  rendered underneath it. The DB ``ai_score`` (set by Claude during
+ *  ingest) is ignored on the read path because:
+ *    • the LLM was occasionally returning 100 for permits whose
+ *      heuristic sub-factors averaged ~40 (mismatch reported by user),
+ *    • the 12 displayed factors are computed client-side from
+ *      permit fields (status, trade, desc, dates, phone/email, owner,
+ *      city), so re-using them as the source of truth keeps the modal,
+ *      the table ring, and the CSV export numerically consistent.
+ *
+ *  Aggregation: equal-weight mean across the 12 factors, rounded to
+ *  an integer in 0-100. Grade letters mirror the bands already used
+ *  throughout the UI (A ≥ 90, B ≥ 80, C ≥ 70, D ≥ 60, else F).
+ *
+ *  Idempotent: re-running on an already-decorated permit yields the
+ *  same numbers, so it's safe to call from every render site
+ *  (table row, modal, CSV export) without needing to track "did we
+ *  already compute this?". A ``_scoreDerived`` marker is set so callers
+ *  who want to skip recomputation can do so cheaply.
+ */
+function computeOverallScore(p){
+  if (!p) return;
+  var factors = aiFactors(p);
+  if (!factors || !factors.length) return;
+  var sum = 0;
+  for (var i = 0; i < factors.length; i++) sum += factors[i].score;
+  var avg = Math.round(sum / factors.length);
+  p.score = Math.max(0, Math.min(100, avg));
+  p.grade = p.score>=90?'A':p.score>=80?'B':p.score>=70?'C':p.score>=60?'D':'F';
+  p._scoreDerived = true;
+}
+
+/* ── Build and open profile ─────────────────────────────── */
+function openProfile(p){
+  /* Sync the composite ring with the 12-factor breakdown shown
+   * below it. Called before every visual computation in this
+   * function so col / tier / verdict / ring all use the same
+   * derived score. Safe to call even if the table render already
+   * decorated `p` — computeOverallScore is idempotent. */
+  computeOverallScore(p);
+  var col=p.score>=90?'#16a34a':p.score>=75?'#1d4ed8':p.score>=60?'#d97706':'#dc2626';
+  var colBg=p.score>=90?'rgba(22,163,74,.08)':p.score>=75?'rgba(29,78,216,.08)':p.score>=60?'rgba(217,119,6,.08)':'rgba(220,38,38,.08)';
+  var tier=p.score>=80?'Hot Lead':'';
+  tier=(!tier&&p.score>=60)?'Warm Lead':tier;
+  tier=(!tier)?'Cool Lead':tier;
+  var tierColor=p.score>=80?'#16a34a':p.score>=60?'#d97706':'#dc2626';
+  var tierBg=p.score>=80?'rgba(22,163,74,.08)':p.score>=60?'rgba(217,119,6,.08)':'rgba(220,38,38,.08)';
+
+  var sbHtml={approved:'<span class="sb_ st-approved">Approved</span>',pending:'<span class="sb_ st-pending">Pending</span>',review:'<span class="sb_ st-review">In Review</span>',expired:'<span class="sb_ st-expired">Expired</span>',issued:'<span class="sb_ st-issued">Issued</span>',open:'<span class="sb_ st-open">Open</span>',unknown:'<span class="sb_ st-unknown">Unknown</span>'};
+  var statusBadge=sbHtml[(p.status||'').toLowerCase()]||(p.status?'<span class="sb_ st-other">'+p.status.charAt(0).toUpperCase()+p.status.slice(1)+'</span>':'<span class="sb_ st-unknown">Unknown</span>');
+
+  /* aiFactors() is pure; running it a second time here is cheap
+   * and keeps the per-factor render loop independent of the
+   * composite-score derivation above. */
+  var factors=aiFactors(p);
+  var catOrder=['Lead Signal','Opportunity','Reachability','Timing','Market'];
+  var catIcons={'Lead Signal':'&#9889;','Opportunity':'&#128181;','Reachability':'&#128222;','Timing':'&#9201;','Market':'&#127759;'};
+  var grouped={};
+  catOrder.forEach(function(c){grouped[c]=[];});
+  factors.forEach(function(f){if(grouped[f.cat])grouped[f.cat].push(f);});
+  var fHtml='';
+  catOrder.forEach(function(cat){
+    var items=grouped[cat];
+    if(!items||!items.length)return;
+    fHtml+='<div style="margin-bottom:20px;">'+
+      '<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--tx3);margin-bottom:12px;display:flex;align-items:center;gap:5px;">'+
+        '<span>'+catIcons[cat]+'</span><span>'+cat+'</span>'+
+        '<span style="flex:1;height:1px;background:var(--b1);margin-left:6px;"></span>'+
+      '</div>';
+    items.forEach(function(f){
+      var fc=f.score>=85?'#16a34a':f.score>=70?'#1d4ed8':f.score>=50?'#d97706':f.score>=25?'#ea580c':'#dc2626';
+      var label=f.score>=85?'Excellent':f.score>=70?'Strong':f.score>=50?'Good':f.score>=25?'Fair':'Weak';
+      var dot=f.score>=85?'&#9679;':f.score>=70?'&#9679;':f.score>=50?'&#9679;':f.score>=25?'&#9679;':'&#9679;';
+      fHtml+='<div class="pd-factor">'+
+        '<div class="pd-factor-top">'+
+          '<span class="pd-factor-name">'+f.name+'</span>'+
+          '<span class="pd-factor-pct" style="color:'+fc+'">'+label+' &middot; <b>'+f.score+'</b>/100</span>'+
+        '</div>'+
+        '<div class="pd-factor-bar-bg"><div class="pd-factor-bar" style="width:0%;background:'+fc+';" data-w="'+f.score+'%"></div></div>'+
+        (USER_PLAN==='agency' ? '<div class="pd-factor-reason">'+f.reason+'</div>' : '')+
+      '</div>';
+    });
+    fHtml+='</div>';
+  });
+
+  var verdict,vicon;
+  if(p.score>=80){
+    verdict='This is a <strong>high-priority lead</strong>. The combination of permit status, trade demand, and contact availability places it in your top tier. Reach out by phone within 24 hours.';
+    vicon='&#11088;';
+  } else if(p.score>=60){
+    verdict='This is a <strong>solid mid-tier lead</strong>. Good conversion potential with the right pitch. Prioritise if you have capacity — phone first, email follow-up within 48 hours.';
+    vicon='&#127777;';
+  } else {
+    verdict='This is a <strong>lower-priority lead</strong>. One or more scoring factors limit immediate opportunity — older date, expired status, or lower-demand trade. Follow up when higher-priority leads are worked.';
+    vicon='&#10052;';
+  }
+
+  var fmtD=function(iso){if(!iso)return'—';var d=new Date(iso+'T00:00:00');return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});};
+
+  /* ── Plan-gated ring: Starter shows tier only, Pro/Agency show numeric ── */
+  var ringHtml = (USER_PLAN === 'starter')
+    ? '<div class="pd-ring" style="border-color:'+tierColor+';background:'+tierBg+';padding:12px 10px;">'+
+        '<span style="font-size:13px;font-weight:900;color:'+tierColor+';">'+
+          (p.score>=80?'🔥 Hot':p.score>=60?'🌡️ Warm':'❄️ Cool')+
+        '</span>'+
+        '<span style="font-size:9px;font-weight:700;color:'+tierColor+';opacity:.7;margin-top:2px;">Lead Tier</span>'+
+      '</div>'
+    : '<div class="pd-ring" style="border-color:'+col+';background:'+colBg+';">'+
+        '<span class="pd-ring-score" style="color:'+col+'">'+p.score+'</span>'+
+        '<span class="pd-ring-grade" style="color:'+col+'">'+p.grade+'</span>'+
+      '</div>';
+
+  /* ── Plan-gated AI section ───────────────────────────── */
+  var aiSection;
+  if (USER_PLAN === 'starter') {
+    aiSection =
+      '<div class="pd-sec" style="background:linear-gradient(135deg,rgba(29,78,216,.04),rgba(124,58,237,.04));border:1.5px solid rgba(29,78,216,.12);border-radius:14px;padding:20px;">'+
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'+
+          '<span style="font-size:20px;">🔒</span>'+
+          '<div>'+
+            '<div style="font-size:13px;font-weight:800;color:var(--tx)">Full AI Score Analysis</div>'+
+            '<div style="font-size:11px;color:var(--tx3);margin-top:1px;">12-factor breakdown &mdash; Pro &amp; Agency plans</div>'+
+          '</div>'+
+          '<span style="margin-left:auto;font-size:9.5px;font-weight:700;padding:3px 10px;background:var(--pd);color:var(--pr);border-radius:99px;">AI-Powered</span>'+
+        '</div>'+
+        '<div style="font-size:12.5px;color:var(--tx2);line-height:1.6;margin-bottom:16px;">'+
+          'Upgrade to <strong>Pro</strong> to see the complete 0&ndash;100 score with 12 scored factors across Lead Signal, Opportunity, Reachability, Timing, and Market. '+
+          '<strong>Agency</strong> adds full reasoning for every factor so you know exactly why a lead ranks where it does.'+
+        '</div>'+
+        '<a href="/settings/#billing" style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:var(--pr);color:#fff;border-radius:10px;font-size:12.5px;font-weight:700;text-decoration:none;">'+
+          'Upgrade to Pro &rarr;'+
+        '</a>'+
+      '</div>';
+  } else {
+    aiSection =
+      '<div class="pd-sec">'+
+        '<div class="pd-sec-title" style="display:flex;align-items:center;justify-content:space-between;">'+
+          'AI Score Analysis &mdash; 12-Factor Model'+
+          (USER_PLAN==='agency'
+            ? '<span style="font-size:9.5px;font-weight:600;padding:2px 8px;background:var(--pd);color:var(--pr);border-radius:99px;letter-spacing:.3px;">AI-Powered</span>'
+            : '<span style="font-size:9.5px;font-weight:600;padding:2px 8px;background:var(--pd);color:var(--pr);border-radius:99px;letter-spacing:.3px;">Scores Only &middot; <a href="/settings/#billing" style="color:var(--pr);text-decoration:underline">Add Reasoning</a></span>')+
+        '</div>'+
+        fHtml+
+      '</div>';
+  }
+
+  /* ── Plan-gated verdict: Starter hides it ────────────── */
+  var verdictSection = (USER_PLAN === 'starter') ? '' :
+    '<div class="pd-verdict" style="background:'+tierBg+';border-color:'+tierColor+'22;color:var(--tx);">'+
+      '<div class="pd-verdict-label" style="color:'+tierColor+'">'+vicon+' AI Verdict</div>'+
+      '<div class="pd-verdict-text">'+verdict+'</div>'+
+    '</div>';
+
+  document.getElementById('pdInner').innerHTML=
+    '<div class="pd-hdr" style="position:relative;">'+
+      ringHtml+
+      '<div class="pd-hdr-info">'+
+        '<div class="pd-record">'+p.id+' &middot; '+p.city+', '+p.state+'</div>'+
+        '<div class="pd-type">'+p.type+'</div>'+
+        '<div class="pd-desc">'+p.desc+'</div>'+
+        '<div class="pd-badges">'+statusBadge+
+          '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:99px;font-size:11px;font-weight:700;background:'+tierBg+';color:'+tierColor+';">'+vicon+' '+tier+'</span>'+
+        '</div>'+
+      '</div>'+
+      '<button class="pd-close" onclick="closeProfile()">'+
+        '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+
+      '</button>'+
+    '</div>'+
+
+    '<div class="pd-sec">'+
+      '<div class="pd-sec-title">Permit Details</div>'+
+      '<div class="pd-grid">'+
+        '<div class="pd-field"><div class="pd-field-label">Project Address</div><div class="pd-field-val">'+p.project+'</div></div>'+
+        '<div class="pd-field"><div class="pd-field-label">City / State</div><div class="pd-field-val">'+p.city+', '+p.state+'</div></div>'+
+        '<div class="pd-field"><div class="pd-field-label">Issued</div><div class="pd-field-val" style="font-family:\'JetBrains Mono\',monospace;font-size:12px;">'+fmtD(p.issuedIso)+'</div></div>'+
+        '<div class="pd-field"><div class="pd-field-label">Expires</div><div class="pd-field-val" style="font-family:\'JetBrains Mono\',monospace;font-size:12px;">'+fmtD(p.expiresIso)+'</div></div>'+
+      '</div>'+
+    '</div>'+
+
+    '<div class="pd-sec">'+
+      '<div class="pd-sec-title">Contact Information</div>'+
+      '<div class="pd-grid">'+
+        '<div class="pd-field"><div class="pd-field-label">Primary Contact</div><div class="pd-field-val">'+p.owner+'</div></div>'+
+        '<div class="pd-field"><div class="pd-field-label">Phone</div><div class="pd-field-val"><a href="tel:'+p.phone.replace(/\D/g,'')+'">'+p.phone+'</a></div></div>'+
+        /* Property Owner — only rendered when the permit actually
+           had an owner block parsed AND that owner is a different
+           party from the primary contact (otherwise we would just
+           repeat the same name twice). */
+        (p.owner_name && p.owner_name !== p.owner
+          ? '<div class="pd-field"><div class="pd-field-label">Property Owner</div><div class="pd-field-val">'+p.owner_name+'</div></div>'
+          : '')+
+        '<div class="pd-field" style="grid-column:1/-1"><div class="pd-field-label">Email</div><div class="pd-field-val"><a href="mailto:'+p.email+'">'+p.email+'</a></div></div>'+
+      '</div>'+
+    '</div>'+
+
+    aiSection+
+
+    verdictSection+
+
+    '<div class="pd-actions">'+
+      '<a class="pd-btn pd-btn-call" href="tel:'+p.phone.replace(/\D/g,'')+'">'+
+        '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 12 19.79 19.79 0 01.12 3.38 2 2 0 012.1 1.21L5.07 1a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.08 8.9a16 16 0 006 6l1.26-1.26a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 15.92z"/></svg>Call Now'+
+      '</a>'+
+      '<a class="pd-btn pd-btn-email" href="mailto:'+p.email+'">'+
+        '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="16" height="16"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Send Email'+
+      '</a>'+
+    '</div>';
+
+  var ov=document.getElementById('pdOverlay');
+  var dr=document.getElementById('pdDrawer');
+  ov.style.display='block';
+  setTimeout(function(){ov.style.opacity='1';dr.style.transform='translateX(0)';},10);
+
+  /* Animate bars after drawer opens */
+  setTimeout(function(){
+    dr.querySelectorAll('.pd-factor-bar').forEach(function(b){
+      b.style.width=b.getAttribute('data-w');
+    });
+  },320);
+}
+
+function closeProfile(){
+  var ov=document.getElementById('pdOverlay');
+  var dr=document.getElementById('pdDrawer');
+  ov.style.opacity='0';
+  dr.style.transform='translateX(100%)';
+  setTimeout(function(){ov.style.display='none';},280);
+}
+
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeProfile();});
+
+/* ── Checkout popup modal ── */
+var _coTimer=null, _coPopup=null;
+function openCheckoutModal(url){
+  var m=document.getElementById('coModal'),
+      prog=document.getElementById('coProgress'),
+      countEl=document.getElementById('coCountdown'),
+      extLink=document.getElementById('coExtLink');
+  if(!url||url==='#'||url==='')return;
+  if(extLink)extLink.dataset.url=url;
+  if(prog)prog.style.width='0%';
+  m.style.display='flex';
+  document.body.style.overflow='hidden';
+  var start=Date.now(), dur=1600, count=2;
+  if(countEl)countEl.textContent=count;
+  _coTimer=setInterval(function(){
+    var elapsed=Date.now()-start;
+    var pct=Math.min(100,elapsed/dur*100);
+    if(prog)prog.style.width=pct+'%';
+    var remaining=Math.max(0,Math.ceil((dur-elapsed)/1000));
+    if(countEl&&remaining!==count){count=remaining;countEl.textContent=count;}
+    if(elapsed>=dur){
+      clearInterval(_coTimer); _coTimer=null;
+      _launchPopup(url);
+    }
+  },40);
+}
+function _launchPopup(url){
+  var w=520,h=780;
+  var left=Math.max(0,Math.round((screen.width-w)/2));
+  var top=Math.max(0,Math.round((screen.height-h)/2));
+  _coPopup=window.open(url,'whop_checkout',
+    'width='+w+',height='+h+',left='+left+',top='+top+
+    ',toolbar=0,location=0,menubar=0,status=0,scrollbars=1,resizable=1');
+  /* close the overlay */
+  var m=document.getElementById('coModal');
+  if(m)m.style.display='none';
+  document.body.style.overflow='';
+  /* popup blocked fallback */
+  if(!_coPopup || _coPopup.closed){
+    if(typeof showBillToast==='function')
+      showBillToast('Popup was blocked — opening checkout page now.','warn');
+    window.location.href=url;
+    return;
+  }
+  /* poll: when popup closes, sync billing and reload */
+  var poll=setInterval(function(){
+    if(_coPopup && _coPopup.closed){
+      clearInterval(poll); _coPopup=null;
+      _syncAfterCheckout();
+    }
+  },700);
+}
+function _syncAfterCheckout(){
+  /* Show a subtle toast if available */
+  if(typeof showBillToast==='function') showBillToast('Confirming your payment\u2026','info');
+  fetch('/billing/sync/',{method:'POST',credentials:'same-origin',
+    headers:{'X-CSRFToken':_getCo_csrf()}
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.ok){
+      if(typeof showBillToast==='function') showBillToast('Plan updated: '+d.msg,'success');
+      setTimeout(function(){
+        window.location.href='/settings/?r='+Date.now()+'#billing';
+      },1200);
+    }
+  }).catch(function(){});
+}
+function _getCo_csrf(){
+  var m=document.cookie.match(/csrftoken=([^;]+)/);
+  return m?m[1]:'';
+}
+function closeCheckoutModal(){
+  if(_coTimer){clearInterval(_coTimer);_coTimer=null;}
+  var m=document.getElementById('coModal');
+  if(m)m.style.display='none';
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){var m=document.getElementById('coModal');if(m&&m.style.display!=='none')closeCheckoutModal();}
+});
+</script>
+
+{# ── Per-page extra scripts/styles. MUST live OUTSIDE the parent <script> #}
+{# above: child templates may include their own <script>/<link> tags here   #}
+{# (e.g. permits.html loads jQuery + DataTables from CDN), and a stray     #}
+{# </script> inside this block would otherwise prematurely close the       #}
+{# parent script and dump the checkout popup JS as visible page text.      #}
+{# Templates that put RAW JS in this block (dashboard, support, settings)  #}
+{# now wrap their own content in <script>...</script> tags themselves.     #}
+{% block extra_js %}{% endblock %}
+
+<!-- ── Checkout redirect modal ── -->
+<style>
+#coModal{display:none;position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.65);align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);}
+#coBox{width:min(420px,100%);background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 32px 100px rgba(0,0,0,.3);text-align:center;}
+#coBoxTop{background:linear-gradient(135deg,#1C2F74,#2563eb);padding:28px 24px 22px;position:relative;}
+#coSpinRing{width:52px;height:52px;border:3.5px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:coSpin .9s linear infinite;margin:0 auto 14px;}
+#coBoxTop h3{color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;margin:0 0 5px;}
+#coBoxTop p{color:rgba(255,255,255,.7);font-size:13px;margin:0;}
+#coCloseTop{position:absolute;top:12px;right:14px;background:rgba(255,255,255,.15);border:none;cursor:pointer;color:#fff;width:28px;height:28px;border-radius:50%;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+#coCloseTop:hover{background:rgba(255,255,255,.3);}
+#coBoxBody{padding:22px 24px 24px;}
+#coProgressWrap{background:#f1f5f9;border-radius:99px;height:5px;overflow:hidden;margin-bottom:14px;}
+#coProgress{height:100%;background:linear-gradient(90deg,#2563eb,#0891b2);border-radius:99px;width:0%;transition:width .08s linear;}
+#coBodyText{font-size:12.5px;color:#64748b;margin-bottom:18px;line-height:1.5;}
+#coBodyText strong{color:#0f172a;}
+#coExtLink{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#2563eb;text-decoration:none;font-weight:500;}
+#coExtLink:hover{text-decoration:underline;}
+#coCancelBtn{display:block;margin-top:12px;font-size:12px;color:#94a3b8;background:none;border:none;cursor:pointer;font-family:inherit;}
+#coCancelBtn:hover{color:#64748b;}
+@keyframes coSpin{to{transform:rotate(360deg)}}
+</style>
+<div id="coModal" onclick="if(event.target===this)closeCheckoutModal()">
+  <div id="coBox">
+    <div id="coBoxTop">
+      <button id="coCloseTop" onclick="closeCheckoutModal()" title="Cancel">&times;</button>
+      <div id="coSpinRing"></div>
+      <h3>Opening secure checkout</h3>
+      <p>A checkout window will appear shortly…</p>
+    </div>
+    <div id="coBoxBody">
+      <div id="coProgressWrap"><div id="coProgress"></div></div>
+      <div id="coBodyText">
+        Opening <strong>Whop</strong> secure checkout in a new window.<br>
+        Launching in <strong id="coCountdown">2</strong> second(s).
+      </div>
+      <a id="coExtLink" href="#" onclick="if(_coTimer){clearInterval(_coTimer);_coTimer=null;} _launchPopup(this.dataset.url); return false;" data-url="">
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Open now
+      </a>
+      <button id="coCancelBtn" onclick="closeCheckoutModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+{% if user_email %}
+<!-- ── Chat Support Widget (full conversation panel) ──────────── -->
+<style>
+#chat-bubble{position:fixed;bottom:24px;left:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-start;}
+#chat-btn{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#0891b2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(29,78,216,.35);transition:transform .2s,box-shadow .2s;position:relative;}
+#chat-btn:hover{transform:scale(1.07);box-shadow:0 6px 28px rgba(29,78,216,.45);}
+#chat-btn svg{width:22px;height:22px;color:#fff;}
+#chat-notif{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 4px;background:#ef4444;border-radius:9px;border:2px solid #fff;display:none;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;font-family:'DM Sans',sans-serif;}
+#chat-panel{background:var(--sur,#fff);border:1px solid var(--b1,#e5e7eb);border-radius:20px;box-shadow:0 12px 48px rgba(0,0,0,.14);width:400px;margin-bottom:12px;overflow:hidden;display:none;flex-direction:column;height:580px;max-height:calc(100vh - 110px);}
+#chat-panel.open{display:flex;}
+.cp-head{background:linear-gradient(135deg,#1d4ed8,#0891b2);padding:14px 16px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0;}
+.cp-head-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1;}
+.cp-avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.cp-name{font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cp-status{font-size:11px;opacity:.85;margin-top:1px;display:flex;align-items:center;gap:4px;}
+.cp-status::before{content:'';width:7px;height:7px;background:#4ade80;border-radius:50%;display:inline-block;flex-shrink:0;}
+.cp-head-actions{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+.cp-icon-btn{background:none;border:none;cursor:pointer;color:rgba(255,255,255,.85);padding:6px;border-radius:6px;transition:background .15s;display:flex;align-items:center;justify-content:center;}
+.cp-icon-btn:hover{background:rgba(255,255,255,.18);}
+.cp-icon-btn svg{display:block;}
+.cp-body{flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;}
+.cp-view{display:none;}
+.cp-view.active{display:flex;flex-direction:column;height:100%;}
+
+/* List view */
+.cp-list-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-shrink:0;}
+.cp-list-title{font-size:13px;font-weight:700;color:var(--tx,#111);font-family:'DM Sans',sans-serif;}
+.cp-new-btn{background:linear-gradient(135deg,#1d4ed8,#0891b2);color:#fff;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;transition:opacity .15s;}
+.cp-new-btn:hover{opacity:.9;}
+.cp-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin:0 -4px;padding:0 4px;}
+.cp-list-item{background:var(--sur2,#f8fafc);border:1px solid var(--b1,#e5e7eb);border-radius:11px;padding:11px 12px;cursor:pointer;transition:border-color .15s,box-shadow .15s;position:relative;}
+.cp-list-item:hover{border-color:#93c5fd;box-shadow:0 2px 8px rgba(29,78,216,.08);}
+.cp-list-item-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.cp-list-subject{font-size:13px;font-weight:600;color:var(--tx,#111);font-family:'DM Sans',sans-serif;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cp-status-chip{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:99px;flex-shrink:0;font-family:'DM Sans',sans-serif;}
+.cp-status-open{background:#dbeafe;color:#1d4ed8;}
+.cp-status-in_progress{background:#fef3c7;color:#a16207;}
+.cp-status-resolved{background:#dcfce7;color:#15803d;}
+.cp-status-closed{background:#f1f5f9;color:#64748b;}
+.cp-list-preview{font-size:11.5px;color:var(--tx2,#64748b);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.cp-list-meta{display:flex;align-items:center;justify-content:space-between;margin-top:6px;}
+.cp-list-time{font-size:10.5px;color:var(--tx3,#94a3b8);}
+.cp-list-delete{background:none;border:none;cursor:pointer;color:#94a3b8;padding:4px;border-radius:5px;display:flex;align-items:center;transition:background .12s,color .12s;}
+.cp-list-delete:hover{background:#fee2e2;color:#dc2626;}
+/* READ tickets: muted, slightly grey, no decorations */
+.cp-list-item{opacity:.78;}
+.cp-list-item:hover{opacity:1;}
+/* UNREAD tickets: vivid green wash + thick left bar + animated dot */
+.cp-list-item-unread{
+  opacity:1;
+  background:linear-gradient(90deg,#dcfce7 0%,#f0fdf4 60%,#fff 100%);
+  border-color:#16a34a;
+  box-shadow:0 2px 8px rgba(22,163,74,.18);
+  padding-left:16px;
+  border-left-width:4px;
+}
+.cp-list-item-unread:hover{
+  border-color:#15803d;
+  box-shadow:0 4px 14px rgba(22,163,74,.28);
+}
+.cp-list-item-unread .cp-list-subject{color:#14532d;font-weight:800;}
+.cp-list-newdot{
+  /* Sit inside the card, just to the right of the 4px green left bar.
+     Vertically aligned with the subject row, not the geometric centre,
+     so it visually anchors to the headline the user actually reads. */
+  position:absolute;top:14px;left:7px;
+  width:8px;height:8px;border-radius:50%;background:#16a34a;
+  box-shadow:0 0 0 3px rgba(22,163,74,.22);
+  animation:cpPulse 1.6s ease-in-out infinite;
+}
+@keyframes cpPulse{
+  0%,100%{box-shadow:0 0 0 4px rgba(22,163,74,.25);}
+  50%{box-shadow:0 0 0 9px rgba(22,163,74,.04);}
+}
+.cp-list-newtag{
+  font-size:10.5px;font-weight:800;color:#fff;background:#16a34a;
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:99px;margin:4px 0 6px;
+  font-family:'DM Sans',sans-serif;letter-spacing:.3px;
+  text-transform:uppercase;
+}
+.cp-list-meta{gap:6px;}
+/* Round tick button — instantly recognisable */
+.cp-list-mark{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:#16a34a;border:none;color:#fff;
+  width:26px;height:26px;border-radius:50%;
+  cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:all .15s;margin-left:auto;
+  box-shadow:0 2px 6px rgba(22,163,74,.35);
+  position:relative;
+}
+.cp-list-mark:hover{
+  background:#15803d;
+  transform:scale(1.1);
+  box-shadow:0 3px 10px rgba(22,163,74,.5);
+}
+.cp-list-mark svg{width:14px;height:14px;}
+/* Tooltip on hover so the user knows what the round green tick does */
+.cp-list-mark::after{
+  content:'Mark as read';
+  position:absolute;bottom:calc(100% + 6px);right:0;
+  background:#0f172a;color:#fff;font-size:10.5px;font-weight:600;
+  padding:4px 8px;border-radius:5px;white-space:nowrap;
+  opacity:0;pointer-events:none;transition:opacity .15s;
+}
+.cp-list-mark:hover::after{opacity:1;}
+.cp-empty{text-align:center;padding:24px 12px;color:var(--tx2,#64748b);font-size:12.5px;line-height:1.6;}
+.cp-empty-icon{width:48px;height:48px;background:var(--pd,#eff6ff);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;}
+.cp-loading{text-align:center;padding:32px 0;color:var(--tx3,#94a3b8);font-size:12px;}
+
+/* Conversation view */
+.cp-conv-meta{padding:10px 12px;background:var(--sur2,#f8fafc);border:1px solid var(--b1,#e5e7eb);border-radius:10px;margin-bottom:12px;flex-shrink:0;}
+.cp-conv-subject{font-size:13.5px;font-weight:700;color:var(--tx,#111);font-family:'DM Sans',sans-serif;margin-bottom:4px;line-height:1.35;}
+.cp-conv-sub{font-size:11px;color:var(--tx3,#94a3b8);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.cp-conv-sub .dot{width:3px;height:3px;background:#cbd5e1;border-radius:50%;}
+.cp-msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:2px 0 6px;}
+.cp-msg{max-width:82%;padding:9px 12px;border-radius:14px;font-size:13px;line-height:1.5;word-wrap:break-word;font-family:'DM Sans',sans-serif;}
+.cp-msg.user{background:linear-gradient(135deg,#1d4ed8,#0891b2);color:#fff;align-self:flex-end;border-bottom-right-radius:4px;}
+.cp-msg.admin,.cp-msg.support{background:#f1f5f9;color:var(--tx,#111);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid #e2e8f0;}
+.cp-msg.system{background:#fef9c3;color:#854d0e;align-self:center;font-size:11.5px;font-style:italic;text-align:center;border-radius:10px;max-width:90%;}
+.cp-msg-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;opacity:.7;margin-bottom:3px;}
+.cp-msg-time{font-size:10px;opacity:.65;margin-top:3px;}
+.cp-reply-row{display:flex;gap:6px;align-items:flex-end;padding-top:10px;border-top:1px solid var(--b1,#e5e7eb);flex-shrink:0;}
+.cp-reply-input{flex:1;border:1px solid var(--b1,#e5e7eb);border-radius:10px;padding:9px 12px;font-size:13px;line-height:1.45;resize:none;max-height:96px;min-height:38px;font-family:'DM Sans',sans-serif;background:var(--sur2,#f8fafc);outline:none;color:var(--tx,#111);box-sizing:border-box;}
+.cp-reply-input:focus{border-color:#1d4ed8;}
+.cp-send-btn{background:linear-gradient(135deg,#1d4ed8,#0891b2);color:#fff;border:none;border-radius:10px;width:40px;height:38px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s;}
+.cp-send-btn:hover{opacity:.9;}
+.cp-send-btn:disabled{opacity:.45;cursor:not-allowed;}
+
+/* New ticket form */
+.cp-form{display:flex;flex-direction:column;gap:9px;}
+.cp-intro{text-align:center;padding:4px 0 12px;}
+.cp-intro-icon{width:48px;height:48px;background:var(--pd,#eff6ff);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;}
+.cp-intro-title{font-size:14px;font-weight:700;color:var(--tx,#111);margin-bottom:4px;font-family:'DM Sans',sans-serif;}
+.cp-intro-sub{font-size:12px;color:var(--tx2,#64748b);line-height:1.55;}
+.cp-field label{display:block;font-size:10.5px;font-weight:600;color:var(--tx3,#94a3b8);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;}
+.cp-input,.cp-select,.cp-textarea{width:100%;border:1px solid var(--b1,#e5e7eb);border-radius:9px;padding:9px 12px;font-size:13px;color:var(--tx,#111);background:var(--sur2,#f8fafc);outline:none;font-family:'DM Sans',sans-serif;box-sizing:border-box;transition:border-color .15s;}
+.cp-input:focus,.cp-select:focus,.cp-textarea:focus{border-color:#1d4ed8;}
+.cp-textarea{resize:none;min-height:76px;line-height:1.55;}
+.cp-submit{background:linear-gradient(135deg,#1d4ed8,#0891b2);color:#fff;border:none;border-radius:9px;padding:11px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;display:flex;align-items:center;justify-content:center;gap:7px;margin-top:4px;}
+.cp-submit:hover{opacity:.88;}
+.cp-submit:disabled{opacity:.55;cursor:not-allowed;}
+.cp-err{font-size:12px;color:#ef4444;text-align:center;margin-top:4px;display:none;}
+
+/* Footer quick actions */
+.cp-footer{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 10px;border-top:1px solid var(--b1,#e5e7eb);background:var(--sur2,#f8fafc);flex-shrink:0;}
+.cp-footer-btn{background:none;border:none;cursor:pointer;color:var(--tx3,#94a3b8);padding:5px 9px;border-radius:7px;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;transition:background .12s,color .12s;position:relative;}
+.cp-footer-btn:hover{background:#e2e8f0;color:#1d4ed8;}
+.cp-footer-btn svg{width:13px;height:13px;display:block;}
+.cp-footer-count{background:#1d4ed8;color:#fff;border-radius:99px;padding:1px 6px;font-size:9.5px;line-height:1.4;margin-left:1px;}
+
+/* Confirm dialog */
+.cp-confirm{position:absolute;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:5;border-radius:20px;}
+.cp-confirm.open{display:flex;}
+.cp-confirm-box{background:#fff;border-radius:14px;padding:18px;max-width:280px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.18);}
+.cp-confirm-title{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:6px;font-family:'DM Sans',sans-serif;}
+.cp-confirm-body{font-size:12.5px;color:#64748b;line-height:1.5;margin-bottom:14px;}
+.cp-confirm-btns{display:flex;gap:8px;}
+.cp-confirm-btns button{flex:1;border:none;border-radius:8px;padding:9px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.cp-cancel{background:#f1f5f9;color:#475569;}
+.cp-confirm-go{background:#dc2626;color:#fff;}
+
+@media(max-width:520px){
+  #chat-bubble{bottom:16px;left:16px;right:16px;align-items:stretch;}
+  #chat-panel{width:auto;height:calc(100vh - 100px);max-height:calc(100vh - 100px);border-radius:18px;}
+  #chat-btn{align-self:flex-start;}
+  .cp-msg{max-width:88%;}
+}
+</style>
+
+<div id="chat-bubble">
+  <div id="chat-panel">
+    <div class="cp-head">
+      <button class="cp-icon-btn cp-back-btn" id="cpBackBtn" onclick="cpShowList()" style="display:none" title="Back">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="cp-head-left">
+        <div class="cp-avatar">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div style="min-width:0;flex:1">
+          <div class="cp-name" id="cpHeadTitle">Permitlify Support</div>
+          <div class="cp-status" id="cpHeadSub">Online — typically replies in hours</div>
+        </div>
+      </div>
+      <div class="cp-head-actions">
+        <button class="cp-icon-btn cp-conv-delete" id="cpConvDeleteBtn" onclick="cpAskDelete()" style="display:none" title="Delete discussion">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+        </button>
+        <button class="cp-icon-btn" onclick="closeChatWidget()" title="Close">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Confirm delete overlay -->
+    <div class="cp-confirm" id="cpConfirm">
+      <div class="cp-confirm-box">
+        <div class="cp-confirm-title">Delete this discussion?</div>
+        <div class="cp-confirm-body">All messages will be permanently removed. This cannot be undone.</div>
+        <div class="cp-confirm-btns">
+          <button class="cp-cancel" onclick="cpCloseConfirm()">Cancel</button>
+          <button class="cp-confirm-go" id="cpConfirmGoBtn" onclick="cpDoDelete()">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cp-body">
+      <!-- LIST VIEW -->
+      <div class="cp-view active" id="cpViewList">
+        <div class="cp-list-header">
+          <div class="cp-list-title">Your discussions</div>
+          <button class="cp-new-btn" onclick="cpShowNew()">
+            <svg aria-hidden="true" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            New
+          </button>
+        </div>
+        <div class="cp-list" id="cpList">
+          <div class="cp-loading">Loading…</div>
+        </div>
+      </div>
+
+      <!-- CONVERSATION VIEW -->
+      <div class="cp-view" id="cpViewConv">
+        <div class="cp-conv-meta">
+          <div class="cp-conv-subject" id="cpConvSubject">—</div>
+          <div class="cp-conv-sub">
+            <span id="cpConvRef">#—</span>
+            <span class="dot"></span>
+            <span class="cp-status-chip" id="cpConvStatus">open</span>
+          </div>
+        </div>
+        <div class="cp-msgs" id="cpMsgs"></div>
+        <div class="cp-reply-row">
+          <textarea class="cp-reply-input" id="cpReplyInput" rows="1" placeholder="Type your reply…" oninput="cpAutoGrow(this)" onkeydown="cpReplyKey(event)"></textarea>
+          <button class="cp-send-btn" id="cpReplyBtn" onclick="cpSendReply()" title="Send">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- NEW TICKET VIEW -->
+      <div class="cp-view" id="cpViewNew">
+        <div class="cp-intro">
+          <div class="cp-intro-icon">
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </div>
+          <div class="cp-intro-title">Start a new discussion</div>
+          <div class="cp-intro-sub">We typically reply within a few hours.</div>
+        </div>
+        <form class="cp-form" id="chatForm" onsubmit="submitChatForm(event)">
+          {% csrf_token %}
+          <div class="cp-field" style="display:flex;gap:10px;">
+            <div style="flex:1">
+              <label>Category</label>
+              <select class="cp-select" name="category">
+                <option value="general">General Question</option>
+                <option value="billing">Billing & Subscription</option>
+                <option value="technical">Technical Issue</option>
+                <option value="permits">Permit Data</option>
+                <option value="account">Account</option>
+                <option value="feature">Feature Request</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label>Priority</label>
+              <select class="cp-select" name="priority">
+                <option value="low">🟢 Low</option>
+                <option value="normal" selected>⚪ Normal</option>
+                <option value="urgent">🔴 Urgent</option>
+              </select>
+            </div>
+          </div>
+          <div class="cp-field">
+            <label>Subject</label>
+            <input class="cp-input" type="text" name="subject" placeholder="Brief summary of your issue" required maxlength="160">
+          </div>
+          <div class="cp-field">
+            <label>Message</label>
+            <textarea class="cp-textarea" name="message" placeholder="Describe the issue in detail…" required></textarea>
+          </div>
+          <div class="cp-err" id="chatErr">Something went wrong. Please try again.</div>
+          <button type="submit" class="cp-submit" id="chatSubmitBtn">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Send Message
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Footer quick actions: visible from any view -->
+    <div class="cp-footer" id="cpFooter">
+      <button class="cp-footer-btn" onclick="cpShowList()" title="View all discussions">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        All<span class="cp-footer-count" id="cpFooterCount" style="display:none">0</span>
+      </button>
+      <button class="cp-footer-btn" onclick="cpShowNew()" title="New discussion">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New
+      </button>
+    </div>
+  </div>
+  <button id="chat-btn" onclick="toggleChatWidget()" title="Contact Support">
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    <div id="chat-notif"></div>
+  </button>
+</div>
+
+<script>
+(function(){
+  var CP = {
+    panel: null, currentTicketId: null, deleteTargetId: null, csrf: null
+  };
+
+  function _csrf(){
+    if (CP.csrf) return CP.csrf;
+    var f = document.getElementById('chatForm');
+    if (f){
+      var i = f.querySelector('[name=csrfmiddlewaretoken]');
+      if (i){ CP.csrf = i.value; return CP.csrf; }
+    }
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? m[1] : '';
+  }
+  function escapeHtml(s){
+    return (s == null ? '' : String(s)).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+  function showView(name){
+    ['List','Conv','New'].forEach(function(n){
+      var el = document.getElementById('cpView'+n);
+      if (el) el.classList.toggle('active', n.toLowerCase() === name);
+    });
+    var back = document.getElementById('cpBackBtn');
+    var del  = document.getElementById('cpConvDeleteBtn');
+    var head = document.getElementById('cpHeadTitle');
+    var sub  = document.getElementById('cpHeadSub');
+    if (name === 'list'){
+      back.style.display = 'none';
+      del.style.display = 'none';
+      head.textContent = 'Permitlify Support';
+      sub.textContent = 'Online — typically replies in hours';
+    } else if (name === 'conv'){
+      // Always show the back arrow so the user can return to the ticket list
+      // regardless of how they entered (notification deep-link, list click, etc.)
+      back.style.display = '';
+      del.style.display = '';
+      head.textContent = 'Discussion';
+      sub.textContent = 'We usually reply within a few hours';
+    } else {
+      // Always show the back arrow on the new-ticket form too
+      back.style.display = '';
+      del.style.display = 'none';
+      head.textContent = 'New discussion';
+      sub.textContent = 'Tell us what you need help with';
+    }
+  }
+
+  window.toggleChatWidget = function(){
+    var p = document.getElementById('chat-panel');
+    var open = p.classList.toggle('open');
+    if (open) cpShowList();
+  };
+  window.openChatWidget = function(){
+    document.getElementById('chat-panel').classList.add('open');
+    // Default entry point = ticket list. Notification dropdown items
+    // (and other deep-link callers) override this by calling cpOpenConv()
+    // right after openChatWidget() to jump straight into a conversation.
+    cpShowList();
+  };
+  window.closeChatWidget = function(){
+    document.getElementById('chat-panel').classList.remove('open');
+    cpCloseConfirm();
+  };
+
+  // Default entry point: open straight into the most recent ticket so the
+  // user doesn't have to drill into the list to read or reply. Falls back
+  // to the New form when the user has no tickets yet. The "All" footer
+  // button remains the last-resort way to see every discussion.
+  window.cpShowMostRecent = function(){
+    fetch('{% url "support_widget_tickets" %}', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.ok){ CP.convOrigin = 'direct'; cpShowList(); return; }
+        updateFooterCount(d.tickets);
+        updateUnreadBadge(d.tickets);
+        if (d.tickets && d.tickets.length){
+          // Server returns tickets sorted updated_at DESC, then by priority.
+          CP.convOrigin = 'direct';
+          cpOpenConv(d.tickets[0].id);
+        } else {
+          CP.newOrigin = 'direct';
+          showView('new');
+          resetNewForm();
+        }
+      })
+      .catch(function(){ CP.convOrigin = 'direct'; cpShowList(); });
+  };
+
+  function updateFooterCount(tickets){
+    var el = document.getElementById('cpFooterCount');
+    if (!el) return;
+    var n = (tickets || []).length;
+    if (n > 0){ el.style.display = ''; el.textContent = n > 99 ? '99+' : n; }
+    else { el.style.display = 'none'; el.textContent = ''; }
+  }
+  function updateUnreadBadge(tickets){
+    var unread = 0;
+    (tickets || []).forEach(function(t){
+      var s = (t.last_sender || '').toLowerCase();
+      var isSupport = (s === 'agent' || s === 'admin' || s === 'support' || s === 'staff');
+      // A ticket is "unread" only when support replied last AND the user
+      // hasn't acknowledged it yet (is_read === false). Closed tickets
+      // never contribute to the unread counter.
+      if (isSupport && (t.status === 'open' || t.status === 'in_progress') && !t.is_read) unread++;
+    });
+    var n = document.getElementById('chat-notif');
+    if (unread > 0){ n.style.display = 'flex'; n.textContent = unread > 9 ? '9+' : unread; }
+    else { n.style.display = 'none'; n.textContent = ''; }
+    // keep top-bar bell in sync too
+    if (typeof tbUpdateBadge === 'function') tbUpdateBadge(unread);
+  }
+  function resetNewForm(){
+    var form = document.getElementById('chatForm');
+    if (form) form.reset();
+    document.getElementById('chatErr').style.display = 'none';
+    var btn = document.getElementById('chatSubmitBtn');
+    btn.disabled = false;
+    btn.innerHTML = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Message';
+  }
+
+  window.cpShowList = function(){
+    showView('list');
+    CP.currentTicketId = null;
+    loadTickets();
+  };
+  window.cpShowNew = function(){
+    // If the caller (cpShowMostRecent) already declared a 'direct' origin,
+    // keep it so the back button stays hidden. Otherwise this was reached
+    // from the list view, so show the back button.
+    if (CP.newOrigin !== 'direct') CP.newOrigin = 'list';
+    showView('new');
+    var form = document.getElementById('chatForm');
+    if (form) form.reset();
+    document.getElementById('chatErr').style.display = 'none';
+    var btn = document.getElementById('chatSubmitBtn');
+    btn.disabled = false;
+    btn.innerHTML = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Message';
+  };
+
+  function loadTickets(){
+    var list = document.getElementById('cpList');
+    list.innerHTML = '<div class="cp-loading">Loading…</div>';
+    fetch('{% url "support_widget_tickets" %}', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d.ok){ list.innerHTML = '<div class="cp-empty">Unable to load discussions.</div>'; return; }
+        updateFooterCount(d.tickets);
+        updateUnreadBadge(d.tickets);
+        if (!d.tickets.length){
+          list.innerHTML = '<div class="cp-empty"><div class="cp-empty-icon"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>No discussions yet.<br>Click <strong>New</strong> to start one.</div>';
+          return;
+        }
+        list.innerHTML = '';
+        d.tickets.forEach(function(t){
+          var statusLabel = t.status === 'in_progress' ? 'In progress' : t.status.charAt(0).toUpperCase()+t.status.slice(1);
+          var prio = (t.priority || 'normal').toLowerCase();
+          var prioLabel = prio === 'urgent' ? '🔴 Urgent' : (prio === 'low' ? '🟢 Low' : '⚪ Normal');
+          var preview = '';
+          if (t.last_text){
+            preview = (t.last_sender === 'user' ? 'You: ' : (t.last_sender === 'system' ? '' : 'Support: ')) + escapeHtml(t.last_text);
+          } else {
+            preview = 'No messages yet';
+          }
+          var ls = (t.last_sender || '').toLowerCase();
+          var isSupportLast = (ls === 'agent' || ls === 'admin' || ls === 'support' || ls === 'staff');
+          var isUnread = isSupportLast && (t.status === 'open' || t.status === 'in_progress') && !t.is_read;
+          var item = document.createElement('div');
+          item.className = 'cp-list-item' + (isUnread ? ' cp-list-item-unread' : '');
+          item.innerHTML =
+            (isUnread ? '<span class="cp-list-newdot" title="New reply"></span>' : '') +
+            '<div class="cp-list-item-top">' +
+              '<div class="cp-list-subject">'+escapeHtml(t.subject || '(no subject)')+'</div>' +
+              '<span class="cp-prio-chip cp-prio-'+prio+'">'+prioLabel+'</span>' +
+              '<span class="cp-status-chip cp-status-'+t.status+'">'+statusLabel+'</span>' +
+            '</div>' +
+            (isUnread ? '<div class="cp-list-newtag">🟢 New reply from support</div>' : '') +
+            '<div class="cp-list-preview">'+preview+'</div>' +
+            '<div class="cp-list-meta">' +
+              '<span class="cp-list-time">'+escapeHtml(t.updated_fmt || '')+' · '+t.msg_count+' msg'+(t.msg_count===1?'':'s')+'</span>' +
+              (isUnread ? '<button class="cp-list-mark" data-mark="'+t.id+'" title="Mark as read" aria-label="Mark as read">' +
+                '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+                '</button>' : '') +
+              '<button class="cp-list-delete" data-id="'+t.id+'" title="Delete discussion">' +
+                '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>' +
+              '</button>' +
+            '</div>';
+          item.addEventListener('click', function(e){
+            if (e.target.closest('.cp-list-delete')) return;
+            if (e.target.closest('.cp-list-mark')) return;
+            cpOpenConv(t.id);
+          });
+          item.querySelector('.cp-list-delete').addEventListener('click', function(e){
+            e.stopPropagation();
+            CP.deleteTargetId = t.id;
+            document.getElementById('cpConfirm').classList.add('open');
+          });
+          var markBtn = item.querySelector('.cp-list-mark');
+          if (markBtn){
+            markBtn.addEventListener('click', function(e){
+              e.stopPropagation();
+              if (typeof window.tbMarkRead === 'function'){
+                window.tbMarkRead(t.id).then(function(){ loadTickets(); });
+              }
+            });
+          }
+          list.appendChild(item);
+        });
+      })
+      .catch(function(){ list.innerHTML = '<div class="cp-empty">Network error.</div>'; });
+  }
+
+  window.cpOpenConv = function(id){
+    CP.currentTicketId = id;
+    // Opening a ticket clears its notification — keep bell + chat badges in sync.
+    if (typeof window.tbMarkRead === 'function') window.tbMarkRead(id);
+    showView('conv');
+    document.getElementById('cpConvSubject').textContent = 'Loading…';
+    document.getElementById('cpConvRef').textContent = '';
+    document.getElementById('cpMsgs').innerHTML = '<div class="cp-loading">Loading messages…</div>';
+    fetch('/support/api/tickets/'+id+'/', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d.ok){ document.getElementById('cpMsgs').innerHTML = '<div class="cp-empty">Unable to load.</div>'; return; }
+        renderConv(d.ticket);
+      })
+      .catch(function(){ document.getElementById('cpMsgs').innerHTML = '<div class="cp-empty">Network error.</div>'; });
+  };
+
+  function renderConv(t){
+    document.getElementById('cpConvSubject').textContent = t.subject || '(no subject)';
+    document.getElementById('cpConvRef').textContent = '#' + (t.ticket_id || t.id);
+    var sc = document.getElementById('cpConvStatus');
+    sc.className = 'cp-status-chip cp-status-' + t.status;
+    sc.textContent = t.status === 'in_progress' ? 'In progress' : (t.status.charAt(0).toUpperCase()+t.status.slice(1));
+    var box = document.getElementById('cpMsgs');
+    box.innerHTML = '';
+    (t.messages || []).forEach(function(m){
+      var div = document.createElement('div');
+      div.className = 'cp-msg ' + (m.sender || 'user');
+      var nameHtml = (m.sender !== 'user' && m.sender !== 'system' && m.name) ? '<div class="cp-msg-name">'+escapeHtml(m.name)+'</div>' : '';
+      div.innerHTML = nameHtml + escapeHtml(m.text).replace(/\n/g,'<br>') + (m.ts_fmt ? '<div class="cp-msg-time">'+escapeHtml(m.ts_fmt)+'</div>' : '');
+      box.appendChild(div);
+    });
+    box.scrollTop = box.scrollHeight;
+  }
+
+  window.cpAutoGrow = function(el){
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 96) + 'px';
+  };
+  window.cpReplyKey = function(e){
+    if (e.key === 'Enter' && !e.shiftKey){
+      e.preventDefault();
+      cpSendReply();
+    }
+  };
+  function appendLocalMsg(text){
+    var box = document.getElementById('cpMsgs');
+    var div = document.createElement('div');
+    div.className = 'cp-msg user';
+    div.innerHTML = escapeHtml(text).replace(/\n/g,'<br>') + '<div class="cp-msg-time">just now</div>';
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+  }
+  function silentRefreshConv(id){
+    fetch('/support/api/tickets/'+id+'/', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if (d.ok && CP.currentTicketId === id) renderConv(d.ticket); })
+      .catch(function(){});
+  }
+  window.cpSendReply = function(){
+    if (!CP.currentTicketId) return;
+    var ta = document.getElementById('cpReplyInput');
+    var text = ta.value.trim();
+    if (!text) return;
+    var btn = document.getElementById('cpReplyBtn');
+    btn.disabled = true;
+    var fd = new FormData();
+    fd.append('message', text);
+    fd.append('csrfmiddlewaretoken', _csrf());
+    var ticketId = CP.currentTicketId;
+    appendLocalMsg(text);
+    ta.value = ''; ta.style.height = '';
+    fetch('/support/api/tickets/'+ticketId+'/reply/', {
+      method:'POST', body:fd, credentials:'same-origin',
+      headers:{'X-CSRFToken': _csrf()}
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false;
+      if (d.ok){ silentRefreshConv(ticketId); }
+    })
+    .catch(function(){ btn.disabled = false; });
+  };
+
+  window.cpAskDelete = function(){
+    if (!CP.currentTicketId) return;
+    CP.deleteTargetId = CP.currentTicketId;
+    document.getElementById('cpConfirm').classList.add('open');
+  };
+  window.cpCloseConfirm = function(){
+    document.getElementById('cpConfirm').classList.remove('open');
+    CP.deleteTargetId = null;
+  };
+  window.cpDoDelete = function(){
+    var id = CP.deleteTargetId;
+    if (!id) return;
+    var btn = document.getElementById('cpConfirmGoBtn');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    var fd = new FormData();
+    fd.append('csrfmiddlewaretoken', _csrf());
+    fetch('/support/api/tickets/'+id+'/delete/', {
+      method:'POST', body:fd, credentials:'same-origin',
+      headers:{'X-CSRFToken': _csrf()}
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false; btn.textContent = 'Delete';
+      cpCloseConfirm();
+      if (d.ok){ cpShowList(); }
+    })
+    .catch(function(){ btn.disabled = false; btn.textContent = 'Delete'; });
+  };
+
+  window.submitChatForm = function(e){
+    e.preventDefault();
+    var btn = document.getElementById('chatSubmitBtn');
+    var err = document.getElementById('chatErr');
+    err.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    var fd = new FormData(e.target);
+    fetch('{% url "support_new_ticket" %}', {
+      method:'POST', body:fd, credentials:'same-origin',
+      headers:{'X-CSRFToken': fd.get('csrfmiddlewaretoken')}
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok){
+        cpOpenConv(d.ticket_id);
+      } else {
+        err.textContent = d.error || 'Something went wrong.';
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Message';
+      }
+    })
+    .catch(function(){
+      err.textContent = 'Network error. Please try again.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send Message';
+    });
+  };
+
+  // Background unread badge + footer count on page load
+  document.addEventListener('DOMContentLoaded', function(){
+    fetch('{% url "support_widget_tickets" %}', {credentials:'same-origin'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (!d || !d.ok) return;
+        updateUnreadBadge(d.tickets);
+        updateFooterCount(d.tickets);
+      })
+      .catch(function(){});
+  });
+})();
+</script>
+{% endif %}
+
+{# ── Absolute session-timeout countdown popup ────────────────── #}
+{# Renders only for logged-in users with a stamped login_at. The   #}
+{# popup script schedules a single warning at T-5min and a forced  #}
+{# sign-out at T-0, plus a 60s background poll against             #}
+{# /api/session-status/ so the timer self-corrects against clock   #}
+{# drift and reflects sign-out-everywhere actions from other tabs. #}
+{# Pairs with core/middleware.py SessionAbsoluteTimeoutMiddleware. #}
+{% if user_email and session_login_at %}
+<div id="sessExpiryRoot"
+     data-login-at="{{ session_login_at }}"
+     data-max-age="{{ session_max_age|default:3600 }}"
+     style="display:none"></div>
+<style>
+#sessModal{display:none;position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.65);align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);}
+#sessModal.show{display:flex;}
+#sessBox{width:min(440px,100%);background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 32px 100px rgba(0,0,0,.3);font-family:'DM Sans',system-ui,sans-serif;}
+#sessBoxTop{background:linear-gradient(135deg,#1d4ed8,#059669);padding:24px 24px 18px;color:#fff;text-align:center;}
+#sessBoxTop h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;margin:0 0 6px;}
+#sessBoxTop p{font-size:13px;opacity:.92;margin:0;}
+#sessCountdown{font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:800;letter-spacing:.5px;margin-top:14px;font-variant-numeric:tabular-nums;}
+#sessBoxBody{padding:20px 24px 22px;text-align:center;}
+#sessBoxBody p{margin:0 0 18px;font-size:13.5px;color:#475569;line-height:1.55;}
+#sessBoxActions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+#sessBoxActions button{font:600 13px 'DM Sans',sans-serif;padding:10px 16px;border-radius:10px;cursor:pointer;border:none;}
+.sess-btn-primary{background:linear-gradient(135deg,#1d4ed8,#059669);color:#fff;}
+.sess-btn-primary:hover{filter:brightness(1.08);}
+.sess-btn-secondary{background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;}
+.sess-btn-secondary:hover{background:#e2e8f0;}
+#sessBlocker{display:none;position:fixed;inset:0;z-index:99998;background:rgba(15,23,42,.94);align-items:center;justify-content:center;color:#fff;text-align:center;font-family:'Plus Jakarta Sans',sans-serif;padding:24px;}
+#sessBlocker.show{display:flex;flex-direction:column;}
+#sessBlocker h2{font-size:24px;font-weight:800;margin:0 0 12px;letter-spacing:-.01em;}
+#sessBlocker p{font-size:14px;opacity:.85;max-width:380px;line-height:1.55;margin:0;}
+</style>
+<div id="sessModal" role="dialog" aria-labelledby="sessTitle" aria-modal="true">
+  <div id="sessBox">
+    <div id="sessBoxTop">
+      <h3 id="sessTitle">Your session is ending soon</h3>
+      <p>For your security, sessions are limited to 1 hour.</p>
+      <div id="sessCountdown" aria-live="polite">5:00</div>
+    </div>
+    <div id="sessBoxBody">
+      <p><strong>You will be signed out automatically when the timer reaches 0:00</strong> — including any work in progress on this page. Sign in again now to start a fresh hour, or dismiss this notice and finish what you're doing before the timer runs out.</p>
+      <div id="sessBoxActions">
+        <button class="sess-btn-secondary" type="button" onclick="window.__sessDismiss()">Dismiss for now</button>
+        <button class="sess-btn-primary"   type="button" onclick="window.__sessSignInNow()">Sign in again</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="sessBlocker" role="alertdialog" aria-modal="true">
+  <h2>Your session has ended</h2>
+  <p>For security, Permitlify sessions are limited to 1 hour. Redirecting you to the sign-in page…</p>
+</div>
+<script>
+(function(){
+  var root = document.getElementById('sessExpiryRoot');
+  if (!root) return;
+  var loginAt = parseInt(root.getAttribute('data-login-at'), 10) || 0;
+  var maxAge  = parseInt(root.getAttribute('data-max-age'),  10) || 3600;
+  if (!loginAt) return;  // no stamp → middleware will graceful-migrate
+
+  // Show the modal at the 5-minute, 4-minute, and 3-minute marks
+  // (one-shot per mark). If the user dismisses, re-pop after 60s.
+  // This replaces the previous "show once at T-5min and stay until
+  // dismissed" behaviour, which let users hide the warning forever
+  // and then get blindsided by the auto sign-out.
+  var WARN_BEFORE = 5 * 60;          // when the popup machinery wakes
+  var MINUTE_MARKS = [5, 4, 3];      // auto-show at these whole-minute boundaries
+  var DISMISS_RESHOW_SEC = 60;       // re-pop this long after a dismiss
+  var modal     = document.getElementById('sessModal');
+  var blocker   = document.getElementById('sessBlocker');
+  var cdEl      = document.getElementById('sessCountdown');
+  var firedMinutes = {};             // {5:true, 4:true, 3:true} once the boundary has triggered
+  var dismissReshowTimer = null;     // setTimeout id for the 60s re-pop
+  var redirected = false;
+  var origTitle = document.title;
+
+  function fmt(secs){
+    secs = Math.max(0, Math.floor(secs));
+    var m = Math.floor(secs/60), s = secs%60;
+    return m + ':' + (s<10?'0':'') + s;
+  }
+
+  function expired(){
+    if (redirected) return;
+    redirected = true;
+    blocker.classList.add('show');
+    modal.classList.remove('show');
+    // Brief pause so the user sees the message, then bounce to the
+    // login page directly. We skip /logout/ here because (a) the
+    // middleware will already flush the cookie when this request
+    // hits the server, and (b) /login/?expired=1 is what shows the
+    // friendly "session ended for security" banner — the goodbye
+    // page in /logout/ would silently swallow the ?expired flag.
+    setTimeout(function(){ window.location.href = '/login/?expired=1'; }, 1500);
+  }
+
+  function showModal(){ modal.classList.add('show'); }
+  function hideModal(){ modal.classList.remove('show'); }
+
+  function tick(){
+    if (redirected) return;
+    var now     = Math.floor(Date.now()/1000);
+    var expires = loginAt + maxAge;
+    var rem     = expires - now;
+    if (rem <= 0){ expired(); return; }
+    if (rem <= WARN_BEFORE){
+      cdEl.textContent = fmt(rem);
+      // Always show the countdown in the tab title — passive cue
+      // for users on a different tab even when the modal is hidden.
+      document.title = '(' + fmt(rem) + ') ' + origTitle;
+      // Auto-show at each MINUTE_MARKS boundary, one shot per mark.
+      // ``ceil`` rather than ``floor`` so 4:59 still counts as the
+      // "5-minute mark" — we want to fire as we cross INTO each
+      // bucket, not as we leave it. Cancels any pending dismiss
+      // re-pop so the two timers don't fight each other.
+      var minLeft = Math.ceil(rem / 60);
+      if (MINUTE_MARKS.indexOf(minLeft) !== -1 && !firedMinutes[minLeft]){
+        firedMinutes[minLeft] = true;
+        if (dismissReshowTimer){
+          clearTimeout(dismissReshowTimer); dismissReshowTimer = null;
+        }
+        showModal();
+      }
+      setTimeout(tick, 1000);
+    } else {
+      // Sleep until 1 second before warn-window opens — saves CPU on
+      // background tabs that would otherwise wake every second for
+      // the entire 55-minute idle period.
+      var sleep = (rem - WARN_BEFORE) * 1000;
+      setTimeout(tick, Math.min(sleep, 60000));
+    }
+  }
+
+  window.__sessDismiss = function(){
+    hideModal();
+    // Re-pop 60s after a dismiss (unless the next minute-mark trigger
+    // beats us to it, in which case ``tick`` cancels this timer).
+    if (dismissReshowTimer) clearTimeout(dismissReshowTimer);
+    dismissReshowTimer = setTimeout(function(){
+      dismissReshowTimer = null;
+      if (!redirected) showModal();
+    }, DISMISS_RESHOW_SEC * 1000);
+  };
+  window.__sessSignInNow = function(){
+    // Hit /logout/ first so the server-side session is destroyed
+    // BEFORE we land on /login/. The previous behaviour just
+    // navigated straight to /login/?expired=1 and counted on the
+    // SessionAbsoluteTimeoutMiddleware to flush the cookie on the
+    // next authed request — but if the user's session hadn't yet
+    // crossed the 1-hour cap (because they hit "Sign in again"
+    // proactively at T-3min) the cookie was still valid and the
+    // login page would just bounce them back to the dashboard
+    // signed-in as the same user. Routing through ``/logout/?next=``
+    // guarantees the session row is deleted and the cookie is
+    // flushed in one request, then the user lands on the login
+    // page with a clean slate. ``next`` is whitelisted server-side
+    // to relative paths so this can't be turned into an open redirect.
+    window.location.href = '/logout/?next=' +
+      encodeURIComponent('/login/?expired=1');
+  };
+
+  // Background poll every 60s. Picks up sign-out-everywhere from
+  // another tab (we get authenticated:false → redirect) and corrects
+  // the local clock against the server in case the user's machine
+  // drifted. 401 means the middleware already kicked us — go to login.
+  function poll(){
+    if (redirected) return;
+    fetch('/api/session-status/', {
+      credentials: 'same-origin',
+      headers: {'Accept': 'application/json'}
+    })
+    .then(function(r){
+      if (r.status === 401){
+        redirected = true;
+        window.location.href = '/login/?expired=1';
+        return null;
+      }
+      return r.json();
+    })
+    .then(function(d){
+      if (!d) return;
+      if (!d.authenticated){
+        redirected = true;
+        window.location.href = '/login/?expired=1';
+        return;
+      }
+      if (d.expires_at && d.max_age){
+        loginAt = d.expires_at - d.max_age;
+      }
+    })
+    .catch(function(){ /* network blip — try again next interval */ });
+  }
+  setInterval(poll, 60000);
+  tick();
+})();
+</script>
+{% endif %}
+</body>
+</html>

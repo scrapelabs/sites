@@ -1,0 +1,383 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Google Sign-In{% endblock %}
+{% block page_title %}Google Sign-In{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; OAuth credentials for "Continue with Google"{% endblock %}
+
+{% block extra_head %}
+<style>
+.gs-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+@media(max-width:1100px){.gs-grid{grid-template-columns:1fr;}}
+
+.gs-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.gs-card-head{display:flex;align-items:center;gap:12px;padding:20px 22px 16px;border-bottom:1px solid var(--border);}
+.gs-ico{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(234,67,53,.08);}
+.gs-card-label{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14.5px;color:var(--text);}
+.gs-card-desc{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.5;}
+.gs-badge{font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;padding:3px 9px;border-radius:20px;margin-left:auto;flex-shrink:0;}
+.gs-badge.set{background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.2);}
+.gs-badge.unset{background:rgba(220,38,38,.08);color:#dc2626;border:1px solid rgba(220,38,38,.2);}
+.gs-badge.on{background:rgba(22,163,74,.1);color:#16a34a;border:1px solid rgba(22,163,74,.2);}
+.gs-badge.off{background:rgba(148,163,184,.15);color:#64748b;border:1px solid rgba(148,163,184,.3);}
+
+.gs-body{padding:18px 22px;}
+.gs-field{margin-bottom:14px;}
+.gs-field:last-of-type{margin-bottom:0;}
+.gs-label{display:block;font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:5px;letter-spacing:.02em;}
+.gs-label span{font-weight:400;color:var(--muted);margin-left:4px;}
+.gs-input-wrap{position:relative;}
+.gs-input{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--text);background:#fff;outline:none;transition:border .15s;box-sizing:border-box;}
+.gs-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.gs-input-url{padding-right:80px;}
+.gs-copy-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--muted);cursor:pointer;padding:3px 8px;font-family:inherit;}
+.gs-copy-btn:hover{color:var(--text);}
+.gs-current{font-size:11px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.gs-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--bg);border-top:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+.gs-save-btn{padding:8px 20px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .18s,transform .18s,box-shadow .18s;display:flex;align-items:center;gap:6px;box-shadow:var(--sh-grad);}
+.gs-save-btn:hover{opacity:.92;transform:translateY(-1px);box-shadow:0 4px 16px rgba(29,78,216,.35);}
+.gs-save-btn:active{transform:translateY(0);opacity:.88;}
+.gs-danger-btn{padding:7px 14px;background:#fff;color:#dc2626;border:1px solid rgba(220,38,38,.3);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;}
+.gs-danger-btn:hover{background:#fef2f2;}
+.gs-status{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:5px;opacity:0;transition:opacity .3s;}
+.gs-status.show{opacity:1;}
+.gs-status.ok{color:#16a34a;}
+.gs-status.err{color:#dc2626;}
+
+.gs-notice{background:#eff6ff;border:1px solid #bfdbfe;border-radius:11px;padding:13px 16px;display:flex;gap:11px;align-items:flex-start;margin-bottom:22px;}
+.gs-notice-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.gs-notice-text{font-size:12px;color:#1e3a5f;line-height:1.6;}
+.gs-notice-text strong{color:#1e40af;}
+.gs-notice-text a{color:#1d4ed8;text-decoration:none;}
+.gs-notice-text a:hover{text-decoration:underline;}
+.gs-notice-text code{background:#fff;padding:1px 6px;border-radius:4px;font-size:11.5px;font-family:'JetBrains Mono',monospace;border:1px solid #bfdbfe;}
+
+.gs-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;}
+.gs-toggle-meta .gs-toggle-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14.5px;color:var(--text);margin-bottom:2px;}
+.gs-toggle-meta .gs-toggle-sub{font-size:12px;color:var(--muted);line-height:1.5;}
+.gs-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;}
+.gs-switch input{opacity:0;width:0;height:0;}
+.gs-switch-slider{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;transition:.2s;border-radius:24px;}
+.gs-switch-slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;transition:.2s;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.18);}
+.gs-switch input:checked + .gs-switch-slider{background:#16a34a;}
+.gs-switch input:checked + .gs-switch-slider:before{transform:translateX(20px);}
+
+.gs-step-list{margin:8px 0 0;padding-left:18px;font-size:12px;color:#1e3a5f;line-height:1.85;}
+.gs-step-list code{background:#fff;padding:1px 6px;border-radius:4px;font-size:11.5px;font-family:'JetBrains Mono',monospace;border:1px solid #bfdbfe;}
+
+#toastGlobal{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;font-size:12.5px;font-weight:500;padding:11px 18px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.2);z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;font-family:'DM Sans',sans-serif;}
+#toastGlobal.ok{background:#16a34a;}
+#toastGlobal.err{background:#dc2626;}
+#toastGlobal.show{opacity:1;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="toastGlobal"></div>
+
+<div class="gs-notice">
+  <div class="gs-notice-icon">ℹ️</div>
+  <div class="gs-notice-text">
+    <strong>Changes saved here take effect immediately</strong> — no server restart needed.
+    Create an OAuth 2.0 Client (Web application) at the
+    <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console → Credentials</a> page,
+    then paste the Client ID &amp; Secret below. You must also register the redirect URI shown in the right-hand card with Google.
+    <ol class="gs-step-list">
+      <li>In Google Cloud Console open <strong>APIs &amp; Services → Credentials</strong> and click <em>Create Credentials → OAuth client ID</em>.</li>
+      <li>Choose <code>Web application</code>. Add the <strong>Authorized JavaScript origin</strong> and <strong>Authorized redirect URI</strong> shown in the right card.</li>
+      <li>Paste the generated <strong>Client ID</strong> and <strong>Client Secret</strong> on the left, save, then flip the master switch on.</li>
+    </ol>
+  </div>
+</div>
+
+<div class="gs-grid">
+
+  <!-- LEFT: Credentials -->
+  <div class="gs-card">
+    <div class="gs-card-head">
+      <div class="gs-ico">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      </div>
+      <div>
+        <div class="gs-card-label">OAuth Credentials</div>
+        <div class="gs-card-desc">Client ID &amp; secret from Google Cloud Console</div>
+      </div>
+      {% if g_client_id_set and g_client_secret_set %}
+        <span class="gs-badge set">SAVED</span>
+      {% else %}
+        <span class="gs-badge unset">MISSING</span>
+      {% endif %}
+    </div>
+    <form method="post" id="gs-creds-form">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="credentials">
+      <div class="gs-body">
+        <div class="gs-field">
+          <label class="gs-label" for="google_client_id">Client ID <span>(public)</span></label>
+          <input class="gs-input" type="text" id="google_client_id" name="google_client_id"
+                 placeholder="123456789-abcdefghijk.apps.googleusercontent.com"
+                 autocomplete="off">
+          {% if g_client_id_set %}<div class="gs-current">Current: {{ g_client_id_masked }}</div>{% endif %}
+        </div>
+        <div class="gs-field">
+          <label class="gs-label" for="google_client_secret">Client Secret <span>(server-only)</span></label>
+          <input class="gs-input" type="password" id="google_client_secret" name="google_client_secret"
+                 placeholder="GOCSPX-xxxxxxxxxxxxxxxxxxxxxxx"
+                 autocomplete="new-password">
+          {% if g_client_secret_set %}<div class="gs-current">Current: {{ g_client_secret_masked }}</div>{% endif %}
+        </div>
+      </div>
+      <div class="gs-footer">
+        <div style="display:flex;gap:8px;">
+          <button type="submit" class="gs-save-btn">Save credentials</button>
+          {% if g_client_secret_set %}
+          <button type="button" class="gs-danger-btn" onclick="clearSecret()">Clear secret</button>
+          {% endif %}
+        </div>
+        <div class="gs-status" id="gs-creds-status"></div>
+      </div>
+    </form>
+  </div>
+
+  <!-- RIGHT: Redirect URIs / origins to register with Google -->
+  <div class="gs-card">
+    <div class="gs-card-head">
+      <div class="gs-ico" style="background:rgba(5,150,105,.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </div>
+      <div>
+        <div class="gs-card-label">Register with Google</div>
+        <div class="gs-card-desc">Edit if your live URL differs from auto-detected. Must match Google Cloud Console exactly.</div>
+      </div>
+      {% if urls_overridden %}
+        <span class="gs-badge set">CUSTOM</span>
+      {% else %}
+        <span class="gs-badge off">AUTO</span>
+      {% endif %}
+    </div>
+    <form method="post" id="gs-urls-form">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="urls">
+      <div class="gs-body">
+        <div class="gs-field">
+          <label class="gs-label" for="google_authorized_origin">
+            Authorized JavaScript origin
+            <span>(leave blank to auto-detect)</span>
+          </label>
+          <div class="gs-input-wrap">
+            <input class="gs-input gs-input-url" type="text"
+                   id="google_authorized_origin" name="google_authorized_origin"
+                   value="{{ authorized_origin_value }}"
+                   placeholder="{{ authorized_origin_auto }}"
+                   spellcheck="false" autocomplete="off">
+            <button type="button" class="gs-copy-btn" onclick="copyEffective('origin', this)">Copy</button>
+          </div>
+          <div class="gs-current">
+            Effective: <span id="gs-eff-origin">{{ authorized_origin }}</span>
+          </div>
+        </div>
+        <div class="gs-field">
+          <label class="gs-label" for="google_redirect_uri">
+            Authorized redirect URI
+            <span>(must end with <code style="font-size:10.5px;background:#fff;padding:1px 5px;border-radius:4px;border:1px solid #e2e8f0;">/auth/google/callback/</code>)</span>
+          </label>
+          <div class="gs-input-wrap">
+            <input class="gs-input gs-input-url" type="text"
+                   id="google_redirect_uri" name="google_redirect_uri"
+                   value="{{ redirect_uri_value }}"
+                   placeholder="{{ redirect_uri_auto }}"
+                   spellcheck="false" autocomplete="off">
+            <button type="button" class="gs-copy-btn" onclick="copyEffective('redirect', this)">Copy</button>
+          </div>
+          <div class="gs-current">
+            Effective: <span id="gs-eff-redirect">{{ redirect_uri }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="gs-footer">
+        <div style="display:flex;gap:8px;">
+          <button type="submit" class="gs-save-btn">Save URLs</button>
+          {% if urls_overridden %}
+          <button type="button" class="gs-danger-btn" onclick="resetUrls()">Reset to auto-detect</button>
+          {% endif %}
+        </div>
+        <div class="gs-status" id="gs-urls-status"></div>
+      </div>
+    </form>
+  </div>
+
+  <!-- LEFT: Master switch -->
+  <div class="gs-card" style="grid-column:1 / -1;">
+    <form method="post" id="gs-toggle-form">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="enabled">
+      <div class="gs-toggle-row">
+        <div class="gs-toggle-meta">
+          <div class="gs-toggle-title">
+            "Continue with Google" button
+            {% if g_enabled %}<span class="gs-badge on" style="margin-left:8px;">ON</span>
+            {% else %}<span class="gs-badge off" style="margin-left:8px;">OFF</span>{% endif %}
+            {% if g_ready %}<span class="gs-badge set" style="margin-left:6px;">READY</span>{% endif %}
+          </div>
+          <div class="gs-toggle-sub">
+            When on AND credentials are saved, the Google button shows on /login and /signup.
+            New users are auto-created on the Starter plan; existing email matches are auto-linked.
+          </div>
+        </div>
+        <label class="gs-switch">
+          <input type="checkbox" name="google_oauth_enabled" id="gs-toggle"
+                 {% if g_enabled %}checked{% endif %}
+                 onchange="document.getElementById('gs-toggle-form').requestSubmit()">
+          <span class="gs-switch-slider"></span>
+        </label>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<script>
+function showToast(msg, kind){
+  var t = document.getElementById('toastGlobal');
+  t.textContent = msg;
+  t.className = (kind || '') + ' show';
+  clearTimeout(window._gsToast);
+  window._gsToast = setTimeout(function(){ t.className = (kind || ''); }, 2200);
+}
+
+function copyValue(id, btn){
+  var el = document.getElementById(id);
+  el.select();
+  navigator.clipboard.writeText(el.value).then(function(){
+    var prev = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(function(){ btn.textContent = prev; }, 1100);
+  });
+}
+
+// Copy what Google will actually receive — i.e., the user-entered override
+// when present, otherwise the auto-detected fallback shown as placeholder.
+function copyEffective(kind, btn){
+  var inputId = kind === 'origin' ? 'google_authorized_origin' : 'google_redirect_uri';
+  var el      = document.getElementById(inputId);
+  var value   = (el.value || '').trim() || el.placeholder;
+  navigator.clipboard.writeText(value).then(function(){
+    var prev = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(function(){ btn.textContent = prev; }, 1100);
+  });
+}
+
+function postSection(form){
+  var fd = new FormData(form);
+  return fetch('', {
+    method: 'POST',
+    body:   fd,
+    headers:{'X-Requested-With':'XMLHttpRequest'},
+    credentials:'same-origin',
+  }).then(function(r){ return r.json(); });
+}
+
+document.getElementById('gs-creds-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  var btn = e.target.querySelector('.gs-save-btn');
+  var status = document.getElementById('gs-creds-status');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  postSection(e.target).then(function(j){
+    btn.disabled = false; btn.textContent = 'Save credentials';
+    if (j.ok) {
+      status.textContent = 'Saved'; status.className = 'gs-status show ok';
+      showToast('Credentials saved', 'ok');
+      setTimeout(function(){ window.location.reload(); }, 700);
+    } else {
+      status.textContent = j.error || 'Failed'; status.className = 'gs-status show err';
+      showToast(j.error || 'Save failed', 'err');
+    }
+  }).catch(function(){
+    btn.disabled = false; btn.textContent = 'Save credentials';
+    status.textContent = 'Network error'; status.className = 'gs-status show err';
+    showToast('Network error', 'err');
+  });
+});
+
+// Live "Effective: ..." preview — mirrors what we'll send to Google as the
+// admin types. Falls back to the placeholder (auto-detected URL) when blank.
+(function(){
+  function bind(inputId, effId){
+    var inp = document.getElementById(inputId);
+    var eff = document.getElementById(effId);
+    if (!inp || !eff) return;
+    inp.addEventListener('input', function(){
+      eff.textContent = (inp.value || '').trim() || inp.placeholder;
+    });
+  }
+  bind('google_authorized_origin', 'gs-eff-origin');
+  bind('google_redirect_uri',      'gs-eff-redirect');
+})();
+
+document.getElementById('gs-urls-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  var btn    = e.target.querySelector('.gs-save-btn');
+  var status = document.getElementById('gs-urls-status');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  postSection(e.target).then(function(j){
+    btn.disabled = false; btn.textContent = 'Save URLs';
+    if (j.ok) {
+      status.textContent = 'Saved'; status.className = 'gs-status show ok';
+      showToast('URLs saved', 'ok');
+      setTimeout(function(){ window.location.reload(); }, 700);
+    } else {
+      status.textContent = j.error || 'Failed'; status.className = 'gs-status show err';
+      showToast(j.error || 'Save failed', 'err');
+    }
+  }).catch(function(){
+    btn.disabled = false; btn.textContent = 'Save URLs';
+    status.textContent = 'Network error'; status.className = 'gs-status show err';
+    showToast('Network error', 'err');
+  });
+});
+
+function resetUrls(){
+  if (!confirm('Reset to auto-detected URLs? Any custom origin/redirect URI you saved will be cleared.')) return;
+  var fd = new FormData();
+  fd.append('section', 'reset_urls');
+  fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+  fetch('', {method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin'})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if (j.ok) { showToast('Reset to auto-detect', 'ok'); setTimeout(function(){ window.location.reload(); }, 600); }
+      else      { showToast(j.error || 'Failed to reset', 'err'); }
+    });
+}
+
+document.getElementById('gs-toggle-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  postSection(e.target).then(function(j){
+    if (j.ok) {
+      showToast('Google sign-in ' + (j.enabled ? 'enabled' : 'disabled'), 'ok');
+      setTimeout(function(){ window.location.reload(); }, 600);
+    } else {
+      showToast(j.error || 'Save failed', 'err');
+      // revert checkbox visually on error
+      document.getElementById('gs-toggle').checked = !document.getElementById('gs-toggle').checked;
+    }
+  });
+});
+
+function clearSecret(){
+  if (!confirm('Clear the saved Google client secret? You will need to paste a new one before Google sign-in works again.')) return;
+  var fd = new FormData();
+  fd.append('section', 'clear_secret');
+  fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+  fetch('', {method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}, credentials:'same-origin'})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if (j.ok) { showToast('Secret cleared', 'ok'); setTimeout(function(){ window.location.reload(); }, 600); }
+      else      { showToast(j.error || 'Failed to clear', 'err'); }
+    });
+}
+
+{% if save_result.ok %}
+showToast('Saved', 'ok');
+{% endif %}
+</script>
+{% endblock %}

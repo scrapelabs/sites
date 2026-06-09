@@ -1,0 +1,651 @@
+{% extends "core/admin_base.html" %}
+{% block content %}
+<style>
+  .scc-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;margin-bottom:18px;box-shadow:0 1px 2px rgba(0,0,0,.03);}
+  .scc-card h2{margin:0 0 4px 0;font-size:16px;font-weight:700;color:#0f172a;}
+  .scc-card .scc-sub{color:#6b7280;font-size:12.5px;margin-bottom:14px;}
+  .scc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+  .scc-field label{display:block;font-size:11.5px;font-weight:600;color:#475569;margin-bottom:5px;letter-spacing:.02em;text-transform:uppercase;}
+  .scc-field input[type=text],.scc-field input[type=number],.scc-field input[type=time]{
+    width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13px;
+    background:#fff;color:#0f172a;
+  }
+  .scc-field .scc-help{font-size:11.5px;color:#94a3b8;margin-top:4px;}
+  .scc-toggle{display:inline-flex;align-items:center;gap:10px;cursor:pointer;}
+  .scc-toggle input{transform:scale(1.15);}
+  .scc-days{display:flex;flex-wrap:wrap;gap:6px;}
+  .scc-days label{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #d1d5db;border-radius:99px;font-size:12px;cursor:pointer;background:#fff;color:#0f172a;}
+  .scc-days input{margin:0;}
+  .scc-days input:checked + span{font-weight:700;}
+  .scc-actions{display:flex;justify-content:space-between;align-items:center;margin-top:14px;gap:12px;flex-wrap:wrap;}
+  .scc-btn{background:#0f172a;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+  .scc-btn.alt{background:#fff;color:#0f172a;border:1px solid #d1d5db;}
+  .scc-btn.run{background:linear-gradient(135deg,#3b82f6,#22d3ee);color:#fff;}
+  .scc-btn[disabled]{opacity:.55;cursor:not-allowed;}
+  .scc-batches{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .scc-batches th,.scc-batches td{padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:left;}
+  .scc-batches th{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.04em;font-weight:600;background:#f8fafc;}
+  .scc-pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+  .scc-pill.success{background:#dcfce7;color:#166534;}
+  .scc-pill.partial{background:#ffedd5;color:#9a3412;}
+  .scc-pill.failed {background:#fee2e2;color:#991b1b;}
+  .scc-pill.running{background:#fef3c7;color:#92400e;}
+  .scc-pill.queued {background:#e2e8f0;color:#334155;}
+
+  /* ── Cron health card ────────────────────────────────────────── */
+  .ch-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  .ch-light{
+    display:inline-flex;align-items:center;gap:10px;
+    padding:8px 14px;border-radius:99px;
+    font-weight:700;font-size:13px;letter-spacing:.02em;
+    border:1px solid transparent;
+  }
+  .ch-light.healthy{background:#dcfce7;color:#166534;border-color:#86efac;}
+  .ch-light.stale  {background:#fee2e2;color:#991b1b;border-color:#fca5a5;}
+  .ch-light.never  {background:#fef3c7;color:#92400e;border-color:#fcd34d;}
+  .ch-dot{
+    width:10px;height:10px;border-radius:50%;display:inline-block;
+    box-shadow:0 0 0 3px rgba(0,0,0,.04);
+  }
+  .ch-light.healthy .ch-dot{background:#16a34a;animation:ch-pulse 2s ease-in-out infinite;}
+  .ch-light.stale   .ch-dot{background:#dc2626;}
+  .ch-light.never   .ch-dot{background:#d97706;animation:ch-pulse 2s ease-in-out infinite;}
+  @keyframes ch-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .ch-meta{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:#475569;}
+  .ch-meta b{color:#0f172a;font-weight:700;}
+  .ch-meta .muted{color:#94a3b8;font-size:11.5px;}
+  .ch-explainer{
+    background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;
+    padding:10px 14px;margin-top:12px;font-size:12px;color:#475569;line-height:1.55;
+  }
+  .ch-explainer code{background:#e2e8f0;padding:1px 6px;border-radius:4px;font-size:11.5px;}
+</style>
+
+<h1 style="margin-top:0;">Scraper Cron</h1>
+<p style="color:#6b7280;margin-top:4px;">Configure when the cron pass runs, kick one off manually, and review the recent batches.</p>
+
+<!-- ── Cron health (external trigger heartbeat) ────────────────────── -->
+<div class="scc-card">
+  <h2>🩺 Cron health</h2>
+  <div class="scc-sub">
+    Permitlify is a web app, not a daemon — it depends on a
+    <b>GitHub Actions</b> workflow pinging the HTTP cron trigger below on a
+    fixed cadence. This card watches for that trigger so you don't have to guess.
+  </div>
+  <div class="ch-row">
+    <span id="chLight" class="ch-light {{ health.status }}">
+      <span class="ch-dot"></span>
+      <span id="chLabel">{{ health.label }}</span>
+    </span>
+    <div class="ch-meta">
+      <div>Last heartbeat: <b id="chHbAge">{{ health.heartbeat_age|default:'—' }}</b>
+        <span class="muted" id="chHbAt">{% if health.heartbeat_at %}({{ health.heartbeat_at }}){% endif %}</span>
+      </div>
+      <div>Outcome: <b id="chHbOutcome">{{ health.heartbeat_outcome|default:'—' }}</b></div>
+    </div>
+    <div class="ch-meta">
+      <div>Last actual fire: <b id="chFiredAge">{{ health.last_fired_age|default:'never' }}</b>
+        <span class="muted" id="chFiredAt">{% if health.last_fired_at %}({{ health.last_fired_at }}){% endif %}</span>
+      </div>
+      <div class="muted">Auto-refreshes every 30s · expected gap ≤ <b id="chGap">{{ health.expected_gap_min }}</b>m</div>
+    </div>
+  </div>
+
+  {% if health.status == 'never' %}
+  <div class="ch-explainer" style="background:#fffbeb;border-color:#fcd34d;color:#78350f;">
+    ⚠ <b>No external trigger has been observed yet.</b> The schedule above is
+    saved correctly, but until something on your server invokes
+    <code>python3 scripts/run_scrapers.py</code> at least every {{ health.expected_gap_min }} minutes,
+    the automatic cron will <b>never fire</b>. The "Run cron now" button still
+    works because it spawns an in-process thread inside Django.
+  </div>
+  {% elif health.status == 'stale' %}
+  <div class="ch-explainer" style="background:#fef2f2;border-color:#fca5a5;color:#7f1d1d;">
+    ⚠ <b>External trigger looks stalled.</b> The last heartbeat from
+    <code>scripts/run_scrapers.py</code> was <b>{{ health.heartbeat_age }}</b>,
+    which is older than the expected {{ health.expected_gap_min }}-minute gap.
+    Open your repo's <b>Actions</b> tab and check that the
+    <em>Permitlify scraper cron</em> workflow is still enabled and its
+    recent runs are succeeding.
+  </div>
+  {% else %}
+  <div class="ch-explainer">
+    ✓ The external trigger is invoking the cron entrypoint as expected.
+    Heartbeats land in <code>system_settings</code> on every invocation
+    (whether the schedule allows it to fire or not).
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── HTTP cron trigger URL — GitHub Actions only ─────────────────── -->
+<div class="scc-card">
+  <h2>🔗 HTTP cron trigger (GitHub Actions)</h2>
+  <div class="scc-sub">
+    Permitlify itself doesn't run a daemon — it relies on
+    <b>GitHub Actions</b> to ping the URL below on a fixed cadence. Every
+    authenticated ping triggers a scraper batch (subject to the schedule
+    + concurrency guard below). The full setup is in the
+    <em>GitHub Actions setup</em> block at the bottom of this card.
+  </div>
+
+  <div class="scc-field" style="margin-top:6px;">
+    <label>Trigger URL</label>
+    <input type="text" id="cronTrigUrl" readonly
+           value="{{ cron_trigger_url }}"
+           style="width:100%;padding:9px 11px;font-family:'JetBrains Mono',monospace;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;color:#0f172a;">
+  </div>
+
+  <!-- ── Ingest key (SCRAPER_INGEST_KEY) management ─────────────── -->
+  <div class="scc-field" style="margin-top:14px;">
+    <label>Ingest key (SCRAPER_INGEST_KEY)</label>
+    <div style="display:flex;gap:6px;align-items:stretch;flex-wrap:wrap;">
+      <div style="position:relative;flex:1 1 320px;min-width:240px;">
+        <input type="password" id="ingestKeyInput"
+               value="{{ cron_trigger_key }}"
+               autocomplete="off" spellcheck="false"
+               {% if cron_trigger_key_locked_by_env %}readonly{% endif %}
+               style="width:100%;padding:9px 70px 9px 11px;font-family:'JetBrains Mono',monospace;font-size:12px;background:{% if cron_trigger_key_locked_by_env %}#f1f5f9{% else %}#fff{% endif %};border:1px solid #d1d5db;border-radius:8px;color:#0f172a;">
+        <button type="button" id="ingestKeyToggle" onclick="ingestKeyToggleShow()"
+                title="Show / hide key"
+                style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;padding:4px 8px;border-radius:6px;">
+          👁 Show
+        </button>
+      </div>
+      <button type="button" class="scc-btn alt" onclick="ingestKeyCopy()" title="Copy to clipboard">📋 Copy</button>
+      {% if not cron_trigger_key_locked_by_env %}
+      <button type="button" class="scc-btn alt" onclick="ingestKeyGenerate()" title="Generate a strong random key">🎲 Generate</button>
+      <button type="button" class="scc-btn"     onclick="ingestKeySave()"     title="Save the value above">💾 Save</button>
+      {% if cron_trigger_key_set %}
+      <button type="button" class="scc-btn alt" onclick="ingestKeyClear()"
+              style="color:#b91c1c;border-color:#fca5a5;" title="Remove the key (endpoint will reject all calls)">🗑 Clear</button>
+      {% endif %}
+      {% endif %}
+    </div>
+    <div class="scc-help" style="margin-top:6px;">
+      Authenticate with the <code>X-Scraper-Key</code> header
+      <b>or</b> a <code>?key=…</code> query param matching this value.
+      {% if cron_trigger_key_locked_by_env %}
+        <span style="color:#1d4ed8;font-weight:600;">🔒 Locked — value is supplied by the <code>SCRAPER_INGEST_KEY</code> server env var (env always wins).</span>
+      {% elif not cron_trigger_key_set %}
+        <span style="color:#b91c1c;font-weight:600;">⚠ No key set — the endpoint will reject every call until you save one. Click <b>Generate</b> then <b>Save</b>.</span>
+      {% else %}
+        <span style="color:#166534;font-weight:600;">✓ Key stored in <code>system_settings</code>. Rotate anytime — the old value stops working immediately on Save.</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% comment %}
+    Single canonical setup path — GitHub Actions only. cron-job.org and
+    UptimeRobot blocks were removed per admin decision to consolidate on
+    one method so the team isn't juggling multiple schedulers. Open by
+    default since it's now the only option.
+  {% endcomment %}
+  <details open style="margin-top:14px;">
+    <summary style="cursor:pointer;font-weight:600;color:#1d4ed8;">▾ GitHub Actions setup (recommended, free)</summary>
+    <ol style="margin:10px 0 14px 18px;font-size:13px;line-height:1.75;color:#334155;">
+      <li>
+        In your repo, go to <b>Settings → Secrets and variables → Actions → New repository secret</b>.
+        Name it <code>SCRAPER_INGEST_KEY</code> and paste the key from the field above
+        (click <b>👁 Show</b> to reveal it).
+      </li>
+      <li>
+        Create the file <code>.github/workflows/cron-scrapers.yml</code> on the
+        <code>main</code> branch with the YAML below. Edit the <code>cron:</code> line to
+        change the cadence — <code>*/30 * * * *</code> = every 30 min, <code>0 * * * *</code> = hourly,
+        <code>0 6 * * *</code> = 06:00 UTC daily.
+      </li>
+      <li>
+        Commit. Within your chosen cadence the 🩺 Cron-health card above will flip to green.
+        You can also fire on demand from the repo's <b>Actions</b> tab → <em>Permitlify scraper cron</em> → <b>Run workflow</b>.
+      </li>
+    </ol>
+<pre style="margin:0;background:#0b1220;color:#d8e3f3;padding:12px 14px;border-radius:8px;font-size:11.5px;overflow-x:auto;">{% verbatim %}# .github/workflows/cron-scrapers.yml
+name: Permitlify scraper cron
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # every 30 min UTC — edit cadence here
+  workflow_dispatch:          # adds a manual "Run workflow" button
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Hit Permitlify cron endpoint
+        run: |
+          curl -fsS -X POST \
+            -H "X-Scraper-Key: ${{ secrets.SCRAPER_INGEST_KEY }}" \
+            "{% endverbatim %}{{ cron_trigger_url }}{% verbatim %}"{% endverbatim %}</pre>
+    <div style="margin-top:8px;font-size:12px;color:#64748b;">
+      Heads up: GitHub auto-pauses scheduled workflows on repos with no commits for 60 days — any push resumes them.
+      Permitlify's cron endpoint has a concurrency guard, so overlapping fires are safely skipped.
+    </div>
+  </details>
+</div>
+
+<!-- ── Run cron now + terminal panel ───────────────────────────────── -->
+<div class="scc-card">
+  <h2>▶ Manual run</h2>
+  <div class="scc-sub">
+    Runs every enabled scraper in series, in-process inside Django.
+    <b>This bypasses the external trigger entirely</b> — every click is logged
+    in the <em>Manual-run history</em> below, but it does <b>not</b> count as
+    an external cron heartbeat. Use the Cron-health card above to confirm your
+    real schedule is firing.
+  </div>
+  <button type="button" id="runCronNowBtn" class="scc-btn run" onclick="runCronNow()">▶ Run cron now</button>
+</div>
+
+<div id="cronBatchPanel" style="display:none;background:#0b1220;color:#d8e3f3;border:1px solid #1f2a44;border-radius:14px;padding:16px 18px;margin-bottom:18px;font-family:'JetBrains Mono',monospace;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.18);">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div>
+      <span id="cbHeadline" style="font-weight:700;color:#fff;font-size:13px;">Cron batch starting…</span>
+      <span id="cbSub" style="color:#9fb1cf;margin-left:10px;"></span>
+    </div>
+    <button type="button" onclick="closeCronPanel()" style="background:transparent;border:1px solid #334155;color:#cbd5e1;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;font-size:11px;">Close</button>
+  </div>
+  <div id="cbChildren" style="display:flex;flex-direction:column;gap:10px;"></div>
+</div>
+
+<!-- ── Schedule editor ─────────────────────────────────────────────── -->
+<form method="post" action="/admin-panel/scrapers/cron/save/" class="scc-card">
+  {% csrf_token %}
+  <h2>⏰ Schedule</h2>
+  <div class="scc-sub">
+    Permitlify itself does not run a daemon — the <b>GitHub Actions</b> workflow above pings the
+    HTTP cron trigger on a fixed cadence. The server honours these settings and
+    skips the run if today's day-of-week is not selected, or if the current UTC time is outside
+    the configured window around <em>Run at</em> (unless <em>Always fire on every signal</em> is on).
+  </div>
+
+  <label class="scc-toggle" style="margin-bottom:14px;">
+    <input type="checkbox" name="enabled" value="1" {% if cron.enabled %}checked{% endif %}>
+    <span style="font-weight:600;color:#0f172a;">Cron enabled</span>
+  </label>
+
+  {% comment %}
+    "Always fire on every signal" — when on, the at_utc / window gate
+    below is bypassed and every authenticated external trigger fires a
+    batch. Days-of-week filter still applies. The fields below get
+    visually dimmed via JS so the admin sees they no longer matter.
+  {% endcomment %}
+  <label class="scc-toggle" style="margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;">
+    <input type="checkbox" name="always_fire" id="cronAlwaysFire" value="1"
+           {% if cron.always_fire %}checked{% endif %}
+           onchange="toggleAlwaysFire()">
+    <span>
+      <span style="font-weight:600;color:#0c4a6e;">Always fire on every signal</span>
+      <span style="display:block;font-size:12px;color:#075985;margin-top:2px;">
+        Bypasses the time-of-day window below. Use this when your
+        GitHub Actions workflow is already configured for the cadence you
+        want — every authenticated call will fire a batch.
+        Days-of-week selection still applies.
+      </span>
+    </span>
+  </label>
+
+  <div class="scc-grid" id="cronWindowFields">
+    <div class="scc-field">
+      <label>Run at (UTC)</label>
+      <input type="time" name="at_utc" value="{{ cron.at_utc }}">
+      <div class="scc-help">e.g. 08:00 = 08:00 UTC daily.</div>
+    </div>
+    <div class="scc-field">
+      <label>Window (± minutes)</label>
+      <input type="number" name="window_minutes" min="1" max="720" value="{{ cron.window_minutes }}">
+      <div class="scc-help">How wide a slot around <em>Run at</em> counts as "now".</div>
+    </div>
+    <div class="scc-field">
+      <label>Per-scraper count</label>
+      <input type="number" name="count" min="1" max="500" value="{{ cron.count }}">
+      <div class="scc-help">Max permits per scraper, per pass.</div>
+    </div>
+  </div>
+  <script>
+    /* Dim the Run-at / Window fields when "Always fire" is checked so it's
+       obvious those values are being ignored. Per-scraper count stays
+       editable since it still applies to every fire. */
+    function toggleAlwaysFire(){
+      var on = document.getElementById('cronAlwaysFire').checked;
+      var grid = document.getElementById('cronWindowFields');
+      if (!grid) return;
+      var fields = grid.querySelectorAll('.scc-field');
+      for (var i = 0; i < 2 && i < fields.length; i++) {
+        fields[i].style.opacity = on ? '0.45' : '1';
+        var inp = fields[i].querySelector('input');
+        if (inp) inp.disabled = on;
+      }
+    }
+    document.addEventListener('DOMContentLoaded', toggleAlwaysFire);
+  </script>
+
+  <div class="scc-field" style="margin-top:14px;">
+    <label>Run on</label>
+    <div class="scc-days">
+      {% for d in days_of_week %}
+        <label>
+          <input type="checkbox" name="days" value="{{ d.value }}" {% if d.value in cron.days %}checked{% endif %}>
+          <span>{{ d.label }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    <div class="scc-help">Leave all unchecked to allow every day.</div>
+  </div>
+
+  <div class="scc-actions">
+    <div style="font-size:12px;color:#64748b;">
+      Last saved: {{ cron.saved_at|default:'never' }}
+    </div>
+    <div style="display:flex;gap:10px;">
+      <a href="/admin-panel/scrapers/" class="scc-btn alt">Back to scrapers</a>
+      <button type="submit" class="scc-btn">Save schedule</button>
+    </div>
+  </div>
+</form>
+
+<!-- ── Recent batches ──────────────────────────────────────────────── -->
+<div class="scc-card">
+  <h2>📜 Manual-run history</h2>
+  <div class="scc-sub">
+    Last {{ batches|length }} passes kicked from the <b>Run cron now</b>
+    button above. <b>External-cron passes (your GitHub Actions workflow)
+    do not appear here</b> — those only show up as a fresh heartbeat on the
+    Cron-health card and as <code>mode='cron'</code> rows in
+    <code>scraper_runs</code>. Click a row to re-attach the live terminal.
+  </div>
+  {% if batches %}
+  <table class="scc-batches">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Started</th>
+        <th>Finished</th>
+        <th>Duration</th>
+        <th>Scrapers</th>
+        <th>Status</th>
+        <th>Note</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in batches %}
+      <tr>
+        <td><a href="#" onclick="reattachBatch({{ b.id }});return false;" style="color:#3b82f6;font-weight:600;text-decoration:none;">#{{ b.id }}</a></td>
+        <td>{{ b.started_human }}</td>
+        <td>{{ b.finished_human|default:'—' }}</td>
+        <td>{{ b.duration_human|default:'—' }}</td>
+        <td>{{ b.child_count }}</td>
+        <td><span class="scc-pill {{ b.status }}">{{ b.status }}</span></td>
+        <td style="color:#64748b;">{{ b.note|default:'' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="padding:18px;color:#94a3b8;text-align:center;">No batches yet — hit "Run cron now" above to record the first one.</div>
+  {% endif %}
+</div>
+
+<div id="toastSc" style="position:fixed;bottom:24px;right:24px;background:#0f172a;color:#fff;padding:10px 16px;border-radius:8px;font-size:12.5px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9999;"></div>
+
+<script>
+function getCsrf() {
+  const m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? m[1] : '';
+}
+function toast(msg, kind) {
+  const t = document.getElementById('toastSc');
+  t.textContent = msg;
+  t.style.background = kind === 'err' ? '#991b1b' : (kind === 'ok' ? '#166534' : '#0f172a');
+  t.style.opacity = '1';
+  clearTimeout(window._scTo);
+  window._scTo = setTimeout(() => { t.style.opacity = '0'; }, 3500);
+}
+
+/* ── Cron-batch terminal UI ────────────────────────────────────────
+ * Identical behaviour to the old in-page terminal — extracted from
+ * admin_scrapers.html. Polls /admin-panel/scrapers/cron/batch/<id>/
+ * every 1.5s and re-renders the dark panel until the batch finishes.
+ */
+window.__cb = window.__cb || { batchId: null, timer: null };
+
+function pillFor(status){
+  const s = (status || '').toLowerCase();
+  const map = {
+    'queued':  ['queued',  '#475569', '#1e293b'],
+    'running': ['running', '#fbbf24', '#3a2f0a'],
+    'success': ['success', '#22c55e', '#0f2e1a'],
+    'partial': ['partial', '#f97316', '#3a1d0a'],
+    'failed':  ['failed',  '#ef4444', '#3a0f0f'],
+  };
+  const [label, fg, bg] = map[s] || ['—', '#94a3b8', '#1e293b'];
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:'+fg+';background:'+bg+';">'+label+'</span>';
+}
+function escHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function renderChildCard(c){
+  const pct = Math.max(0, Math.min(100, c.pct || 0));
+  const log = (c.step_log || []).slice(-12).map(e => {
+    const t = (e && e.t) ? e.t : '';
+    const m = (e && e.msg) ? e.msg : (typeof e === 'string' ? e : '');
+    return '<div style="white-space:pre-wrap;line-height:1.5;color:#9fb1cf;"><span style="color:#64748b;">'+escHtml(t)+'</span> '+escHtml(m)+'</div>';
+  }).join('');
+  const counts = '<span style="color:#22c55e;">'+c.succeeded+' ok</span> · <span style="color:#ef4444;">'+c.failed+' fail</span> · '+c.processed+'/'+c.total;
+  return ''
+    + '<div style="background:#0f172a;border:1px solid #1f2a44;border-radius:10px;padding:12px 14px;">'
+    + '  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">'
+    + '    <div><span style="color:#fff;font-weight:700;">'+escHtml(c.scraper_name)+'</span>'
+    + '      <span style="color:#64748b;margin-left:8px;font-size:10.5px;">scraper #'+c.scraper_id+' · run #'+c.run_id+'</span></div>'
+    + '    <div>'+pillFor(c.status)+'</div>'
+    + '  </div>'
+    + '  <div style="height:6px;background:#1e293b;border-radius:4px;overflow:hidden;margin-bottom:6px;">'
+    + '    <div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#3b82f6,#22d3ee);transition:width .3s;"></div>'
+    + '  </div>'
+    + '  <div style="display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:#94a3b8;margin-bottom:8px;">'
+    + '    <span>'+escHtml(c.current_step || '')+'</span>'
+    + '    <span>'+counts+' · '+pct.toFixed(1)+'%</span>'
+    + '  </div>'
+    + (log ? '<div style="background:#020617;border:1px solid #1e293b;border-radius:6px;padding:8px 10px;max-height:200px;overflow:auto;font-size:11px;">'+log+'</div>' : '')
+    + '  <div style="margin-top:6px;font-size:10.5px;"><a href="/admin-panel/scrapers/'+c.scraper_id+'/" style="color:#60a5fa;text-decoration:none;">Open scraper detail →</a></div>'
+    + '</div>';
+}
+function renderBatch(d){
+  const panel = document.getElementById('cronBatchPanel');
+  const head  = document.getElementById('cbHeadline');
+  const sub   = document.getElementById('cbSub');
+  const wrap  = document.getElementById('cbChildren');
+  panel.style.display = '';
+  head.textContent = 'Cron batch #' + d.batch_id + ' — ' + (d.status || 'running');
+  let subTxt = (d.children || []).length + ' scraper(s)';
+  if (d.note) subTxt += ' · ' + d.note;
+  sub.textContent = subTxt;
+  if (!d.children || !d.children.length){
+    wrap.innerHTML = '<div style="color:#94a3b8;padding:14px;">Waiting for first scraper to start…</div>';
+    return;
+  }
+  wrap.innerHTML = d.children.map(renderChildCard).join('');
+}
+async function pollBatch(){
+  const bid = window.__cb.batchId;
+  if (!bid) return;
+  try {
+    const r = await fetch('/admin-panel/scrapers/cron/batch/' + bid + '/');
+    const d = await r.json();
+    if (!d.ok) {
+      toast('Batch lookup failed: ' + (d.error || 'unknown'), 'err');
+      stopPolling();
+      return;
+    }
+    renderBatch(d);
+    if (d.finished) {
+      stopPolling();
+      const btn = document.getElementById('runCronNowBtn');
+      if (btn) { btn.disabled = false; btn.textContent = '▶ Run cron now'; }
+      const kind = d.status === 'success' ? 'ok' : (d.status === 'partial' ? '' : 'err');
+      toast('Cron batch finished: ' + (d.status || 'done'), kind);
+    }
+  } catch (e) {
+    /* transient — keep polling */
+  }
+}
+function startPolling(){
+  stopPolling();
+  pollBatch();
+  window.__cb.timer = setInterval(pollBatch, 1500);
+}
+function stopPolling(){
+  if (window.__cb.timer) { clearInterval(window.__cb.timer); window.__cb.timer = null; }
+}
+function closeCronPanel(){
+  document.getElementById('cronBatchPanel').style.display = 'none';
+  stopPolling();
+  window.__cb.batchId = null;
+}
+async function runCronNow(){
+  const btn = document.getElementById('runCronNowBtn');
+  if (btn && btn.disabled) return;
+  if (!confirm('Run every enabled scraper now (recorded as a cron pass)?')) return;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Starting…'; }
+  toast('Starting cron batch…');
+  try {
+    const r = await fetch('/admin-panel/scrapers/cron/run-now/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf() },
+    });
+    const d = await r.json();
+    if (!d.ok) {
+      toast('Could not start: ' + (d.error || 'unknown'), 'err');
+      if (btn) { btn.disabled = false; btn.textContent = '▶ Run cron now'; }
+      return;
+    }
+    window.__cb.batchId = d.batch_id;
+    if (btn) btn.textContent = '⏳ Running batch #' + d.batch_id;
+    document.getElementById('cronBatchPanel').style.display = '';
+    document.getElementById('cbHeadline').textContent = 'Cron batch #' + d.batch_id + ' — starting…';
+    document.getElementById('cbChildren').innerHTML = '<div style="color:#94a3b8;padding:14px;">Spinning up coordinator thread…</div>';
+    startPolling();
+  } catch (e) {
+    toast('Network error: ' + e.message, 'err');
+    if (btn) { btn.disabled = false; btn.textContent = '▶ Run cron now'; }
+  }
+}
+/* ── Cron-health live refresh ──────────────────────────────────────
+ * Polls /admin-panel/scrapers/cron/heartbeat/ every 30s so the admin
+ * can watch for the next external invocation without reloading the
+ * page. The colour pill, ages and explainer block all swap in place.
+ */
+async function refreshCronHealth(){
+  try {
+    const r = await fetch('/admin-panel/scrapers/cron/heartbeat/');
+    const d = await r.json();
+    if (!d.ok || !d.health) return;
+    const h = d.health;
+    const light = document.getElementById('chLight');
+    if (light) {
+      light.classList.remove('healthy','stale','never');
+      light.classList.add(h.status || 'never');
+    }
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('chLabel',     h.label || '—');
+    set('chHbAge',     h.heartbeat_age || '—');
+    set('chHbAt',      h.heartbeat_at ? '(' + h.heartbeat_at + ')' : '');
+    set('chHbOutcome', h.heartbeat_outcome || '—');
+    set('chFiredAge',  h.last_fired_age || 'never');
+    set('chFiredAt',   h.last_fired_at ? '(' + h.last_fired_at + ')' : '');
+    set('chGap',       String(h.expected_gap_min || ''));
+  } catch (e) { /* transient — try again next tick */ }
+}
+setInterval(refreshCronHealth, 30000);
+
+/* ── Ingest-key management (SCRAPER_INGEST_KEY) ────────────────────
+ * Show/hide toggles the input type between password and text.
+ * Generate / Save / Clear POST to /admin-panel/scrapers/cron/save-key/
+ * and refresh the input with the server's authoritative value.
+ */
+function ingestKeyToggleShow(){
+  var inp = document.getElementById('ingestKeyInput');
+  var btn = document.getElementById('ingestKeyToggle');
+  if (!inp || !btn) return;
+  if (inp.type === 'password') { inp.type = 'text';     btn.textContent = '🙈 Hide'; }
+  else                         { inp.type = 'password'; btn.textContent = '👁 Show'; }
+}
+function ingestKeyCopy(){
+  var inp = document.getElementById('ingestKeyInput');
+  if (!inp || !inp.value) { toast('Nothing to copy — key is empty.', 'err'); return; }
+  /* navigator.clipboard requires HTTPS or localhost; fall back to the
+   * legacy select+execCommand path so this works in dev-tunnel too. */
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(inp.value).then(
+      function(){ toast('Key copied to clipboard.', 'ok'); },
+      function(){ legacyCopy(inp); }
+    );
+  } else { legacyCopy(inp); }
+}
+function legacyCopy(inp){
+  var wasPwd = inp.type === 'password';
+  if (wasPwd) inp.type = 'text';
+  inp.select(); inp.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); toast('Key copied.', 'ok'); }
+  catch(e){ toast('Copy failed — select the value and copy manually.', 'err'); }
+  if (wasPwd) inp.type = 'password';
+  window.getSelection && window.getSelection().removeAllRanges();
+}
+async function _postIngestKey(body){
+  var fd = new FormData();
+  Object.keys(body).forEach(function(k){ fd.append(k, body[k]); });
+  var r = await fetch('/admin-panel/scrapers/cron/save-key/', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrf() },
+    body: fd,
+    credentials: 'same-origin',
+  });
+  var d;
+  try { d = await r.json(); } catch(e){ d = { ok:false, error:'Bad JSON response' }; }
+  if (!r.ok || !d.ok) {
+    toast(d.error || ('Request failed (' + r.status + ')'), 'err');
+    return null;
+  }
+  return d;
+}
+async function ingestKeyGenerate(){
+  if (!confirm('Generate a new random ingest key? The current value will be replaced and any external cron job using the old key will start failing until you update it there.')) return;
+  var d = await _postIngestKey({action:'generate'});
+  if (!d) return;
+  var inp = document.getElementById('ingestKeyInput');
+  if (inp) { inp.value = d.key || ''; inp.type = 'text'; }
+  var btn = document.getElementById('ingestKeyToggle');
+  if (btn) btn.textContent = '🙈 Hide';
+  toast('New key generated and saved. Copy it into your cron job.', 'ok');
+}
+async function ingestKeySave(){
+  var inp = document.getElementById('ingestKeyInput');
+  if (!inp) return;
+  var v = (inp.value || '').trim();
+  if (v.length < 24) { toast('Key must be at least 24 characters. Click Generate for a strong one.', 'err'); return; }
+  if (!confirm('Save this ingest key? Any external cron job using a different key will start failing immediately.')) return;
+  var d = await _postIngestKey({action:'save', key:v});
+  if (!d) return;
+  toast('Ingest key saved.', 'ok');
+}
+async function ingestKeyClear(){
+  if (!confirm('Remove the ingest key? The cron-trigger endpoint will reject every call until you set a new one.')) return;
+  var d = await _postIngestKey({action:'clear'});
+  if (!d) return;
+  var inp = document.getElementById('ingestKeyInput');
+  if (inp) inp.value = '';
+  toast('Ingest key cleared.', 'ok');
+  /* Reload so the "Clear" button hides and the red warning re-appears. */
+  setTimeout(function(){ window.location.reload(); }, 800);
+}
+
+function reattachBatch(bid){
+  window.__cb.batchId = bid;
+  document.getElementById('cronBatchPanel').style.display = '';
+  document.getElementById('cbHeadline').textContent = 'Cron batch #' + bid + ' — loading…';
+  document.getElementById('cbChildren').innerHTML = '<div style="color:#94a3b8;padding:14px;">Fetching batch state…</div>';
+  startPolling();
+  document.getElementById('cronBatchPanel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+</script>
+{% endblock %}

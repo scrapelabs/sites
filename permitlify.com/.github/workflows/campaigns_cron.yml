@@ -1,0 +1,19 @@
+name: Campaigns cron
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 min (best-effort)
+  workflow_dispatch: {}
+concurrency:
+  group: campaigns-cron
+  cancel-in-progress: false
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fire campaigns tick
+        env:
+          SCRAPER_INGEST_KEY: ${{ secrets.SCRAPER_INGEST_KEY }}
+        run: |
+          curl -fsS -X POST -H "X-Scraper-Key: $SCRAPER_INGEST_KEY" \
+            "https://permitlify.com/api/cron/campaigns/tick/?per_tick=20"

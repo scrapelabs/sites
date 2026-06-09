@@ -1,0 +1,224 @@
+{% comment %}
+  New-sign-in security alert email — clean, minimalist layout.
+
+  Replaces the previous gradient-hero design (380 px tall red→purple
+  hero with bubble-glow on top of a separate body card) with the same
+  Stripe / Linear / Vercel transactional pattern used by login_code,
+  styled in RED so the recipient instantly recognises it as a security
+  notification rather than a marketing email.
+
+    - Single white card, ~540 px wide
+    - 3 px RED accent strip at the top (sole brand+danger accent)
+    - "Permitlify" wordmark (brand blue) plus a small red shield icon
+      so the security context is obvious at a glance
+    - Headline → one-line subhead → SIGN-IN DETAILS tile (red tint) →
+      body → red CTA → hint
+    - Details tile uses a soft red background (#fef2f2) with high-
+      contrast dark text — same readability principle as the code
+      tile, but tinted to signal "security" instead of "neutral data"
+    - Button uses a single solid red so it survives Outlook (no
+      gradient fallback issues), with a subtle hover-darken via
+      conditional background
+
+  STANDALONE template — does NOT extend _email_base.html, by design.
+  The hero-card base is a better fit for warmer marketing emails
+  (welcome, payment receipt) where a tall colored hero is appropriate.
+
+  Email-client compatibility:
+    * Outer layout uses <table> + inline styles for Outlook desktop.
+    * Accent strip has a solid #dc2626 fallback for Outlook.
+    * Icon is inline SVG, gracefully ignored by Outlook (it just
+      doesn't render — wordmark + headline still convey context).
+    * No remote fonts, no images, no @import.
+{% endcomment %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>New sign-in to your Permitlify account</title>
+<style>
+  body, table, td, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+  table, td { mso-table-lspace:0; mso-table-rspace:0; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; background:#f3f5f9; font-family:'Inter','Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif; color:#0f172a; }
+  a { color:#1d4ed8; text-decoration:none; }
+
+  .card {
+    background:#ffffff;
+    border-radius:14px;
+    box-shadow:0 1px 2px rgba(15,23,42,.04), 0 8px 24px -12px rgba(15,23,42,.10);
+    overflow:hidden;
+  }
+  .accent-strip {
+    height:3px;
+    background:#dc2626;
+    background:linear-gradient(90deg,#dc2626 0%,#ef4444 50%,#f97316 100%);
+  }
+  .pad { padding:36px 40px 32px; }
+
+  .wordmark-row { margin:0 0 22px; line-height:1; }
+  .wordmark { display:inline-block; font-size:14px; font-weight:700; letter-spacing:.2px; color:#1d4ed8; vertical-align:middle; }
+  .wordmark .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#1d4ed8; vertical-align:1px; margin-right:8px; }
+  .alert-pill {
+    display:inline-block; vertical-align:middle; margin-left:10px;
+    padding:4px 9px 4px 7px; border-radius:999px;
+    background:#fef2f2; border:1px solid #fecaca;
+    font-size:11px; font-weight:700; letter-spacing:.6px; text-transform:uppercase;
+    color:#b91c1c;
+  }
+  .alert-pill svg { vertical-align:-2px; margin-right:4px; }
+
+  h1.title {
+    margin:0 0 8px;
+    font-family:'Inter','Segoe UI',-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+    font-size:24px; font-weight:700; line-height:1.25;
+    color:#0f172a; letter-spacing:-.4px;
+  }
+  p.subtitle {
+    margin:0 0 24px;
+    font-size:15px; line-height:1.55; color:#475569;
+  }
+
+  .details-tile {
+    background:#fef2f2;
+    border:1px solid #fecaca;
+    border-radius:12px;
+    padding:18px 20px;
+  }
+  .details-tile .label {
+    font-size:11px; font-weight:800; letter-spacing:1.4px;
+    color:#b91c1c; text-transform:uppercase;
+    margin:0 0 10px;
+  }
+  .details-tile table { width:100%; border-collapse:collapse; }
+  .details-tile td { padding:5px 0; font-size:13.5px; line-height:1.5; vertical-align:top; }
+  .details-tile td.k { color:#7f1d1d; font-weight:600; width:108px; padding-right:14px; white-space:nowrap; }
+  .details-tile td.v { color:#0f172a; word-break:break-word; }
+  .details-tile td.v.mono { font-family:'SF Mono','JetBrains Mono','Menlo','Consolas','Courier New',monospace; font-size:12.5px; color:#334155; }
+
+  .body-text {
+    margin:24px 0 0;
+    font-size:14.5px; line-height:1.65; color:#334155;
+  }
+  .body-text p { margin:0 0 12px; }
+  .body-text strong { color:#0f172a; font-weight:600; }
+
+  .cta-row { margin:22px 0 4px; }
+  .cta {
+    display:inline-block;
+    background:#dc2626;
+    color:#ffffff !important;
+    padding:12px 22px;
+    border-radius:10px;
+    text-decoration:none;
+    font-weight:700;
+    font-size:14.5px;
+    letter-spacing:.1px;
+    box-shadow:0 1px 2px rgba(220,38,38,.25), 0 4px 12px -4px rgba(220,38,38,.35);
+  }
+
+  .hint {
+    margin-top:24px; padding:14px 16px;
+    background:#f8fafc; border:1px solid #eef2f7;
+    border-radius:10px;
+    font-size:13px; line-height:1.6; color:#64748b;
+  }
+  .hint strong { color:#0f172a; font-weight:600; }
+
+  .footer {
+    padding:18px 12px 4px;
+    text-align:center;
+    font-size:12px; color:#94a3b8; line-height:1.6;
+  }
+  .footer a { color:#64748b; }
+  .footer .brand { font-weight:600; color:#475569; }
+
+  @media only screen and (max-width:480px) {
+    .pad { padding:28px 22px 24px !important; }
+    h1.title { font-size:20px !important; }
+    p.subtitle { font-size:14px !important; margin-bottom:20px !important; }
+    .details-tile { padding:16px 16px !important; }
+    .details-tile td.k { width:90px !important; padding-right:10px !important; font-size:12.5px !important; }
+    .details-tile td.v { font-size:13px !important; }
+    .details-tile td.v.mono { font-size:11.5px !important; }
+    .body-text { font-size:14px !important; }
+    .cta { display:block !important; text-align:center !important; }
+    .alert-pill { margin-left:6px !important; padding:3px 7px !important; }
+  }
+</style>
+</head>
+<body>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f5f9;">
+  <tr>
+    <td align="center" style="padding:40px 14px 28px;">
+
+      {# preheader — first ~90 chars in inbox preview, hidden in body #}
+      <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#f3f5f9;">
+        A new device just signed in to your Permitlify account from {{ device }} ({{ ip }}).
+      </div>
+
+      <table role="presentation" width="540" cellpadding="0" cellspacing="0" border="0" style="max-width:540px;width:100%;">
+        <tr>
+          <td>
+            <div class="card">
+              <div class="accent-strip"></div>
+              <div class="pad">
+
+                <div class="wordmark-row">
+                  <span class="wordmark"><span class="dot"></span>Permitlify</span>
+                  <span class="alert-pill">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#b91c1c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 2 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7l-9-5z"/>
+                      <line x1="12" y1="9"  x2="12" y2="13"/>
+                      <line x1="12" y1="16" x2="12" y2="16.5"/>
+                    </svg>
+                    Security alert
+                  </span>
+                </div>
+
+                <h1 class="title">New sign-in detected</h1>
+                <p class="subtitle">A device we haven't seen before just signed in to your Permitlify account. If it was you, you're all set.</p>
+
+                <div class="details-tile">
+                  <div class="label">Sign-in details</div>
+                  <table cellpadding="0" cellspacing="0" border="0" role="presentation">
+                    <tr><td class="k">Device</td>     <td class="v">{{ device }}</td></tr>
+                    <tr><td class="k">IP address</td> <td class="v">{{ ip }}</td></tr>
+                    <tr><td class="k">When</td>       <td class="v">{{ when_pretty }}</td></tr>
+                    <tr><td class="k">Method</td>     <td class="v">{{ method_label }}</td></tr>
+                    <tr><td class="k">User-agent</td> <td class="v mono">{{ ua }}</td></tr>
+                  </table>
+                </div>
+
+                <div class="body-text">
+                  <p>Hi <strong>{{ first_name }}</strong>, we send this email the first time a new device, browser, or location shows up on your account.</p>
+                  <p style="color:#64748b;"><strong style="color:#0f172a;">Was this you?</strong> No action needed — keep enjoying Permitlify.</p>
+                  <p style="color:#64748b;"><strong style="color:#0f172a;">Don't recognize this sign-in?</strong> Lock your account out of every other session and change your password immediately:</p>
+                </div>
+
+                <div class="cta-row">
+                  <a class="cta" href="{{ security_url }}">Secure my account</a>
+                </div>
+
+                <div class="hint">
+                  <strong>Tip:</strong> review every active session anytime from <a href="{{ security_url }}" style="color:#1d4ed8;font-weight:600;">Security settings</a>.
+                </div>
+
+              </div>
+            </div>
+
+            <div class="footer">
+              © {{ year }} <span class="brand">Permitlify</span> · <a href="https://permitlify.com">permitlify.com</a><br>
+              You're receiving this because a new device signed in to your Permitlify account.
+            </div>
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+</body>
+</html>

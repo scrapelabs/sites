@@ -1,0 +1,198 @@
+{% extends "core/public_base.html" %}
+{% load static %}
+{% block title %}{{ article.title }}{% endblock %}
+{% block meta_description %}{{ article.excerpt|truncatechars:200 }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ article.title }}{% endblock %}
+{% block og_description %}{{ article.excerpt|truncatechars:200 }}{% endblock %}
+{% block twitter_title %}{{ article.title }}{% endblock %}
+{% block twitter_description %}{{ article.excerpt|truncatechars:200 }}{% endblock %}
+{% block extra_meta %}
+{# Article-level metadata helps Google show date, author, and section in SERPs. #}
+<meta property="article:author" content="{{ article.author }}">
+<meta property="article:section" content="{{ article.tag }}">
+<meta property="article:published_time" content="{{ article.date }}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "{{ article.title|escapejs }}",
+  "description": "{{ article.excerpt|truncatechars:200|escapejs }}",
+  "author": {"@type": "Organization", "name": "{{ article.author|escapejs }}"},
+  "publisher": {
+    "@type": "Organization",
+    "name": "Permitlify",
+    "logo": {"@type": "ImageObject", "url": "{{ site_origin }}{% static 'ad-desktop.png' %}"}
+  },
+  "datePublished": "{{ article.date }}",
+  "mainEntityOfPage": "{{ site_origin }}{{ request.path }}"
+}
+</script>
+{% endblock %}
+{% block nav_blog %}active{% endblock %}
+
+{% block extra_css %}
+.article-layout{display:grid;grid-template-columns:1fr 320px;gap:48px;align-items:start;}
+@media(max-width:900px){.article-layout{grid-template-columns:1fr;}}
+.article-hero-img{width:100%;height:280px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:72px;margin-bottom:36px;}
+.article-meta-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:32px;padding-bottom:24px;border-bottom:1px solid var(--b1);}
+.article-avatar{width:42px;height:42px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:800;color:#fff;flex-shrink:0;}
+.article-author-info{display:flex;flex-direction:column;}
+.article-author-name{font-size:14px;font-weight:600;color:var(--tx);}
+.article-author-meta{font-size:12.5px;color:var(--tx3);}
+.article-tag{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;padding:4px 12px;border-radius:20px;background:var(--pd);color:var(--bl3);margin-left:auto;}
+.article-tag.green{background:var(--ad);color:var(--ac3);}
+.article-tag.purple{background:rgba(124,58,237,.1);color:#6d28d9;}
+.article-tag.teal{background:rgba(2,132,199,.1);color:#0369a1;}
+/* ── Article body typography ─────────────────────────────────────── */
+.prose-article{max-width:680px;font-family:'DM Sans',sans-serif;}
+.prose-article > *:first-child{margin-top:0;}
+
+/* Lede paragraph: bigger and a touch darker than the body. */
+.prose-article > p:first-of-type{font-size:18px;line-height:1.7;color:var(--tx);font-weight:500;margin-bottom:24px;}
+
+/* Headings — confident, with a subtle gradient accent on H2. */
+.prose-article h2{position:relative;font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:800;color:var(--tx);letter-spacing:-.5px;line-height:1.25;margin:48px 0 16px;padding-top:12px;}
+.prose-article h2::before{content:"";position:absolute;left:0;top:0;width:36px;height:3px;border-radius:3px;background:var(--grad);}
+.prose-article h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:700;color:var(--tx);letter-spacing:-.2px;margin:32px 0 10px;}
+
+/* Body prose — generous leading for long-read comfort. */
+.prose-article p{font-size:16px;color:var(--tx2);line-height:1.8;margin-bottom:20px;}
+
+/* Lists — custom bullet marker for a magazine feel. */
+.prose-article ul,.prose-article ol{padding-left:0;margin:0 0 22px;list-style:none;}
+.prose-article ul li,.prose-article ol li{position:relative;font-size:16px;color:var(--tx2);line-height:1.75;margin-bottom:10px;padding-left:26px;}
+.prose-article ul li::before{content:"";position:absolute;left:6px;top:13px;width:7px;height:7px;border-radius:50%;background:var(--bl);}
+.prose-article ol{counter-reset:olcount;}
+.prose-article ol li{counter-increment:olcount;}
+.prose-article ol li::before{content:counter(olcount);position:absolute;left:0;top:0;width:22px;height:22px;border-radius:50%;background:var(--pd);color:var(--bl3);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+
+/* Inline emphasis. */
+.prose-article strong{color:var(--tx);font-weight:700;}
+.prose-article em{color:var(--tx2);font-style:italic;}
+.prose-article code{font-family:'JetBrains Mono',monospace;font-size:13.5px;background:var(--pd);color:var(--bl3);padding:2px 7px;border-radius:6px;}
+
+/* Links — coloured, with a soft underline that lifts on hover. */
+.prose-article a{color:var(--bl);text-decoration:underline;text-decoration-color:rgba(29,78,216,.35);text-underline-offset:3px;text-decoration-thickness:1.5px;transition:color .18s,text-decoration-color .18s;}
+.prose-article a:hover{color:var(--ac);text-decoration-color:var(--ac);}
+
+/* Blockquote — pulled-quote feel. */
+.prose-article blockquote{margin:32px 0;padding:18px 24px;border-left:4px solid var(--bl);background:var(--pd);border-radius:0 12px 12px 0;}
+.prose-article blockquote p{font-size:17px;font-style:italic;color:var(--tx);line-height:1.7;margin-bottom:0;}
+
+/* Horizontal rule — three centered dots, not a line. */
+.prose-article hr{border:none;text-align:center;margin:44px 0;height:14px;}
+.prose-article hr::before{content:"• • •";color:var(--tx3);letter-spacing:6px;font-size:14px;}
+.sidebar-widget{background:#fff;border:1px solid var(--b1);border-radius:16px;padding:24px;box-shadow:var(--sh);margin-bottom:20px;}
+.sidebar-widget h4{font-size:13px;font-weight:700;color:var(--tx);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.8px;margin-bottom:16px;}
+.related-post{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--b1);text-decoration:none;color:inherit;transition:opacity .18s;}
+.related-post:last-child{border-bottom:none;}
+.related-post:hover{opacity:.75;}
+.related-thumb{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.related-post h5{font-size:13px;font-weight:600;color:var(--tx);line-height:1.4;margin-bottom:4px;}
+.related-post span{font-size:11.5px;color:var(--tx3);font-family:'JetBrains Mono',monospace;}
+.sidebar-cta{background:var(--grad);border-radius:16px;padding:24px;text-align:center;}
+.sidebar-cta h4{font-size:16px;font-weight:800;color:#fff;margin-bottom:8px;}
+.sidebar-cta p{font-size:13px;color:rgba(255,255,255,.85);line-height:1.6;margin-bottom:18px;}
+.sidebar-cta a{display:block;background:#fff;color:var(--bl);font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:700;padding:10px 16px;border-radius:10px;text-decoration:none;transition:all .2s;}
+.sidebar-cta a:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.15);}
+.back-link{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:var(--tx3);text-decoration:none;margin-bottom:28px;transition:color .18s;}
+.back-link:hover{color:var(--bl);}
+.back-link svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;}
+.share-row{display:flex;align-items:center;gap:10px;padding-top:24px;margin-top:28px;border-top:1px solid var(--b1);flex-wrap:wrap;}
+@media(max-width:480px){.article-hero-img{height:200px;font-size:52px;}}
+.share-lbl{font-size:13px;font-weight:600;color:var(--tx2);}
+.share-btn{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:7px 14px;border-radius:8px;text-decoration:none;transition:all .18s;}
+.share-btn.fb{background:#1877F2;color:#fff;}
+.share-btn.li{background:#0A66C2;color:#fff;}
+.share-btn.tw{background:#000;color:#fff;}
+.share-btn:hover{opacity:.85;}
+{% endblock %}
+
+{% block content %}
+<div class="page-hero">
+  <div class="page-hero-inner">
+    <div class="page-breadcrumb">
+      <a href="{% url 'index' %}">Home</a><span>/</span>
+      <a href="{% url 'blog' %}">Blog</a><span>/</span>
+      {{ article.tag }}
+    </div>
+    <h1 style="max-width:720px;">{{ article.title }}</h1>
+  </div>
+</div>
+
+<div class="content-wide">
+  <a class="back-link" href="{% url 'blog' %}">
+    <svg viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+    Back to Blog
+  </a>
+
+  <div class="article-layout">
+    <div>
+      <div class="article-hero-img" style="background:{{ article.thumb_bg }};">{{ article.thumb }}</div>
+
+      <div class="article-meta-row">
+        <div class="article-avatar">{{ article.author_initials }}</div>
+        <div class="article-author-info">
+          <div class="article-author-name">{{ article.author }}</div>
+          <div class="article-author-meta">{{ article.date }} &middot; {{ article.read_time }}</div>
+        </div>
+        <span class="article-tag {% if article.tag_color == 'green' %}green{% elif article.tag_color == 'purple' %}purple{% endif %}">{{ article.tag }}</span>
+      </div>
+
+      <div class="prose-article">
+        {{ article.content|safe }}
+      </div>
+
+      <div class="share-row">
+        <span class="share-lbl">Share:</span>
+        <a class="share-btn fb" href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.791-4.697 4.533-4.697 1.313 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.884v2.27h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
+          Facebook
+        </a>
+        <a class="share-btn li" href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.build_absolute_uri }}" target="_blank" rel="noopener">LinkedIn</a>
+        <a class="share-btn tw" href="https://twitter.com/intent/tweet?text={{ article.title|urlencode }}&url={{ request.build_absolute_uri }}" target="_blank" rel="noopener">X / Twitter</a>
+      </div>
+    </div>
+
+    <div>
+      {% if related_articles %}
+      <div class="sidebar-widget">
+        <h4>Related Articles</h4>
+        {% for rel in related_articles %}
+        <a class="related-post" href="{% url 'blog_post' rel.slug %}">
+          <div class="related-thumb" style="background:{{ rel.thumb_bg }};">{{ rel.thumb }}</div>
+          <div>
+            <h5>{{ rel.title }}</h5>
+            <span>{{ rel.date }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="sidebar-cta">
+        <h4>Get permit leads tomorrow</h4>
+        <p>Fresh leads scored by AI, delivered at 6 AM. Free trial on every plan.</p>
+        <a href="{% url 'signup' %}">Start Free Trial →</a>
+      </div>
+
+      <div class="sidebar-widget" style="margin-top:20px;">
+        <h4>All Categories</h4>
+        <a href="{% url 'blog' %}" style="display:block;font-size:13.5px;color:var(--tx2);text-decoration:none;padding:7px 0;border-bottom:1px solid var(--b1);transition:color .18s;" onmouseover="this.style.color='var(--bl)'" onmouseout="this.style.color='var(--tx2)'">All Articles</a>
+        <a href="{% url 'blog' %}" style="display:block;font-size:13.5px;color:var(--tx2);text-decoration:none;padding:7px 0;border-bottom:1px solid var(--b1);transition:color .18s;" onmouseover="this.style.color='var(--bl)'" onmouseout="this.style.color='var(--tx2)'">Roofing</a>
+        <a href="{% url 'blog' %}" style="display:block;font-size:13.5px;color:var(--tx2);text-decoration:none;padding:7px 0;border-bottom:1px solid var(--b1);transition:color .18s;" onmouseover="this.style.color='var(--bl)'" onmouseout="this.style.color='var(--tx2)'">HVAC</a>
+        <a href="{% url 'blog' %}" style="display:block;font-size:13.5px;color:var(--tx2);text-decoration:none;padding:7px 0;border-bottom:1px solid var(--b1);transition:color .18s;" onmouseover="this.style.color='var(--bl)'" onmouseout="this.style.color='var(--tx2)'">Sales Strategy</a>
+        <a href="{% url 'blog' %}" style="display:block;font-size:13.5px;color:var(--tx2);text-decoration:none;padding:7px 0;border-bottom:1px solid var(--b1);transition:color .18s;" onmouseover="this.style.color='var(--bl)'" onmouseout="this.style.color='var(--tx2)'">AI & Scoring</a>
+        <a href="{% url 'blog' %}" style="display:block;font-size:13.5px;color:var(--tx2);text-decoration:none;padding:7px 0;transition:color .18s;" onmouseover="this.style.color='var(--bl)'" onmouseout="this.style.color='var(--tx2)'">CRM Integration</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-strip" style="margin-top:56px;">
+    <h2>Stop reading about leads — go get them</h2>
+    <p>Start your free trial and have real permit leads in your dashboard tomorrow morning at 6 AM.</p>
+    <a class="btn-white" href="{% url 'signup' %}">Start Free Trial <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+  </div>
+</div>
+{% endblock %}

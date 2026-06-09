@@ -1,0 +1,137 @@
+{% extends "dashboard/base.html" %}
+{% load core_extras %}
+{% block page_title %}Whop Integration Settings{% endblock %}
+{% block mobile_title %}Whop Settings{% endblock %}
+{% block dashboard_content %}
+
+<div class="max-w-3xl mx-auto space-y-6">
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="glass-card px-4 py-3 rounded-xl text-sm font-medium border-green-400/40 text-green-700 bg-green-50/60">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="glass-card rounded-2xl p-6">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="text-base font-bold text-gray-900">Whop API Settings</h2>
+      <a href="https://dash.whop.com/settings/developer" target="_blank"
+         class="text-xs text-[#D4AF37] hover:underline">Whop Dashboard →</a>
+    </div>
+    <p class="text-sm text-gray-500 mb-6">Configure your Whop integration. Changes take effect immediately without a restart.</p>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <!-- API Credentials -->
+      <div class="mb-6">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#D4AF37]/15 flex items-center justify-center text-[#D4AF37] text-xs font-bold">1</span>
+          API Credentials
+        </h3>
+        <div class="space-y-4">
+          {% for key, label, type, hint in setting_keys %}
+            {% if key in 'whop_api_key,whop_company_id,whop_webhook_secret' %}
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">{{ label }}</label>
+              <input type="{{ type }}" name="{{ key }}"
+                     value="{{ current|dict_get:key }}"
+                     placeholder="{{ hint }}"
+                     class="w-full px-3 py-2 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 font-mono">
+              <p class="text-xs text-gray-400 mt-0.5">{{ hint }}</p>
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Billing Mode -->
+      <div class="mb-6">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#D4AF37]/15 flex items-center justify-center text-[#D4AF37] text-xs font-bold">2</span>
+          Billing Mode
+        </h3>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">Mode</label>
+          <select name="whop_mode"
+                  class="w-full px-3 py-2 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30">
+            <option value="prod" {% if current.whop_mode == 'prod' or not current.whop_mode %}selected{% endif %}>prod — Live payments</option>
+            <option value="dev"  {% if current.whop_mode == 'dev' %}selected{% endif %}>dev — Test mode ($1 plans)</option>
+          </select>
+          <p class="text-xs text-gray-400 mt-0.5">In dev mode all plans are priced at $1 for testing.</p>
+        </div>
+      </div>
+
+      <!-- Plan IDs -->
+      <div class="mb-6">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#D4AF37]/15 flex items-center justify-center text-[#D4AF37] text-xs font-bold">3</span>
+          Whop Plan IDs
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {% for key, label, type, hint in setting_keys %}
+            {% if 'plan_id' in key and 'dev' not in key %}
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">{{ label }}</label>
+              <input type="text" name="{{ key }}"
+                     value="{{ current|dict_get:key }}"
+                     placeholder="plan_..."
+                     class="w-full px-3 py-2 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30 font-mono">
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Checkout URLs -->
+      <div class="mb-8">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+          <span class="w-5 h-5 rounded-full bg-[#D4AF37]/15 flex items-center justify-center text-[#D4AF37] text-xs font-bold">4</span>
+          Checkout URLs <span class="text-xs text-gray-400 font-normal">(fallback when no Plan ID set)</span>
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {% for key, label, type, hint in setting_keys %}
+            {% if 'checkout' in key %}
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">{{ label }}</label>
+              <input type="text" name="{{ key }}"
+                     value="{{ current|dict_get:key }}"
+                     placeholder="https://whop.com/..."
+                     class="w-full px-3 py-2 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/30">
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button type="submit" class="gold-btn px-6 py-2.5 rounded-xl text-sm font-semibold">Save Settings</button>
+        <a href="/admin-panel/" class="glass-btn px-6 py-2.5 rounded-xl text-sm font-semibold">Cancel</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Webhook Info -->
+  <div class="glass-card rounded-2xl p-6">
+    <h3 class="text-sm font-bold text-gray-900 mb-2">Webhook Configuration</h3>
+    <p class="text-sm text-gray-500 mb-3">Add this URL to your Whop dashboard under <strong>Developer → Webhooks</strong>.</p>
+    <div class="bg-gray-50/80 border border-gray-200 rounded-xl px-4 py-3 font-mono text-sm text-gray-700 break-all select-all">
+      {{ request.scheme }}://{{ request.get_host }}/billing/webhook/
+    </div>
+    <p class="text-xs text-gray-400 mt-2">Subscribe to: <code class="bg-gray-100 px-1 rounded">membership.went_valid</code>, <code class="bg-gray-100 px-1 rounded">membership.was_revoked</code>, <code class="bg-gray-100 px-1 rounded">membership.expired</code>, <code class="bg-gray-100 px-1 rounded">membership.updated</code></p>
+  </div>
+
+  <!-- Bulk Resync -->
+  <div class="glass-card rounded-2xl p-6">
+    <h3 class="text-sm font-bold text-gray-900 mb-2">Bulk Membership Resync</h3>
+    <p class="text-sm text-gray-500 mb-4">Re-fetch membership status from Whop for every user that has a membership ID on file. Use this after webhook misses or plan changes.</p>
+    <form method="post" action="/admin-panel/whop-resync-all/" onsubmit="return confirm('Resync all memberships from Whop? This may take a while.')">
+      {% csrf_token %}
+      <button type="submit" class="glass-btn px-5 py-2 rounded-xl text-sm font-semibold">Resync All Memberships</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

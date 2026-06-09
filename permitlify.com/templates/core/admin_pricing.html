@@ -1,0 +1,136 @@
+{% extends "core/admin_base.html" %}
+{% block title %}Plan Pricing{% endblock %}
+{% block page_title %}Plan Pricing{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; Edit the displayed $/mo for every plan, site-wide{% endblock %}
+
+{% block extra_head %}
+<style>
+.pr-notice{background:#eff6ff;border:1px solid #bfdbfe;border-radius:11px;padding:13px 16px;margin-bottom:20px;font-size:12.5px;color:#1e3a8a;line-height:1.65;}
+.pr-notice strong{color:#1e40af;}
+.pr-notice code{font-family:'JetBrains Mono',monospace;background:#dbeafe;padding:1px 5px;border-radius:4px;}
+.pr-flash{margin:0 0 16px;padding:11px 16px;border-radius:10px;font-size:12.5px;border:1px solid;}
+.pr-flash.ok{background:#ecfdf5;border-color:#bbf7d0;color:#065f46;}
+.pr-flash.err{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+.pr-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:1100px){.pr-grid{grid-template-columns:1fr;}}
+.pr-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.pr-card.dev{border-color:#94a3b8;}
+.pr-head{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.pr-head h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin:0;}
+.pr-pill{font-size:10px;font-weight:800;padding:3px 9px;border-radius:99px;font-family:'JetBrains Mono',monospace;letter-spacing:.04em;}
+.pr-pill.live{background:rgba(22,163,74,.12);color:#15803d;}
+.pr-pill.dev{background:rgba(100,116,139,.14);color:#475569;}
+.pr-body{padding:14px 20px 20px;}
+.pr-row{display:grid;grid-template-columns:90px 1fr 1fr;gap:14px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--border);}
+.pr-row:last-child{border-bottom:0;}
+.pr-row .t{font-size:12.5px;color:var(--text);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:'JetBrains Mono',monospace;}
+.pr-row .inp{position:relative;max-width:220px;}
+.pr-row .inp input{width:100%;padding:9px 11px 9px 26px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'JetBrains Mono',monospace;color:var(--text);background:#fff;outline:none;box-sizing:border-box;padding-right:42px;}
+.pr-row .inp input:focus{border-color:var(--pr);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.pr-row .inp .dollar{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;font-family:'JetBrains Mono',monospace;pointer-events:none;}
+.pr-row .inp .per{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace;pointer-events:none;}
+.pr-row .inp.trial input{padding-left:11px;}
+.pr-col-head{display:grid;grid-template-columns:90px 1fr 1fr;gap:14px;padding:0 0 8px;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;font-weight:700;}
+.pr-actions{margin-top:20px;display:flex;align-items:center;gap:14px;padding:14px 20px;background:var(--card);border:1px solid var(--border);border-radius:14px;}
+.pr-btn{padding:9px 22px;background:var(--grad);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:var(--sh-grad);}
+.pr-hint{font-size:11.5px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.pr-effective{font-size:11px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',monospace;}
+.pr-effective b{color:var(--text);}
+</style>
+{% endblock %}
+
+{% block content %}
+{% if msg %}<div class="pr-flash ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="pr-flash err">{{ err }}</div>{% endif %}
+
+<div class="pr-notice">
+  <strong>What this controls.</strong> Every dollar amount shown on the pricing
+  page, paywall, onboarding step 1, settings billing tab, and ROI calculator
+  flows from these values. Saves are reflected on the next page render — no
+  restart, no deploy. Leave a field <em>blank</em> to clear the override and
+  fall back to the hard-coded default. Numbers are whole dollars per month.
+</div>
+
+<form method="post">{% csrf_token %}
+  <div class="pr-grid">
+
+    <!-- PROD -->
+    <div class="pr-card">
+      <div class="pr-head">
+        <h3>Production prices</h3>
+        <span class="pr-pill live"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:5px;"></span>LIVE</span>
+      </div>
+      <div class="pr-body">
+        <div class="pr-col-head"><div>Plan</div><div>Monthly price</div><div>Free trial</div></div>
+        <div class="pr-row">
+          <div class="t">Starter</div>
+          <div class="inp"><span class="dollar">$</span><input type="number" min="0" step="1" name="prod_starter_monthly" value="{{ prices.prod_starter_monthly }}" placeholder="29"><span class="per">/mo</span></div>
+          <div class="inp trial"><input type="number" min="0" step="1" name="prod_starter_trial" value="{{ trials.prod_starter }}" placeholder="3"><span class="per">days</span></div>
+        </div>
+        <div class="pr-row">
+          <div class="t">Pro</div>
+          <div class="inp"><span class="dollar">$</span><input type="number" min="0" step="1" name="prod_pro_monthly" value="{{ prices.prod_pro_monthly }}" placeholder="99"><span class="per">/mo</span></div>
+          <div class="inp trial"><input type="number" min="0" step="1" name="prod_pro_trial" value="{{ trials.prod_pro }}" placeholder="5"><span class="per">days</span></div>
+        </div>
+        <div class="pr-row">
+          <div class="t">Agency</div>
+          <div class="inp"><span class="dollar">$</span><input type="number" min="0" step="1" name="prod_agency_monthly" value="{{ prices.prod_agency_monthly }}" placeholder="249"><span class="per">/mo</span></div>
+          <div class="inp trial"><input type="number" min="0" step="1" name="prod_agency_trial" value="{{ trials.prod_agency }}" placeholder="7"><span class="per">days</span></div>
+        </div>
+        <div class="pr-effective">
+          Effective now: Starter <b>${{ effective.prod_starter_monthly }}/mo · {{ effective_trials.prod_starter }}-day trial</b> ·
+          Pro <b>${{ effective.prod_pro_monthly }}/mo · {{ effective_trials.prod_pro }}-day trial</b> ·
+          Agency <b>${{ effective.prod_agency_monthly }}/mo · {{ effective_trials.prod_agency }}-day trial</b>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEV -->
+    <div class="pr-card dev">
+      <div class="pr-head">
+        <h3>Dev / test prices</h3>
+        <span class="pr-pill dev">DEV-MODE USERS ONLY</span>
+      </div>
+      <div class="pr-body">
+        <div class="pr-col-head"><div>Plan</div><div>Monthly price</div><div>Free trial</div></div>
+        <div class="pr-row">
+          <div class="t">Starter</div>
+          <div class="inp"><span class="dollar">$</span><input type="number" min="0" step="1" name="dev_starter_monthly" value="{{ prices.dev_starter_monthly }}" placeholder="1"><span class="per">/mo</span></div>
+          <div class="inp trial"><input type="number" min="0" step="1" name="dev_starter_trial" value="{{ trials.dev_starter }}" placeholder="3"><span class="per">days</span></div>
+        </div>
+        <div class="pr-row">
+          <div class="t">Pro</div>
+          <div class="inp"><span class="dollar">$</span><input type="number" min="0" step="1" name="dev_pro_monthly" value="{{ prices.dev_pro_monthly }}" placeholder="1"><span class="per">/mo</span></div>
+          <div class="inp trial"><input type="number" min="0" step="1" name="dev_pro_trial" value="{{ trials.dev_pro }}" placeholder="5"><span class="per">days</span></div>
+        </div>
+        <div class="pr-row">
+          <div class="t">Agency</div>
+          <div class="inp"><span class="dollar">$</span><input type="number" min="0" step="1" name="dev_agency_monthly" value="{{ prices.dev_agency_monthly }}" placeholder="1"><span class="per">/mo</span></div>
+          <div class="inp trial"><input type="number" min="0" step="1" name="dev_agency_trial" value="{{ trials.dev_agency }}" placeholder="7"><span class="per">days</span></div>
+        </div>
+        <div class="pr-effective">
+          Effective now: Starter <b>${{ effective.dev_starter_monthly }}/mo · {{ effective_trials.dev_starter }}-day trial</b> ·
+          Pro <b>${{ effective.dev_pro_monthly }}/mo · {{ effective_trials.dev_pro }}-day trial</b> ·
+          Agency <b>${{ effective.dev_agency_monthly }}/mo · {{ effective_trials.dev_agency }}-day trial</b>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="pr-actions">
+    <button type="submit" class="pr-btn">Save prices</button>
+    <span class="pr-hint">Changes take effect on the very next page render — cache busts automatically.</span>
+  </div>
+</form>
+
+<div class="pr-notice" style="margin-top:20px;">
+  <strong>Important — display vs charged price.</strong> These values control
+  what the user <em>sees</em>. The amount they're actually <em>charged</em> is
+  determined by the Whop plan ID wired up in <code>core/whop.py</code> →
+  <code>get_plan_id()</code>. If you change a displayed price here, you also
+  need to update the matching Whop plan (or create a new one and re-wire its
+  plan ID) so checkout charges the same amount.
+</div>
+
+{% endblock %}

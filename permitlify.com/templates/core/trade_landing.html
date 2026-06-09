@@ -1,0 +1,186 @@
+{% extends "core/public_base.html" %}
+{% block title %}{{ trade.title }}{% endblock %}
+{% block meta_description %}{{ trade.meta_description }}{% endblock %}
+{% block meta_keywords %}{{ trade.keywords }}{% endblock %}
+{% block og_title %}{{ trade.title }} — Permitlify{% endblock %}
+{% block og_description %}{{ trade.meta_description }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.tl-hero{padding:80px 24px 60px;background:linear-gradient(135deg,#f8fafc 0%,{{ trade.tint }} 100%);position:relative;overflow:hidden;}
+.tl-hero::before{content:'';position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:1200px;height:800px;background:radial-gradient(ellipse at top,{{ trade.tint }} 0%,transparent 65%);pointer-events:none;}
+.tl-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;position:relative;z-index:1;}
+@media(max-width:860px){.tl-inner{grid-template-columns:1fr;text-align:center;gap:32px;}}
+.tl-eyebrow{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--b1);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--bl);font-family:'JetBrains Mono',monospace;letter-spacing:.4px;margin-bottom:18px;box-shadow:var(--sh);}
+.tl-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--ac);}
+.tl-h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(34px,4.5vw,56px);font-weight:800;letter-spacing:-2px;line-height:1.05;color:var(--tx);margin-bottom:18px;}
+.tl-h1 .accent{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tl-sub{font-size:17px;color:var(--tx2);line-height:1.6;max-width:520px;margin-bottom:26px;}
+@media(max-width:860px){.tl-sub{margin-left:auto;margin-right:auto;}}
+.tl-stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;}
+@media(max-width:860px){.tl-stat-row{justify-content:center;}}
+.tl-stat{background:#fff;border:1px solid var(--b1);border-radius:12px;padding:10px 16px;text-align:center;}
+.tl-stat .n{font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tl-stat .l{font-size:10px;color:var(--tx3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.7px;margin-top:2px;}
+.tl-cta-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+@media(max-width:860px){.tl-cta-row{justify-content:center;}}
+.tl-btn-pri{font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;color:#fff;background:var(--grad);border:none;padding:14px 28px;border-radius:12px;box-shadow:var(--sh-bl);transition:all .22s;display:inline-flex;align-items:center;gap:8px;text-decoration:none;}
+.tl-btn-pri:hover{opacity:.92;transform:translateY(-2px);}
+.tl-btn-sec{font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--tx2);background:#fff;border:1.5px solid var(--b2);padding:13px 22px;border-radius:12px;transition:all .22s;display:inline-flex;align-items:center;gap:8px;text-decoration:none;}
+.tl-btn-sec:hover{border-color:var(--bl);color:var(--bl);}
+.tl-cancel-note{margin-top:14px;font-size:12px;color:var(--tx2);display:inline-flex;align-items:center;gap:6px;}
+.tl-cancel-note::before{content:'✓';color:var(--ac);font-weight:800;}
+
+/* Example permit card */
+.tl-card{background:#fff;border-radius:18px;box-shadow:0 0 0 1.5px rgba(29,78,216,.16),0 30px 80px rgba(0,0,0,.16);overflow:hidden;}
+.tl-card-head{padding:18px 22px;border-bottom:1px solid var(--b1);display:flex;align-items:center;justify-content:space-between;}
+.tl-card-head .title{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;}
+.tl-card-head .score{display:flex;align-items:center;gap:8px;}
+.tl-ring{width:48px;height:48px;border-radius:50%;background:conic-gradient({{ trade.accent }} 0% 91%, rgba(0,0,0,.08) 91% 100%);display:flex;align-items:center;justify-content:center;}
+.tl-ring-inner{width:40px;height:40px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:{{ trade.accent }};font-family:'Plus Jakarta Sans',sans-serif;}
+.tl-card-body{padding:20px 22px;}
+.tl-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--b1);font-size:13px;}
+.tl-row:last-child{border-bottom:0;}
+.tl-row .k{color:var(--tx3);font-family:'JetBrains Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.6px;}
+.tl-row .v{color:var(--tx);font-weight:600;}
+.tl-card-reason{background:var(--bg2);border-top:1px solid var(--b1);padding:14px 22px;font-size:12.5px;color:var(--tx2);line-height:1.55;}
+.tl-card-reason strong{color:var(--tx);}
+
+/* Benefits */
+.tl-benefits{padding:80px 24px;background:#fff;}
+.tl-ben-inner{max-width:1100px;margin:0 auto;}
+.tl-ben-head{text-align:center;margin-bottom:48px;}
+.tl-ben-head h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(26px,3.5vw,40px);font-weight:800;color:var(--tx);letter-spacing:-1.2px;line-height:1.15;}
+.tl-ben-head h2 span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.tl-ben-head p{font-size:16px;color:var(--tx2);max-width:600px;margin:14px auto 0;line-height:1.6;}
+.tl-ben-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+@media(max-width:860px){.tl-ben-grid{grid-template-columns:1fr;}}
+.tl-ben{background:var(--bg2);border:1px solid var(--b1);border-radius:14px;padding:24px;}
+.tl-ben-ico{width:42px;height:42px;border-radius:11px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;color:#fff;}
+.tl-ben h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:700;color:var(--tx);margin-bottom:6px;}
+.tl-ben p{font-size:13.5px;color:var(--tx2);line-height:1.6;}
+
+/* How it works strip */
+.tl-how{padding:60px 24px;background:var(--bg3);}
+.tl-how-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+@media(max-width:860px){.tl-how-inner{grid-template-columns:1fr;}}
+.tl-step{text-align:left;}
+.tl-step-num{width:34px;height:34px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;margin-bottom:12px;}
+.tl-step h4{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;color:var(--tx);margin-bottom:6px;}
+.tl-step p{font-size:13px;color:var(--tx2);line-height:1.6;}
+
+/* CTA */
+.tl-cta{padding:80px 24px;background:#fff;text-align:center;}
+.tl-cta-box{max-width:720px;margin:0 auto;padding:48px 32px;background:linear-gradient(135deg,#1d4ed8 0%,#059669 100%);border-radius:24px;color:#fff;}
+.tl-cta-box h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(24px,3vw,34px);font-weight:800;letter-spacing:-1px;margin-bottom:10px;}
+.tl-cta-box p{font-size:15px;opacity:.9;margin-bottom:24px;}
+.tl-cta-box a{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--bl);padding:14px 28px;border-radius:12px;font-weight:700;font-size:15px;text-decoration:none;font-family:'DM Sans',sans-serif;}
+.tl-cta-box small{display:block;margin-top:14px;font-size:12px;opacity:.85;}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="tl-hero">
+  <div class="tl-inner">
+    <div>
+      <div class="tl-eyebrow"><span class="dot"></span>{{ trade.eyebrow }}</div>
+      <h1 class="tl-h1">{{ trade.h1_pre }} <span class="accent">{{ trade.h1_accent }}</span> {{ trade.h1_post }}</h1>
+      <p class="tl-sub">{{ trade.sub }}</p>
+      <div class="tl-stat-row">
+        <div class="tl-stat"><div class="n">{{ permits_24h }}</div><div class="l">Permits / 24h</div></div>
+        <div class="tl-stat"><div class="n">248+</div><div class="l">US cities</div></div>
+        <div class="tl-stat"><div class="n">{{ cron_schedule.hour_label }}</div><div class="l">Daily delivery</div></div>
+      </div>
+      <div class="tl-cta-row">
+        <a class="tl-btn-pri" href="{% url 'signup' %}?utm_source=trade_lp&amp;utm_medium=cta&amp;utm_campaign={{ trade.slug }}">Start {{ pricing.agency_trial_days }}-day free trial</a>
+        <a class="tl-btn-sec" href="{% url 'pricing' %}">See pricing</a>
+      </div>
+      <div class="tl-cancel-note">Cancel anytime in 1 click — no charge if you cancel before day {{ pricing.agency_trial_days }}.</div>
+    </div>
+    <div class="tl-card">
+      <div class="tl-card-head">
+        <div class="title">Example {{ trade.short }} permit · scored</div>
+        <div class="score">
+          <div class="tl-ring"><div class="tl-ring-inner">{{ trade.example.score }}</div></div>
+        </div>
+      </div>
+      <div class="tl-card-body">
+        <div class="tl-row"><span class="k">Project</span><span class="v">{{ trade.example.project }}</span></div>
+        <div class="tl-row"><span class="k">Value</span><span class="v">${{ trade.example.value }}</span></div>
+        <div class="tl-row"><span class="k">City</span><span class="v">{{ trade.example.city }}</span></div>
+        <div class="tl-row"><span class="k">Issued</span><span class="v">{{ trade.example.issued }}</span></div>
+      </div>
+      <div class="tl-card-reason"><strong>Why it scored {{ trade.example.score }}:</strong> {{ trade.example.reason }}</div>
+    </div>
+  </div>
+</section>
+
+<section class="tl-benefits">
+  <div class="tl-ben-inner">
+    <div class="tl-ben-head">
+      <h2>Built for <span>{{ trade.short }}</span> contractors</h2>
+      <p>{{ trade.intro }}</p>
+    </div>
+    <div class="tl-ben-grid">
+      {% for b in trade.benefits %}
+      <div class="tl-ben">
+        <div class="tl-ben-ico">{{ b.icon }}</div>
+        <h3>{{ b.h }}</h3>
+        <p>{{ b.p }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="tl-how">
+  <div class="tl-how-inner">
+    <div class="tl-step">
+      <div class="tl-step-num">1</div>
+      <h4>Pick your service area</h4>
+      <p>Choose your cities and the {{ trade.short }} trade filter. We monitor permits in 248+ US cities daily.</p>
+    </div>
+    <div class="tl-step">
+      <div class="tl-step-num">2</div>
+      <h4>AI scores every permit</h4>
+      <p>Each permit gets a 0–100 score based on job value, scope, property type, and historical conversion data.</p>
+    </div>
+    <div class="tl-step">
+      <div class="tl-step-num">3</div>
+      <h4>Delivered at {{ cron_schedule.hour_label }}</h4>
+      <p>Top-scored {{ trade.short|lower }} permits land in your inbox every morning.</p>
+    </div>
+  </div>
+</section>
+
+{% if testimonials %}
+<section style="padding:80px 24px;background:var(--bg2);">
+  <div style="max-width:1100px;margin:0 auto;">
+    <h2 style="text-align:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(24px,3.2vw,36px);font-weight:800;color:var(--tx);letter-spacing:-1px;margin-bottom:36px;">What contractors say</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
+      {% for t in testimonials %}
+      <div style="background:#fff;border:1px solid var(--b1);border-radius:16px;padding:24px;">
+        <div style="font-size:14px;color:var(--tx);line-height:1.6;margin-bottom:16px;font-style:italic;">“{{ t.quote }}”</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:38px;height:38px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">{{ t.initials }}</div>
+          <div>
+            <div style="font-weight:700;font-size:13px;color:var(--tx);">{{ t.author_name }}</div>
+            <div style="font-size:11.5px;color:var(--tx3);">{% if t.author_title %}{{ t.author_title }}{% endif %}{% if t.company %} · {{ t.company }}{% endif %}</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="tl-cta">
+  <div class="tl-cta-box">
+    <h2>Stop chasing stale {{ trade.short|lower }} leads.</h2>
+    <p>Try Permitlify free for {{ pricing.agency_trial_days }} days. No charge if you cancel before day {{ pricing.agency_trial_days }}.</p>
+    <a href="{% url 'signup' %}?utm_source=trade_lp&amp;utm_medium=footer_cta&amp;utm_campaign={{ trade.slug }}">Start free trial →</a>
+    <small>Cancel anytime · 248+ cities · 6 AM delivery</small>
+  </div>
+</section>
+{% endblock %}
