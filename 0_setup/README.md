@@ -37,9 +37,11 @@ All `.bat` files must be run **as Administrator**.
 0_setup\setup_caddy.bat
 ```
 
-Installs Caddy on port 80, moves the incumbent app to loopback, health-checks the
-new front door, and auto-rolls-back if anything fails (the live site is never left
-down). Wait for **`SUCCESS. Caddy answers on port 80...`**.
+Installs Caddy on port 80 and health-checks the front door. It only sets up the
+front door — it does **not** start any site. Wait for
+**`SUCCESS. Caddy is the front door...`**, then start each site with
+`new_site.bat` (next section). A domain shows a 502 until its site is started —
+that's expected.
 
 ## Add a new site
 

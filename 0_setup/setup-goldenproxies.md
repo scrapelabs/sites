@@ -25,8 +25,9 @@ git pull
 0_setup\setup_caddy.bat
 ```
 
-Wait for it to print **`SUCCESS. Caddy answers on port 80...`**. If it prints
-`ROLLBACK`, fix the problem it reports and re-run before continuing.
+Wait for it to print **`SUCCESS. Caddy is the front door...`**. This only sets up
+the front door — it does not start any site (you do that in step 2). A domain
+will show **502** until its site is started; that's expected.
 
 ---
 
