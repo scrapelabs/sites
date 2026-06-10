@@ -1,0 +1,6 @@
+# Binaries are fetched on the server, never committed.
+caddy.exe
+nssm.exe
+
+# Runtime logs written next to the scripts.
+*.log
