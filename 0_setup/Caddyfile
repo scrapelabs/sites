@@ -35,9 +35,16 @@ http://permitlify.com, http://www.permitlify.com, http://permitdaily.com, http:/
         }
 }
 
-# --- Site 2 (EXAMPLE -- copy this block for each new site) ------------------
-# http://site2.com, http://www.site2.com {
-#       reverse_proxy 127.0.0.1:8001 {
+# --- Site 2: GoldenProxies -> 127.0.0.1:8001 -------------------------------
+http://goldenproxies.com, http://www.goldenproxies.com {
+        reverse_proxy 127.0.0.1:8001 {
+                header_up X-Forwarded-Proto https
+        }
+}
+
+# --- Site 3 (EXAMPLE -- copy this block for each new site) ------------------
+# http://site3.com, http://www.site3.com {
+#       reverse_proxy 127.0.0.1:8002 {
 #               header_up X-Forwarded-Proto https
 #       }
 # }
