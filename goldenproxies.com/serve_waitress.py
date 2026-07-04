@@ -38,7 +38,11 @@ _venv_python = (
     / ("Scripts" if os.name == "nt" else "bin")
     / ("python.exe" if os.name == "nt" else "python")
 )
-if _venv_python.exists() and not os.environ.get("_GP_VENV_REEXEC"):
+if (
+    _venv_python.exists()
+    and Path(sys.executable).resolve() != _venv_python.resolve()
+    and not os.environ.get("_GP_VENV_REEXEC")
+):
     os.environ["_GP_VENV_REEXEC"] = "1"
     os.execv(
         str(_venv_python),

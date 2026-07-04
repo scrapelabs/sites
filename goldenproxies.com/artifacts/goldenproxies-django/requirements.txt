@@ -4,3 +4,4 @@ bleach>=6.0
 waitress>=3.0
 requests>=2.31
 beautifulsoup4>=4.12
+tinydb>=4.8
