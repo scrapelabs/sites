@@ -2757,6 +2757,9 @@ _BUSINESS_NAME_TOKENS = frozenset({
     'doors', 'windows', 'pools', 'pool', 'solar', 'restoration', 'design',
     'development', 'homes', 'home', 'properties', 'realty', 'management',
     'maintenance', 'utilities', 'energy', 'specialties', 'works',
+    # One-word national contractor brands that otherwise look like a
+    # single private-person name when the permit omits email/company suffix.
+    'sunrun',
 })
 
 # Consumer/free email providers. An email on one of these domains tells us

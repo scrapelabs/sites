@@ -80,7 +80,8 @@ def _first_name(user: dict[str, Any]) -> str:
 
 def _now_pretty() -> str:
     """ISO-ish friendly timestamp for receipt + login-alert metadata."""
-    return datetime.now(timezone.utc).strftime('%b %-d, %Y · %H:%M UTC')
+    now = datetime.now(timezone.utc)
+    return f"{now.strftime('%b')} {now.day}, {now:%Y · %H:%M UTC}"
 
 
 def _year() -> int:

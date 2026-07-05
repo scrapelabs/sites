@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 import urllib.parse
@@ -57,6 +58,7 @@ from .base import (
     parse_form_action,
     parse_webforms_state,
 )
+from ..helpers.accela_parser import parse_accela_detail
 log = logging.getLogger(__name__)
 
 
@@ -959,6 +961,24 @@ ACCELA_PER_PAGE_TIMEOUT    = 60
 ACCELA_PER_DETAIL_TIMEOUT  = 60
 
 
+def _detail_llm_enabled() -> bool:
+    """Whether to enrich Accela detail parses with GPT-OSS.
+
+    Deterministic parsing is the default because visible Accela facts
+    are already extractable from HTML, while local gpt-oss-20b often
+    spends the whole request budget reasoning and times out on full
+    permit prompts. Set system_settings.accela_detail_llm_enrichment or
+    ACCELA_DETAIL_LLM_ENRICHMENT to on/true/1 to opt back in.
+    """
+    raw = os.environ.get('ACCELA_DETAIL_LLM_ENRICHMENT', '')
+    try:
+        from ..db import get_system_setting
+        raw = raw or (get_system_setting('accela_detail_llm_enrichment') or '')
+    except Exception:
+        pass
+    return str(raw).strip().lower() in ('1', 'true', 'on', 'yes')
+
+
 def oss_agent_scrape_permits(
     scraper: dict,
     *,
@@ -1027,14 +1047,13 @@ def oss_agent_scrape_permits(
       4. ``fetch_detail`` pulls each detail page (with the Show-More
          expand postback when present).
       5. Each detail page goes through ``oss_complete`` against the
-         admin-chosen DO Inference model. The response is parsed into
+         local GPT-OSS parser model. The response is parsed into
          the same shape the caller's ``_normalise_permit`` expects.
 
     NEVER raises on a per-permit failure — partial results are still
     returned in the envelope; the caller decides what to do.
     """
     from .. import scraper_accela as _sa  # lazy: avoid circular import
-    from .base import _do_api_key  # fail-fast preflight on the LLM key
     safe_url   = (scraper.get('url') or '').strip()
     safe_city  = (scraper.get('city') or '').strip()
     safe_state = (scraper.get('state') or '').strip()
@@ -1046,21 +1065,6 @@ def oss_agent_scrape_permits(
                     'model': model or '', 'credits_used': 0,
                     'credits_budget': max_credits or 0, 'prompt': '',
                     'latency_ms': 0, 'error': 'no url'},
-        }
-
-    # Preflight: surface a missing DO Inference key as ONE clear run-log
-    # entry instead of N identical per-detail failures (which used to
-    # burn ~6s × N detail pages before failing with the same message).
-    try:
-        _do_api_key()
-    except HttpScraperError as e:
-        return {
-            'ok': False, 'permits': [],
-            'error': str(e),
-            'log': {'status': 'failed', 'agent_id': None,
-                    'model': model or '', 'credits_used': 0,
-                    'credits_budget': max_credits or 0, 'prompt': '',
-                    'latency_ms': 0, 'error': str(e)},
         }
 
     # No per-run permit cap — pagination is bounded by `max_pages`,
@@ -1429,9 +1433,16 @@ def oss_agent_scrape_permits(
         grid_rows = kept
         n_targets = len(grid_rows)
 
+    use_detail_llm = _detail_llm_enabled()
     if n_targets > 0:
-        _log(f'🚀 Parsing {n_targets} permit detail page(s) via GPT-OSS '
-             f'(4 in parallel)…')
+        if use_detail_llm:
+            _log(f'🚀 Parsing {n_targets} permit detail page(s) via '
+                 f'deterministic parser + GPT-OSS enrichment '
+                 f'(4 in parallel)…')
+        else:
+            _log(f'🚀 Parsing {n_targets} permit detail page(s) via '
+                 f'deterministic parser (4 parallel fetches; GPT-OSS '
+                 f'detail enrichment disabled)…')
     # Seed the run header so the admin terminal shows ``0 / N`` while
     # the LLM extractions are still in flight, instead of staying at
     # ``0 / 0`` until the upsert phase begins.
@@ -1484,15 +1495,33 @@ def oss_agent_scrape_permits(
             merged['issued_date'] = row['grid_date']
         return merged
 
+    def _backfill_llm_from_parser(llm_dict: dict, parsed: dict) -> dict:
+        """Fill blank GPT fields from the deterministic Accela parser."""
+        def _blank(value) -> bool:
+            text = str(value or '').strip().lower()
+            return text in ('', 'none', 'null', 'n/a', 'na', '-')
+
+        merged = dict(llm_dict or {})
+        for field, value in (parsed or {}).items():
+            if field.startswith('__'):
+                continue
+            if _blank(value) or value == 0:
+                continue
+            if _blank(merged.get(field)) or merged.get(field) == 0:
+                merged[field] = value
+        return merged
+
     def _process_one(idx_row: tuple[int, dict]) -> dict:
         idx, row = idx_row
         durl = row['detail_url']
         out_rec: dict = {'idx': idx, 'row': row, 'durl': durl,
-                         'permit': None, 'in': 0, 'out': 0,
-                         'err': None, 'prompt_preview': '',
-                         'prompt_head_tail': '', 'cleaned_head_tail': '',
-                         'prompt_chars': 0, 'cleaned_chars': 0,
-                         'llm_text': '', 'llm_model': ''}
+                          'permit': None, 'in': 0, 'out': 0,
+                          'err': None, 'prompt_preview': '',
+                          'prompt_head_tail': '', 'cleaned_head_tail': '',
+                          'prompt_chars': 0, 'cleaned_chars': 0,
+                          'llm_text': '', 'llm_model': '',
+                          'method': 'deterministic parser'}
+        parsed_detail: dict = {}
 
         def _attach_debug(rec: dict) -> None:
             """Glue the per-permit LLM debug payload onto the permit
@@ -1537,6 +1566,12 @@ def oss_agent_scrape_permits(
             # back blank. This pipeline matches the user's working
             # standalone test exactly.
             cleaned = extract_permit_text(html)
+            parsed_detail = parse_accela_detail(cleaned, source_url=durl)
+            if not use_detail_llm:
+                out_rec['permit'] = _merge_grid_into_llm(parsed_detail, row)
+                out_rec['llm_model'] = 'deterministic-parser'
+                _attach_debug(out_rec)
+                return out_rec
             # ── GPT-OSS-only extraction ──
             # Every permit's details come straight from DO Serverless
             # Inference (GPT-OSS). The system prompt is sent as a separate
@@ -1608,14 +1643,18 @@ def oss_agent_scrape_permits(
                 # from the grid alone so we never silently drop a
                 # permit we already know exists.
                 out_rec['err'] = f'JSON parse failed: {e}'
-                out_rec['permit'] = _merge_grid_into_llm({}, row)
+                out_rec['permit'] = _merge_grid_into_llm(parsed_detail, row)
                 _attach_debug(out_rec)
                 return out_rec
             if isinstance(raw, dict):
                 # GPT-OSS is the sole extractor; only the search-results
                 # grid backfills permit #/address/etc. that the model
-                # left blank.
+                # left blank. The deterministic parser also fills blanks
+                # so visible contact fields are not lost when local GPT-OSS
+                # omits them.
+                raw = _backfill_llm_from_parser(raw, parsed_detail)
                 out_rec['permit'] = _merge_grid_into_llm(raw, row)
+                out_rec['method'] = 'GPT-OSS inference'
                 _attach_debug(out_rec)
             else:
                 # Model returned valid JSON that wasn't an object (a list
@@ -1627,15 +1666,15 @@ def oss_agent_scrape_permits(
                     f'JSON parse failed: expected object, got '
                     f'{type(raw).__name__}'
                 )
-                out_rec['permit'] = _merge_grid_into_llm({}, row)
+                out_rec['permit'] = _merge_grid_into_llm(parsed_detail, row)
                 _attach_debug(out_rec)
         except HttpScraperError as e:
             out_rec['err'] = f'fetch failed: {e}'
-            out_rec['permit'] = _merge_grid_into_llm({}, row)
+            out_rec['permit'] = _merge_grid_into_llm(parsed_detail, row)
         except Exception as e:
             log.exception('per-permit failure')
             out_rec['err'] = f'crashed: {e}'
-            out_rec['permit'] = _merge_grid_into_llm({}, row)
+            out_rec['permit'] = _merge_grid_into_llm(parsed_detail, row)
         return out_rec
 
     # Run up to 4 detail extractions concurrently. DO Inference is the
@@ -1724,9 +1763,12 @@ def oss_agent_scrape_permits(
                             except Exception:
                                 log.exception(
                                     'on_permit_junk callback failed')
-                        _progress(processed=completed,
-                                  succeeded=parsed_ok,
-                                  failed=parsed_err)
+                        if on_permit_extracted is None:
+                            _progress(processed=completed,
+                                      succeeded=parsed_ok,
+                                      failed=parsed_err)
+                        else:
+                            _progress(processed=completed)
                         continue
                     permits_out.append(rec['permit'])
                     # Per-permit immediate durability: hand the freshly
@@ -1773,12 +1815,12 @@ def oss_agent_scrape_permits(
                     if first_err is None:
                         first_err = f"permit {idx} {rec['err']}"
                     _log(f"  ⚠ permit {completed}/{n_targets} "
-                         f"LLM {rec['err'][:120]} — kept grid row"
+                         f"enrichment {rec['err'][:120]} — kept parsed row"
                          f"{suffix}{contact}", 'warn')
                 else:
                     parsed_ok += 1
                     _log(f"  ✓ permit {completed}/{n_targets} "
-                         f"parsed via GPT-OSS inference"
+                         f"parsed via {rec.get('method') or 'deterministic parser'}"
                          f"{suffix}{contact}", 'ok')
                 # Live header counters so ``N / M · ✓X · ✗Y`` ticks
                 # forward in real time during the parse phase. The
@@ -1787,9 +1829,12 @@ def oss_agent_scrape_permits(
                 # / cross-src-dup vs. parse-OK), so a parse here
                 # counted as ✓ is a "candidate" — the final summary
                 # may downgrade it if the row fails identity checks.
-                _progress(processed=completed,
-                          succeeded=parsed_ok,
-                          failed=parsed_err)
+                if on_permit_extracted is None:
+                    _progress(processed=completed,
+                              succeeded=parsed_ok,
+                              failed=parsed_err)
+                else:
+                    _progress(processed=completed)
 
     used_tokens = total_in_tokens + total_out_tokens
     elapsed_ms  = int((time.monotonic() - t0) * 1000)

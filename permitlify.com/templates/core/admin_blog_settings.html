@@ -1,7 +1,7 @@
 {% extends "core/admin_base.html" %}
 {% block title %}Blog AI Settings{% endblock %}
 {% block page_title %}Blog AI Settings{% endblock %}
-{% block page_meta %} &nbsp;·&nbsp; Firecrawl scraping + DO Inference rewriting{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; Firecrawl scraping + local GPT-OSS rewriting{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -87,16 +87,16 @@
     </div>
   </div>
 
-  {# ── DO Inference rewrite model ── #}
+  {# ── Local GPT-OSS rewrite model ── #}
   <div class="bs-card">
     <div class="bs-head">
       <div class="bs-ico">🤖</div>
       <div style="flex:1;min-width:0;">
-        <div class="bs-title">AI rewriting (DO Inference)</div>
+        <div class="bs-title">AI rewriting (local GPT-OSS)</div>
         <div class="bs-sub">Rewrites scraped articles into Permitlify-voice blog posts.</div>
       </div>
       <span class="bs-pill {% if has_inference %}live{% else %}off{% endif %}" id="bs-pill-rw">
-        {% if has_inference %}Configured{% else %}Key not set{% endif %}
+        {% if has_inference %}Local{% else %}Not set{% endif %}
       </span>
     </div>
     <div class="bs-body">
@@ -106,10 +106,8 @@
                value="{{ rewrite_model }}" placeholder="{{ default_rewrite_model }}">
       </div>
       <div class="bs-help">
-        Uses DigitalOcean Serverless Inference — the same endpoint the scrapers use. The
-        <strong>DO Inference API key is shared</strong> and managed in
-        <a href="/admin-panel/scraper-settings/">Scraper Settings</a>{% if not has_inference %} (currently <strong>not set</strong> — rewriting will fail until you add it){% endif %}.
-        Enter any model id from the DO catalogue, e.g. <code>openai-gpt-5-nano</code>.
+        Uses the same local GPT-OSS endpoint as the scrapers. No paid DO inference key is required.
+        Default model: <code>gpt-oss-20b-mxfp4</code>.
       </div>
     </div>
     <div class="bs-foot">

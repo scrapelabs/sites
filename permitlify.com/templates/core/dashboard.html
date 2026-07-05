@@ -619,6 +619,7 @@
           <th>Phone</th>
           <th>Email</th>
           <th>Owner / Contractor</th>
+          <th>Project Value</th>
           <th>Score</th>
           <th>Actions</th>
         </tr>
@@ -940,7 +941,7 @@ var dashboardTable = jQuery('#dashboardTable').DataTable({
      a silently-truncated "all rows" view. */
   lengthMenu: [[25,50,100,250,500],[25,50,100,250,500]],
   pageLength: 25,
-  order:      [[8,'desc']],  /* score column (col 8 of 10), descending */
+  order:      [[9,'desc']],  /* score column (col 9 of 11), descending */
   dom:        'rt<"dt-foot"lip>',
   ajax: {
     url:  '/dashboard/data/',
@@ -1032,6 +1033,13 @@ var dashboardTable = jQuery('#dashboardTable').DataTable({
         : '<span style="color:var(--tx3)">—</span>';
       return '<div style="max-width:200px"><div style="font-size:12.5px;font-weight:600;color:var(--tx);display:flex;align-items:center;overflow:hidden">'+nameHtml+'</div>'+
              '<div style="font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(p.address || '')+'</div></div>';
+    }},
+    {data:null, render:function(p, type){
+      var cents = parseInt(p.valueCents || 0, 10) || 0;
+      if (type === 'sort' || type === 'type' || type === 'filter') return cents;
+      return cents
+        ? '<span style="font-family:\'JetBrains Mono\',monospace;font-size:11.5px;font-weight:700;color:var(--tx)">'+esc(p.value || ('$' + Math.round(cents / 100).toLocaleString()))+'</span>'
+        : '<span style="color:var(--tx3)">—</span>';
     }},
     {data:null, render:function(p, type){
       /* Score is pre-derived in dataSrc, but recompute defensively
@@ -1220,15 +1228,15 @@ function exportCsv(){
   });
   url.searchParams.set('start', '0');
   url.searchParams.set('length', '500');
-  url.searchParams.set('order[0][column]', '8');
+  url.searchParams.set('order[0][column]', '9');
   url.searchParams.set('order[0][dir]',    'desc');
   fetch(url.toString(), {credentials:'same-origin'}).then(function(r){return r.json();}).then(function(json){
-    var rows = [['Record #','City','State','Type','Status','Issued','Expires','Phone','Email','Owner','Project','Score','Grade']];
+    var rows = [['Record #','City','State','Type','Status','Issued','Expires','Phone','Email','Owner','Project','Project Value','Score','Grade']];
     (json.data || []).forEach(function(p){
       /* Match the on-screen 12-factor derivation in the exported
        * Score/Grade columns. */
       if (typeof computeOverallScore === 'function') computeOverallScore(p);
-      rows.push([p.id,p.city,p.state,p.type,p.status,fmtDate(p.issuedIso),fmtDate(p.expiresIso),p.phone,p.email,p.owner,p.project,p.score,p.grade]);
+      rows.push([p.id,p.city,p.state,p.type,p.status,fmtDate(p.issuedIso),fmtDate(p.expiresIso),p.phone,p.email,p.owner,p.project,p.value,p.score,p.grade]);
     });
     var csv = rows.map(function(r){
       return r.map(function(v){ return '"' + (String(v == null ? '' : v).replace(/"/g,'""')) + '"'; }).join(',');

@@ -69,7 +69,7 @@ The triple (contractor_name, contractor_phone, contractor_email) MUST all descri
   3. Else only the Owner has phone/email → contractor_name = owner name (the contact IS the owner), contractor_phone/email = owner's.
   4. Else no phone/email anywhere → omit all three contractor_* keys.
 
-owner_name is ALWAYS the property owner exactly as the page lists them — emit whenever an Owner block is present (even when rule 3 also copied that name into contractor_name).
+owner_name is ALWAYS the property owner exactly as the page lists them — emit whenever an Owner block is present (even when rule 3 also copied that name into contractor_name). Never use section headers, UI labels, or field labels as names. Invalid owner/contractor names include "Additional Information", "Project Information", "Parcel Information", "Record Details", "Owner", "Email", "Address", "Status", "Type", "Date", and any line that is clearly not a person or company. If the Owner block is empty or only followed by another section header, omit owner_name.
 
 LOCATION:
   • Work Location block contains the site address — use this, not the applicant's mailing address.

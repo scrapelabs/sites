@@ -670,6 +670,7 @@ const SID = {{ scraper.id }};
 window.GLOBAL_MAX_PAGES = {{ default_pages|default:50 }};
 let runPollHandle = null;
 let activeRunId   = null;
+let runPollErrorShown = false;
 {% if latest_run_active %}
 // Server says a run was still in flight when this page rendered.
 // Resume polling immediately so the admin sees it move + can hit Stop.
@@ -686,6 +687,26 @@ let lastRenderedStep     = null;
 function getCsrf() {
   const m = document.cookie.match(/csrftoken=([^;]+)/);
   return m ? m[1] : '';
+}
+
+async function readJsonResponse(r) {
+  const text = await r.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch (_) {
+    const ct = (r.headers.get('content-type') || '').toLowerCase();
+    const html = ct.includes('text/html') || /^\s*</.test(text || '');
+    let msg = `Invalid JSON from server (HTTP ${r.status})`;
+    if (r.redirected || /\/login\/?/.test(r.url || '')) {
+      msg = 'Session expired. Refresh and sign in again.';
+    } else if (html) {
+      msg = `Server returned an HTML error page (HTTP ${r.status}). Check server logs.`;
+    }
+    const err = new Error(msg);
+    err.status = r.status;
+    err.body = (text || '').slice(0, 500);
+    throw err;
+  }
 }
 
 /* Per-run log/delete helpers were removed alongside the Recent runs
@@ -713,7 +734,7 @@ async function toggleEnabled(enable) {
       headers: { 'X-CSRFToken': getCsrf() },
       body: fd,
     });
-    const d = await r.json();
+    const d = await readJsonResponse(r);
     if (r.ok && d.ok) {
       toast(d.enabled ? 'Scraper enabled — now active.' : 'Scraper disabled.', 'ok');
       setTimeout(() => window.location.reload(), 600);
@@ -795,7 +816,7 @@ async function stopRun() {
     const r = await fetch(`/admin-panel/scrapers/runs/${activeRunId}/cancel/`, {
       method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
     });
-    const d = await r.json();
+    const d = await readJsonResponse(r);
     if (d.ok) {
       toast(d.msg || 'Run stopped.', 'ok');
       // If the row was finalised right here (orphan or hard-kill path),
@@ -834,7 +855,7 @@ async function killProcess() {
     const r = await fetch(`/admin-panel/scrapers/runs/${activeRunId}/kill/`, {
       method: 'POST', headers: { 'X-CSRFToken': getCsrf() },
     });
-    const d = await r.json();
+    const d = await readJsonResponse(r);
     if (d.ok) {
       toast(d.msg || 'Process kill scheduled.', 'ok');
       activeRunId = null; setRunBusy(false);
@@ -862,6 +883,7 @@ function openTerm(titleText) {
   const body = document.getElementById('termBody');
   body.innerHTML = '<div class="dt-term-line info">$ kicking off run…<span class="dt-term-cursor"></span></div>';
   lastRenderedLogLen = -1;
+  runPollErrorShown = false;
 }
 function closeTerm() {
   document.getElementById('termWrap').classList.remove('is-open');
@@ -980,7 +1002,7 @@ async function runNow() {
     const r = await fetch(`/admin-panel/scrapers/${SID}/run/`, {
       method: 'POST', headers: { 'X-CSRFToken': getCsrf() }, body: fd,
     });
-    const d = await r.json();
+    const d = await readJsonResponse(r);
     if (!d.ok) {
       document.getElementById('termBody').innerHTML =
         `<div class="dt-term-line err">$ failed to start: ${escapeHtml(d.error || 'unknown')}</div>`;
@@ -1024,7 +1046,7 @@ async function openBackfill() {
     const r = await fetch(`/admin-panel/scrapers/${SID}/backfill/`, {
       method: 'POST', headers: { 'X-CSRFToken': getCsrf() }, body: fd,
     });
-    const d = await r.json();
+    const d = await readJsonResponse(r);
     if (!d.ok) {
       document.getElementById('termBody').innerHTML =
         `<div class="dt-term-line err">$ failed to start: ${escapeHtml(d.error || 'unknown')}</div>`;
@@ -1048,7 +1070,7 @@ async function pollRun(rid, label) {
   async function tick() {
     try {
       const r = await fetch(`/admin-panel/scrapers/runs/${rid}/status/`);
-      const d = await r.json();
+      const d = await readJsonResponse(r);
       if (!d.ok) return;
       renderTerm(d);
       if (d.finished) {
@@ -1065,7 +1087,15 @@ async function pollRun(rid, label) {
         // CLI lines stay visible long enough to read.
         setTimeout(() => location.reload(), 1500);
       }
-    } catch (e) { /* swallow — keep polling */ }
+    } catch (e) {
+      if (!runPollErrorShown) {
+        runPollErrorShown = true;
+        const body = document.getElementById('termBody');
+        body.innerHTML += `<div class="dt-term-line err">$ status poll failed: ${escapeHtml(e.message)}</div>`;
+        body.scrollTop = body.scrollHeight;
+        toast('Status poll failed: ' + e.message, 'err');
+      }
+    }
   }
   await tick();
   runPollHandle = setInterval(tick, 1500);
@@ -1093,7 +1123,7 @@ async function openRaw(pid) {
   _rawData = null;
   try {
     const r = await fetch(`/admin-panel/permits/${pid}/raw/`);
-    const d = await r.json();
+    const d = await readJsonResponse(r);
     if (!d.ok) {
       document.getElementById('srcBody').textContent = 'Error: ' + (d.error || 'unknown');
       return;
@@ -1602,7 +1632,7 @@ function closeRaw() {
         body: fd,
       });
       var d = {};
-      try { d = await r.json(); } catch(_) {}
+      try { d = await readJsonResponse(r); } catch(_) {}
       if (r.ok && d.ok){
         toast('Saved — reloading…', 'ok');
         setTimeout(function(){ window.location.reload(); }, 600);

@@ -8,9 +8,9 @@
       "is_active": true,
       "is_staff": true,
       "is_superuser": true,
-      "last_login": null,
+      "last_login": "2026-07-04T23:48:16.866361+00:00",
       "last_name": "GoldenProxies",
-      "password": "pbkdf2_sha256$1000000$JxweRcM3wFzZYTzM96VLsv$GplR8Nk4ov4FkGR63J+kGD7cM3cq+J8xbRhYlplVZTY=",
+      "password": "pbkdf2_sha256$1000000$U15cbAPIcJODtBDRmD2OZK$HAQp+6BMCPAmYYS3Vq4LFpVDGm4pgbyWLJNWakERCf4=",
       "username": "khemiri.mohamed.ensi@gmail.com"
     }
   },

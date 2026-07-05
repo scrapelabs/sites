@@ -2624,18 +2624,23 @@ def _build_permits_data_payload(request, *, history_days_override=None,
     f_tier    = (g.get('f_tier', 'all') or 'all').strip().lower()
     g_search  = (g.get('search[value]', '') or '').strip()
 
-    # IMPORTANT: this list MUST match the column order in
-    # templates/core/permits.html and templates/core/dashboard.html
-    # exactly (Record, City, Type, Status, Issued, Phone, Email,
-    # Owner, Score, Actions). The Description column was removed
+    # IMPORTANT: these lists MUST match the column order in their
+    # corresponding templates. Dashboard includes Project Value before
+    # Score; Permit History does not. The Description column was removed
     # from the table view — the full scope-of-work text only shows
     # in the row-detail modal now, so 'desc' is no longer a sort key.
     # If this list goes out of sync with the frontend, clicking any
     # column header silently sorts by a different field.
-    _SORT_KEYS = ['id', 'city', 'type', 'status', 'issuedIso',
-                  'phone', 'email', 'owner', 'score']
-    try:    col_idx = int(g.get('order[0][column]', '8') or 8)
-    except (TypeError, ValueError): col_idx = 8
+    if include_summary:
+        _SORT_KEYS = ['id', 'city', 'type', 'status', 'issuedIso',
+                      'phone', 'email', 'owner', 'valueCents', 'score']
+        _default_sort_col = 9
+    else:
+        _SORT_KEYS = ['id', 'city', 'type', 'status', 'issuedIso',
+                      'phone', 'email', 'owner', 'score']
+        _default_sort_col = 8
+    try:    col_idx = int(g.get('order[0][column]', str(_default_sort_col)) or _default_sort_col)
+    except (TypeError, ValueError): col_idx = _default_sort_col
     sort_dir = (g.get('order[0][dir]', 'desc') or 'desc').lower()
     sort_key = _SORT_KEYS[col_idx] if 0 <= col_idx < len(_SORT_KEYS) else 'score'
 
@@ -6014,7 +6019,7 @@ def admin_scraper_detail_view(request, sid):
     # step_log so the admin lands on the LAST KNOWN transcript instead
     # of an empty box. When a run IS still queued/running the JS picks
     # it up via the normal status poll.
-    from .db import get_latest_scraper_run
+    from .db import get_latest_scraper_run, update_scraper
     latest_run = get_latest_scraper_run(sid)
     # Orphan-detect on every render: if the row says running/queued but
     # the worker_pid doesn't match this server process (e.g. workflow
@@ -6028,6 +6033,13 @@ def admin_scraper_detail_view(request, sid):
         if finalize_orphan_run(int(latest_run['id']),
                                reason='server restarted — worker process is gone'):
             latest_run = get_latest_scraper_run(sid) or latest_run
+    if latest_run and latest_run.get('finished_at'):
+        final_status = (latest_run.get('status') or '').strip().lower()
+        if final_status in ('success', 'partial', 'failed', 'cancelled') \
+                and (scraper.get('last_run_status') or '').strip().lower() == 'running':
+            update_scraper(sid, last_run_at=latest_run.get('finished_at'),
+                           last_run_status=final_status)
+            scraper = get_scraper(sid) or scraper
     latest_run_active = bool(
         latest_run
         and not latest_run.get('finished_at')
@@ -6346,6 +6358,18 @@ def admin_scraper_run_status(request, rid):
         from .scraper_accela import finalize_orphan_run
         if finalize_orphan_run(rid, reason='orphaned worker detected by status poll'):
             run = get_scraper_run(rid) or run
+    if run.get('finished_at'):
+        final_status = (run.get('status') or '').strip().lower()
+        if final_status in ('success', 'partial', 'failed', 'cancelled'):
+            try:
+                from .db import get_scraper, update_scraper
+                scraper_id = int(run.get('scraper_id'))
+                scraper = get_scraper(scraper_id) or {}
+                if (scraper.get('last_run_status') or '').strip().lower() == 'running':
+                    update_scraper(scraper_id, last_run_at=run.get('finished_at'),
+                                   last_run_status=final_status)
+            except Exception:
+                logging.exception('scraper status reconcile failed for run_id=%s', rid)
     total = max(1, int(run.get('total_targets') or 1))
     processed = int(run.get('processed') or 0)
     pct = round(100 * processed / total, 1) if total else 0
@@ -9255,7 +9279,7 @@ def admin_scraper_settings_view(request):
                 msg = 'Settings saved.'
         elif action == 'clear_do':
             set_system_setting('do_api_key', '')
-            msg = 'DigitalOcean inference key cleared.'
+            msg = 'Parser API key cleared. Local GPT-OSS does not require one.'
         elif action == 'clear_proxy':
             set_system_setting('scraper_proxy', '')
             msg = 'Scraper proxy cleared — running direct.'
@@ -13736,8 +13760,7 @@ def admin_blog_editor_view(request, slug=None):
         if not post:
             raise Http404
     has_firecrawl = bool((get_system_setting('firecrawl_api_key') or '').strip())
-    has_inference = bool((get_system_setting('do_api_key') or '').strip()
-                         or (os.environ.get('DO_API_KEY') or '').strip())
+    has_inference = True  # local GPT-OSS parser/rewrite endpoint needs no paid key
     return render(request, 'core/admin_blog_editor.html', _admin_ctx(
         request,
         active_section='blog',
@@ -13895,12 +13918,7 @@ def admin_blog_delete(request, slug):
 
 @admin_required
 def admin_blog_settings_view(request):
-    """AI config page: Firecrawl key + DO Inference rewrite model.
-
-    The DO inference API key itself is shared with the scrapers
-    (``do_api_key`` / ``DO_API_KEY``) and is managed in Scraper Settings,
-    so this page only exposes the model selector for the rewrite step.
-    """
+    """AI config page: Firecrawl key + local GPT-OSS rewrite model."""
     if request.method == 'POST':
         section = request.POST.get('section', '')
         try:
@@ -13925,8 +13943,7 @@ def admin_blog_settings_view(request):
             return JsonResponse(result)
         return redirect('admin_blog_settings')
 
-    has_inference = bool((get_system_setting('do_api_key') or '').strip()
-                         or (os.environ.get('DO_API_KEY') or '').strip())
+    has_inference = True  # local GPT-OSS endpoint needs no paid key
     return render(request, 'core/admin_blog_settings.html', _admin_ctx(
         request,
         active_section='blog_settings',

@@ -5,15 +5,14 @@ Two thin urllib-based wrappers (no extra dependencies):
 
 * ``firecrawl_scrape(url)`` — POST to firecrawl.dev/v1/scrape, returns the
   cleaned markdown + metadata (title, description, ogImage, ...).
-* ``inference_rewrite(scraped, hint)`` — runs the scraped content through DO
-  Serverless Inference (the same Gradient endpoint the scrapers use, via
+* ``inference_rewrite(scraped, hint)`` — runs the scraped content through the
+  local GPT-OSS endpoint (the same OpenAI-compatible endpoint the scrapers use, via
   ``core.scrapers.base.oss_complete``) and asks the model to return a single
   JSON object with all the fields the ``blog_posts`` table needs.
 
 The rewrite model is read from the ``system_settings`` table at call time
 (key ``blog_rewrite_model``) so the admin can switch models through the UI
-without a redeploy; the DO inference API key is shared with the scrapers
-(``do_api_key`` / ``DO_API_KEY``).
+without a redeploy.
 """
 
 from __future__ import annotations
@@ -33,9 +32,9 @@ log = logging.getLogger(__name__)
 
 
 FIRECRAWL_URL = 'https://api.firecrawl.dev/v1/scrape'
-# Default DO Serverless Inference model for blog rewriting. The admin can
+# Default local GPT-OSS model for blog rewriting. The admin can
 # override this per-install via the ``blog_rewrite_model`` system_setting.
-DEFAULT_MODEL = 'openai-gpt-5-nano'
+DEFAULT_MODEL = 'gpt-oss-20b-mxfp4'
 
 
 class BlogAIError(Exception):
@@ -410,10 +409,10 @@ def _extract_json(raw: str) -> dict:
 
 def inference_rewrite(scraped_markdown: str, source_url: str = '',
                       extra_hint: str = '', timeout: int = 120) -> dict:
-    """Rewrite ``scraped_markdown`` via DO Serverless Inference (Gradient)
+    """Rewrite ``scraped_markdown`` via local GPT-OSS
     and return a normalised dict ready for ``upsert_blog_post()``.
 
-    Uses the same inference endpoint + shared DO API key as the scrapers
+    Uses the same inference endpoint as the scrapers
     (``core.scrapers.base.oss_complete``). The model is read from the
     ``blog_rewrite_model`` system_setting, falling back to ``DEFAULT_MODEL``.
     All shape + key normalisation happens here so the view layer just
@@ -423,7 +422,7 @@ def inference_rewrite(scraped_markdown: str, source_url: str = '',
         raise BlogAIError('Nothing to rewrite — scrape a URL first.')
 
     # Imported lazily to avoid a circular import at module load and to
-    # reuse the scrapers' battle-tested DO Inference client.
+    # reuse the scrapers' OpenAI-compatible GPT-OSS client.
     from .scrapers.base import oss_complete, HttpScraperError
 
     model = (get_system_setting('blog_rewrite_model') or '').strip() or DEFAULT_MODEL

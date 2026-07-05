@@ -218,13 +218,16 @@ _EMAIL_RX = _re.compile(
 _DATE_RX = _re.compile(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b")
 _ZIP_RX  = _re.compile(r"\b([A-Z]{2})\s+(\d{5}(?:-\d{4})?)\b")
 _RECORD_RX = _re.compile(r"Record\s+([A-Z0-9][A-Z0-9\-_/]{3,40}):", _re.I)
+_MONEY_RX = _re.compile(
+    r"(?<![\w.])\$?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)(?:\.([0-9]{1,2}))?(?![\w.])"
+)
 
 # Section headers we split the cleaned text on. Order matters for the
 # "contact priority" selection below.
 _SECTION_HEADERS = [
     'Licensed Professional', 'Applicant', 'Contractor',
     'Related Contacts', 'Additional Contact Information', 'Additional Contact',
-    'Owner', 'Property Owner Info', 'Property Owner',
+    'Owner', 'Property Owner Info', 'Property Owner', 'Additional Information',
     'Project Information', 'Project Description', 'Work Location', 'Address',
     'Parcel Information', 'License Information',
 ]
@@ -248,7 +251,8 @@ _CONTACT_HEADERS = _CONTRACTOR_HEADERS + _OWNER_HEADERS
 # column headers are "Owner / Email / Address / Status / Type / Date").
 _CONTACT_LABEL_WORDS = {
     'Email', 'Address', 'Status', 'Type', 'Date', 'Phone', 'Name',
-    'Contact', 'Owner', 'Record', 'Number',
+    'Contact', 'Owner', 'Record', 'Number', 'Additional Information',
+    'Project Information', 'Parcel Information', 'License Information',
 }
 # An id-shaped token (permit/record number) — used to grab the value on
 # the line *after* a lone "Record" / "Record No" header.
@@ -270,6 +274,16 @@ _OWNER_ROLE_RX = _re.compile(
 _MULTIPARTY_HEADERS = (
     'Related Contacts', 'Additional Contact Information', 'Additional Contact',
 )
+_BUSINESS_NAME_TOKENS = {
+    'llc', 'l.l.c', 'inc', 'inc.', 'incorporated', 'corp', 'corp.',
+    'corporation', 'co', 'co.', 'company', 'ltd', 'lp', 'llp', 'pllc',
+    'group', 'partners', 'construction', 'contractors', 'contractor',
+    'contracting', 'builders', 'building', 'plumbing', 'electric',
+    'electrical', 'hvac', 'mechanical', 'heating', 'cooling', 'roofing',
+    'remodeling', 'services', 'service', 'solar', 'restoration', 'design',
+    'development', 'homes', 'properties', 'maintenance', 'energy',
+    'sunrun',
+}
 
 
 def _normalize_phone(match) -> str:
@@ -301,6 +315,37 @@ def _to_iso_date(s: str) -> str:
     if not (1 <= mo <= 12 and 1 <= da <= 31 and 1900 <= yr <= 2100):
         return ''
     return f"{yr:04d}-{mo:02d}-{da:02d}"
+
+
+def _money_to_cents(s: str) -> int:
+    """Convert an Accela money string like ``$3,500.00`` to cents."""
+    m = _MONEY_RX.search(s or '')
+    if not m:
+        return 0
+    dollars = int((m.group(1) or '0').replace(',', ''))
+    cents_text = (m.group(2) or '').ljust(2, '0')[:2]
+    cents = int(cents_text or '0')
+    return max(0, dollars * 100 + cents)
+
+
+def _money_after_label(lines: list[str], label_regex: str,
+                       within: int = 4, require_colon: bool = False) -> int:
+    """Find a money value on/after a labelled Accela field line."""
+    colon = r"\s*:\s*" if require_colon else r"\s*:?\s*"
+    rx = _re.compile(rf"^(?:{label_regex}){colon}(.*)$", _re.I)
+    for i, line in enumerate(lines):
+        m = rx.match((line or '').strip())
+        if not m:
+            continue
+        tail = (m.group(1) or '').strip()
+        cents = _money_to_cents(tail)
+        if cents:
+            return cents
+        for j in range(i + 1, min(i + 1 + within, len(lines))):
+            cents = _money_to_cents(lines[j].strip())
+            if cents:
+                return cents
+    return 0
 
 
 def _value_after(lines: list[str], label_regex: str,
@@ -378,23 +423,64 @@ def _parse_address_block(lines: list[str]) -> dict:
     return out
 
 
-def _parse_contact_block(body: list[str]) -> dict:
+def _parse_contact_block(body: list[str], *, prefer_business: bool = True) -> dict:
     """Pull name + phone + email from a contact-section body."""
     text = '\n'.join(body)
     out = {'name': '', 'phone': _first_phone(text), 'email': _first_email(text)}
-    # First line that isn't a label is almost always the entity name.
-    for line in body:
-        if ':' in line:
-            continue
-        if _PHONE_RX.search(line) or _EMAIL_RX.search(line):
-            continue
-        if _ZIP_RX.search(line):
-            continue
+    header_words = {h.lower() for h in _SECTION_HEADERS}
+
+    def _valid_name_line(line: str) -> str:
+        clean_line = (line or '').strip()
+        if not clean_line:
+            return ''
+        if clean_line.lower().rstrip(':') in header_words:
+            return ''
+        if clean_line.title() in _CONTACT_LABEL_WORDS:
+            return ''
+        if ':' in clean_line:
+            return ''
+        if _PHONE_RX.search(clean_line) or _EMAIL_RX.search(clean_line):
+            return ''
+        if _ZIP_RX.search(clean_line):
+            return ''
         # Skip obvious address fragments (start with a number).
-        if line[:1].isdigit():
-            continue
-        out['name'] = line.strip()[:200]
-        break
+        if clean_line[:1].isdigit():
+            return ''
+        return clean_line
+
+    def _looks_business_name(line: str) -> bool:
+        low = (line or '').lower()
+        if '&' in low or any(ch.isdigit() for ch in low):
+            return True
+        words = [w.strip('.,') for w in _re.split(r'[\s,]+', low) if w.strip('.,')]
+        return any(w in _BUSINESS_NAME_TOKENS for w in words)
+
+    candidates = []
+    for line in body:
+        candidate = _valid_name_line(line)
+        if candidate:
+            candidates.append(candidate)
+
+    # Applicant/LP blocks commonly render as:
+    #   Firstname\nLastname\nBusiness Inc\nAddress...
+    # For contractor lead quality, prefer the business line over the
+    # person's first name. This avoids false homeowner/private-name drops.
+    if prefer_business:
+        for candidate in candidates:
+            if _looks_business_name(candidate):
+                out['name'] = candidate[:200]
+                return out
+
+    if candidates:
+        first = candidates[0]
+        if len(candidates) >= 2:
+            # If Accela split a person's first/last names across lines,
+            # preserve both so the save gate does not see a one-word person.
+            if (_re.fullmatch(r"[A-Za-z][A-Za-z'\-]*", first)
+                    and _re.fullmatch(r"[A-Za-z][A-Za-z'\-]*", candidates[1])):
+                out['name'] = f'{first} {candidates[1]}'[:200]
+                return out
+        out['name'] = first[:200]
     return out
 
 
@@ -446,6 +532,18 @@ def parse_accela_detail(text: str, source_url: str = '') -> dict:
                 if out['permit_number']:
                     break
     if not out['permit_number']:
+        # Some Accela skins render the record id as a standalone line near
+        # the top (for example: "Building" / "26BC12056" / "RES Reroof")
+        # without any "Record" label. Prefer the first id-shaped top-line
+        # token before falling back to the URL composite.
+        for cand in lines[:80]:
+            value = cand.strip()
+            if (_RECORD_ID_RX.match(value)
+                    and _re.search(r'\d', value)
+                    and value.title() not in _CONTACT_LABEL_WORDS):
+                out['permit_number'] = value
+                break
+    if not out['permit_number']:
         # URL composite is the documented fallback.
         out['permit_number'] = record_number_from_url(source_url)
 
@@ -465,6 +563,15 @@ def parse_accela_detail(text: str, source_url: str = '') -> dict:
     desc = _value_after(lines, r"(?:Project\s+)?Description|Project\s+Name")
     if desc:
         out['description'] = desc[:500]
+
+    out['valuation_cents'] = _money_after_label(
+        lines,
+        r"Job\s+Value(?:\s*\(\$\))?|Project\s+Value|Declared\s+Value",
+    )
+    if not out['valuation_cents']:
+        out['valuation_cents'] = _money_after_label(
+            lines, r"Valuation", require_colon=True,
+        )
 
     # Sections (Work Location / contact blocks)
     sections = _split_sections(lines)
@@ -498,7 +605,7 @@ def parse_accela_detail(text: str, source_url: str = '') -> dict:
         if hdr in _MULTIPARTY_HEADERS and any(
             _OWNER_ROLE_RX.match(ln) for ln in body
         ):
-            nm = _parse_contact_block(body).get('name', '')
+            nm = _parse_contact_block(body, prefer_business=False).get('name', '')
             if nm and not out['owner_name'] and nm.title() not in _CONTACT_LABEL_WORDS:
                 out['owner_name'] = nm
             continue
@@ -506,7 +613,7 @@ def parse_accela_detail(text: str, source_url: str = '') -> dict:
 
     for hdr in _OWNER_HEADERS:
         if hdr in sections:
-            nm = _parse_contact_block(sections[hdr]).get('name', '')
+            nm = _parse_contact_block(sections[hdr], prefer_business=False).get('name', '')
             if nm and nm.title() not in _CONTACT_LABEL_WORDS:
                 out['owner_name'] = nm
                 break
@@ -532,7 +639,21 @@ def parse_accela_detail(text: str, source_url: str = '') -> dict:
     # Permit type — heuristic: the line immediately after the record
     # number that isn't itself a status/label line.
     for i, line in enumerate(lines):
+        if _re.match(r'^\s*Record\s+Status\s*:', line, _re.I):
+            continue
         if _RECORD_RX.search(line):
+            for j in range(i + 1, min(i + 4, len(lines))):
+                cand = lines[j].strip()
+                if (cand and ':' not in cand and
+                        not _DATE_RX.search(cand) and
+                        not cand.lower().startswith(('record ', 'status'))):
+                    out['permit_type'] = cand[:120]
+                    break
+            break
+    if not out['permit_type'] and out.get('permit_number'):
+        for i, line in enumerate(lines):
+            if line.strip() != out['permit_number']:
+                continue
             for j in range(i + 1, min(i + 4, len(lines))):
                 cand = lines[j].strip()
                 if (cand and ':' not in cand and

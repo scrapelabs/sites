@@ -2,7 +2,7 @@
 {% extends "core/admin_base.html" %}
 {% block title %}Scraper Settings{% endblock %}
 {% block page_title %}Scraper Settings{% endblock %}
-{% block page_meta %} &nbsp;·&nbsp; DigitalOcean GPT-OSS · proxy · extraction prompt{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; Local GPT-OSS · proxy · extraction prompt{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -71,20 +71,20 @@
   <form method="post" action="/admin-panel/scraper-settings/" autocomplete="off">
     {% csrf_token %}
 
-    <!-- ───────── DigitalOcean GPT-OSS (parser) ───────── -->
+    <!-- ───────── Local GPT-OSS (parser) ───────── -->
     <div class="ss-card">
       <div class="ss-head">
         <div class="ss-ico">🪶</div>
         <div style="flex:1;min-width:0;">
-          <div class="ss-title">DigitalOcean Serverless Inference (GPT-OSS)</div>
-          <div class="ss-sub">Parses cleaned HTML into structured permit JSON. Used by every per-source HTTP scraper. <code>gpt-oss-20b</code> = $0.03 / $0.10 per 1M in/out tokens — about <b>1/30th</b> the cost of Claude Sonnet for the same page.</div>
+          <div class="ss-title">Local GPT-OSS Parser</div>
+          <div class="ss-sub">Parses cleaned HTML into structured permit JSON using the local free GPT-OSS server. No DigitalOcean inference key or paid hosted inference is required.</div>
         </div>
-        <span class="ss-pill {% if has_do %}live{% else %}off{% endif %}">{% if has_do %}Configured{% else %}Not set{% endif %}</span>
+        <span class="ss-pill live">Local</span>
       </div>
       <div class="ss-body">
 
-        <div class="ss-field">
-          <label class="ss-label" for="ss-do">API key <span>(starts with <code>doo_v1_</code>)</span></label>
+        <div class="ss-field" style="display:none">
+          <label class="ss-label" for="ss-do">Optional local/custom API key</label>
           {% if has_do %}
           <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:8px">
             <input type="text" class="ss-input" id="ss-do-current" value="{{ do_api_key_value }}"
@@ -95,16 +95,16 @@
           </div>
           {% endif %}
           <input type="text" class="ss-input" id="ss-do" name="do_api_key"
-                 placeholder="{% if has_do %}Paste a new key here to replace the one above{% else %}doo_v1_xxxxxxxxxxxxxxxxxxxxxxxx{% endif %}"
+                 placeholder="Local GPT-OSS does not need a key"
                  autocomplete="off" spellcheck="false">
-          <div class="ss-help">Current key shown above in plain text for easy copy. Create new keys at <a href="https://cloud.digitalocean.com/model-studio/serverless-inference" target="_blank" rel="noopener">cloud.digitalocean.com → AI → Inference → Manage → Create model access key</a>.</div>
+          <div class="ss-help">Optional only for a custom protected OpenAI-compatible endpoint. Local GPT-OSS does not need an API key.</div>
         </div>
 
         <div class="ss-field">
           <label class="ss-label" for="ss-base">Base URL</label>
           <input type="text" class="ss-input" id="ss-base" name="do_base_url"
                  value="{{ do_base_url }}" placeholder="{{ do_base_url_default }}" autocomplete="off" spellcheck="false">
-          <div class="ss-help">Default: <code>{{ do_base_url_default }}</code>. Change only if you proxy DO Inference through a private endpoint.</div>
+          <div class="ss-help">Default local endpoint: <code>{{ do_base_url_default }}</code>. Leave blank to use the local GPT-OSS server.</div>
         </div>
 
         <div class="ss-field">
@@ -114,7 +114,7 @@
             <option value="{{ m }}" {% if m == oss_model %}selected{% endif %}>{{ m }}</option>
             {% endfor %}
           </select>
-          <div class="ss-help">Default: <code>openai-gpt-oss-20b</code> (cheapest, ~94% accuracy on Accela CapDetail). Switch to <code>openai-gpt-oss-120b</code> for the trickiest pages — ~3× the cost, marginal accuracy gain on clean tenants.</div>
+          <div class="ss-help">Default: <code>gpt-oss-20b-mxfp4</code>, served locally by llama.cpp.</div>
         </div>
 
         <div class="ss-grid">
@@ -218,7 +218,7 @@
 
   <form method="post" action="/admin-panel/scraper-settings/" style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
     {% csrf_token %}
-    <button name="action" value="clear_do"     class="ss-clear" type="submit" onclick="return confirm('Clear the DigitalOcean OSS key? Every per-source scraper will stop working until a new key is set.');">Clear DO OSS key</button>
+    <button name="action" value="clear_do"     class="ss-clear" type="submit">Clear optional parser key</button>
     {% if has_proxy %}
     <button name="action" value="clear_proxy"  class="ss-clear" type="submit" onclick="return confirm('Clear the outbound proxy? All scraper traffic will go direct from this server.');">Clear proxy</button>
     {% endif %}
@@ -227,7 +227,7 @@
     {% endif %}
   </form>
 
-  {# DigitalOcean Inference settings — Run-now agent toggle + model.   #}
+  {# Local GPT-OSS settings — Run-now agent toggle + model.            #}
   {# Moved here 2026-05 from /admin-panel/scrapers/ so all scraper-    #}
   {# wide knobs live on one page. Saves to /admin-panel/scrapers/      #}
   {# agent/settings/ (independent endpoint from the forms above).      #}

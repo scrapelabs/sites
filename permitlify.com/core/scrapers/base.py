@@ -25,23 +25,17 @@ from ..db import get_system_setting, record_claude_call
 log = logging.getLogger(__name__)
 
 
-# ── DigitalOcean Serverless Inference ─────────────────────────────────
+# ── Local GPT-OSS inference ────────────────────────────────────────────
 
-DO_BASE_URL_DEFAULT = 'https://inference.do-ai.run/v1'
+DO_BASE_URL_DEFAULT = os.environ.get('GPT_OSS_BASE_URL', 'http://127.0.0.1:8010/v1')
 
-# Model catalogue — prices are USD per 1M tokens at the DO Serverless
-# Inference list rate as of May 2026. Keeping the dict lets callers
-# show pricing in the UI without a second source of truth.
+# Model catalogue. Prices are zero because Permitlify now points at the
+# local llama.cpp GPT-OSS server instead of a paid hosted inference API.
 OSS_MODELS = {
-    'openai-gpt-oss-20b':  {'input_price': 0.03, 'output_price': 0.10},
-    'openai-gpt-oss-120b': {'input_price': 0.10, 'output_price': 0.70},
-    # GPT-5-nano on DigitalOcean Serverless Inference. Default prices
-    # are placeholders — admin can override them on the Inference
-    # Stats page (Scrapers → Inference Stats) and the override wins
-    # over this dict for cost calculations.
-    'openai-gpt-5-nano':   {'input_price': 0.05, 'output_price': 0.40},
+    'gpt-oss-20b-mxfp4': {'input_price': 0.0, 'output_price': 0.0},
+    'openai-gpt-oss-20b': {'input_price': 0.0, 'output_price': 0.0},
 }
-DEFAULT_OSS_MODEL = 'openai-gpt-oss-20b'
+DEFAULT_OSS_MODEL = os.environ.get('GPT_OSS_MODEL', 'gpt-oss-20b-mxfp4')
 
 # Backwards-compat alias for callers that imported the literal constant
 # before the base_url became admin-editable.
@@ -566,23 +560,16 @@ def http_post(session_cookies: dict, url: str, form: dict,
 # ── DO inference parameter resolution ─────────────────────────────────
 
 def _resolve_do_base_url() -> str:
-    """Active DigitalOcean inference base URL.
-
-    Most users leave this as the default; admins running a private
-    inference cluster (or proxying through a CDN) can override it.
-    """
+    """Active OpenAI-compatible parser base URL."""
     v = (get_system_setting('do_base_url') or '').strip()
     return v or DO_BASE_URL_DEFAULT
 
 
 def _resolve_oss_model() -> str:
     """Active OSS parser model. Priority:
-      1. ``accela_scraper_agent_model`` (the per-scraper DO Inference card —
-         admin types any model id from the DO catalogue)
+      1. ``accela_scraper_agent_model`` (the per-scraper parser card)
       2. ``accela_oss_model`` (legacy key, kept for backwards compat)
-      3. ``DEFAULT_OSS_MODEL`` (cheapest + fastest)
-    No allowlist — DO ships new models continuously and the save endpoint
-    already enforces the ``[A-Za-z0-9._-/]`` syntax + 200-char cap.
+      3. ``DEFAULT_OSS_MODEL``
     """
     mdl = (get_system_setting('accela_scraper_agent_model') or '').strip()
     if mdl:
@@ -620,25 +607,19 @@ def _resolve_int(setting: str, default: int, *,
 
 
 def _do_api_key() -> str:
-    """Resolve the DigitalOcean inference key.
+    """Resolve an optional parser API key.
 
-    Priority: system_setting ``do_api_key`` (admin-editable in
-    Scraper Settings) → env var ``DO_API_KEY``. Raises if neither
-    is set so the failure surfaces in the run log instead of a
-    silent 401.
+    Local GPT-OSS does not need a key. This intentionally does not read
+    ``DO_API_KEY`` so a machine-level paid inference key can never leak into
+    the free local parser path.
     """
     key = (get_system_setting('do_api_key') or '').strip()
     if not key:
-        key = (os.environ.get('DO_API_KEY') or '').strip()
-    if not key:
-        raise HttpScraperError(
-            'DigitalOcean inference key is not configured. '
-            'Add it in Scraper Settings (DO_API_KEY) before running '
-            'any HTTP-based scraper.')
+        key = (os.environ.get('GPT_OSS_API_KEY') or '').strip()
     return key
 
 
-# ── DO Serverless Inference call ──────────────────────────────────────
+# ── OpenAI-compatible local inference call ────────────────────────────
 
 def oss_complete(prompt: str, *, model: str | None = None,
                  system: str | None = None,
@@ -648,11 +629,11 @@ def oss_complete(prompt: str, *, model: str | None = None,
                  timeout: int = 90,
                  source: str = 'accela_oss',
                  scraper_run_id: int | None = None) -> dict:
-    """One round-trip to DO Serverless Inference.
+    """One round-trip to the local OpenAI-compatible GPT-OSS server.
 
     All numeric knobs default to the admin-configured system_settings
     (``do_temperature``, ``do_max_tokens``, ``do_top_p``,
-    ``do_base_url``) so a single Settings page controls inference
+    ``do_base_url``) so a single Settings page controls parser
     behaviour platform-wide. Pass an explicit kwarg to override per
     call (useful for one-off ad-hoc scripts).
 
@@ -689,14 +670,16 @@ def oss_complete(prompt: str, *, model: str | None = None,
         'top_p':       tpp,
     }).encode('utf-8')
 
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept':       'application/json',
+    }
+    if key:
+        headers['Authorization'] = f'Bearer {key}'
     req = urllib.request.Request(
         base.rstrip('/') + '/chat/completions',
         data=body, method='POST',
-        headers={
-            'Authorization': f'Bearer {key}',
-            'Content-Type':  'application/json',
-            'Accept':        'application/json',
-        },
+        headers=headers,
     )
 
     t0 = time.monotonic()
@@ -718,7 +701,7 @@ def oss_complete(prompt: str, *, model: str | None = None,
                       or str(eb))
             except Exception:
                 em = f'HTTP {e.code}'
-            err = f'DO Inference {e.code}: {em}'
+            err = f'GPT-OSS inference {e.code}: {em}'
             raise HttpScraperError(err) from e
         except urllib.error.URLError as e:
             err = f'OSS network error: {e.reason}'

@@ -81,7 +81,7 @@
   <div>
     <strong>AI not fully configured.</strong>
     {% if not has_firecrawl %}Firecrawl is not configured — scraping will fail. {% endif %}
-    {% if not has_inference %}DO Inference key is not configured — rewriting will fail. Add it in <a href="/admin-panel/scraper-settings/">Scraper Settings</a>. {% endif %}
+    {% if not has_inference %}Local GPT-OSS is not configured — rewriting will fail. Check <a href="/admin-panel/scraper-settings/">Scraper Settings</a>. {% endif %}
     Configure Firecrawl in <a href="/admin-panel/blog-settings/">Blog AI Settings</a>. You can still manually paste content below if you skip the AI flow.
   </div>
 </div>
@@ -115,13 +115,13 @@
   </div>
 </div>
 
-{# ── Step 2: rewrite via DO Inference ─────────────────────────────── #}
+{# ── Step 2: rewrite via local GPT-OSS ─────────────────────────────── #}
 <div class="be-step{% if editing %} collapsed{% endif %}" id="be-step-2">
   <div class="be-step-head" onclick="toggleStep(2)">
     <div class="be-step-num idle" id="be-num-2">2</div>
     <div style="flex:1;min-width:0;">
       <div class="be-step-title">Rewrite with AI</div>
-      <div class="be-step-sub">DO Inference rewrites the scraped article in Permitlify's voice and fills the form below.</div>
+      <div class="be-step-sub">Local GPT-OSS rewrites the scraped article in Permitlify's voice and fills the form below.</div>
     </div>
     <span class="be-step-toggle">⌄</span>
   </div>

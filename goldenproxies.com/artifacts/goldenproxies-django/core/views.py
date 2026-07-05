@@ -11,6 +11,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db import IntegrityError
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -145,9 +146,13 @@ def register_view(request):
         return redirect('dashboard')
     form = RegisterForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        user = form.save()
-        login(request, user)
-        return redirect('dashboard')
+        try:
+            user = form.save()
+        except IntegrityError:
+            form.add_error('email', 'An account with this email already exists. Please sign in instead.')
+        else:
+            login(request, user)
+            return redirect('dashboard')
     return render(request, 'auth/register.html', {'form': form})
 
 

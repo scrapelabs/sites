@@ -5,6 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "goldenproxies-dev-secret-key-change-in-production")
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -77,6 +78,8 @@ LOGOUT_REDIRECT_URL = "/"
 SUPER_ADMIN_EMAIL = "khemiri.mohamed.ensi@gmail.com"
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://goldenproxies.com",
+    "https://www.goldenproxies.com",
     "https://*.replit.dev",
     "https://*.riker.replit.dev",
     "http://localhost:24289",

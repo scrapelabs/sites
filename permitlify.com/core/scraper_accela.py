@@ -2979,12 +2979,23 @@ def _run_agent_branch(*, scraper: dict, run_id: int,
                 })
                 if len(upsert_stats['errors']) > 50:
                     upsert_stats['errors'] = upsert_stats['errors'][-50:]
+                snap = (upsert_stats['inserted']
+                        + upsert_stats['updated'],
+                        upsert_stats['failed'])
             try:
                 append_scraper_run_step(
                     run_id,
                     f'  ✗ {(raw.get("permit_number") or "?")}: '
                     f'upsert failed: {str(e)[:140]}',
                     'err',
+                )
+            except Exception:
+                pass
+            try:
+                update_scraper_run(
+                    run_id,
+                    succeeded=snap[0],
+                    failed=snap[1],
                 )
             except Exception:
                 pass
@@ -3133,6 +3144,8 @@ def _run_agent_branch(*, scraper: dict, run_id: int,
         run_id,
         status=final_status,
         finished_at=datetime.utcnow(),
+        succeeded=succeeded,
+        failed=failed,
         current_step=(f'cancelled — {succeeded} ok, {failed} failed'
                       if cancelled
                       else f'done — {succeeded} ok, {failed} failed'),
