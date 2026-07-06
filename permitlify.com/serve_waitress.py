@@ -131,6 +131,11 @@ def _warm_db_pool() -> None:
 def main() -> None:
     _prewarm_templates()
     _warm_db_pool()
+    try:
+        from core.server_cron import start_server_cron_scheduler
+        start_server_cron_scheduler()
+    except Exception as exc:
+        print(f'[serve_waitress] server cron scheduler skipped: {exc}')
 
     from waitress import serve
 

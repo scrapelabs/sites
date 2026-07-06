@@ -409,6 +409,19 @@ function getCsrf() {
   const m = document.cookie.match(/csrftoken=([^;]+)/);
   return m ? m[1] : '';
 }
+async function readJsonResponse(r) {
+  const text = await r.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch (_) {
+    const html = (r.headers.get('content-type') || '').toLowerCase().includes('text/html') || /^\s*</.test(text || '');
+    const err = new Error(html
+      ? 'Server returned an HTML error page (HTTP ' + r.status + '). Check server logs.'
+      : 'Invalid JSON from server (HTTP ' + r.status + ').');
+    err.status = r.status;
+    throw err;
+  }
+}
 function toast(msg, kind) {
   const t = document.getElementById('toastSc');
   t.textContent = msg;
@@ -540,7 +553,7 @@ async function stopRun(sid) {
       method: 'POST',
       headers: {'X-CSRFToken': getCsrf()},
     });
-    var d = await r.json();
+    var d = await readJsonResponse(r);
     if (d.ok) {
       toast(d.msg || 'Stop requested', 'ok');
       setTimeout(function(){ window.scrapersTable && window.scrapersTable.ajax.reload(null, false); }, 1500);
@@ -1082,7 +1095,7 @@ setInterval(function(){
   try {
     var r = await fetch('/admin-panel/scrapers/active-batch/');
     if (!r.ok) return;
-    var d = await r.json();
+    var d = await readJsonResponse(r);
     if (d.ok && d.batch_id) {
       window._scBatchId = d.batch_id;
       showBatchRunning();
@@ -1113,7 +1126,7 @@ async function runAllScrapers() {
       headers: {'X-CSRFToken': getCsrf()},
       body: fd,
     });
-    var d = await r.json();
+    var d = await readJsonResponse(r);
     if (!d.ok) {
       toast('Failed: ' + (d.error || 'unknown'), 'err');
       showBatchIdle();
@@ -1145,7 +1158,7 @@ async function stopRunAll() {
       method: 'POST',
       headers: {'X-CSRFToken': getCsrf()},
     });
-    var d = await r.json();
+    var d = await readJsonResponse(r);
     if (d.ok) {
       toast(d.msg || 'Batch stopped', 'ok');
     } else {
@@ -1166,7 +1179,7 @@ async function pollBatchStatus(batchId) {
   try {
     var r = await fetch('/admin-panel/scrapers/cron/batch/' + batchId + '/');
     if (!r.ok) return;
-    var d = await r.json();
+    var d = await readJsonResponse(r);
     if (!d.ok) return;
 
     var children = d.children || [];

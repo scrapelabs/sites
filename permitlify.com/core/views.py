@@ -6619,6 +6619,7 @@ def _spawn_batch_subprocess(batch_id: int, *, kind: str,
     DO App Platform deploy). Mirrors ``admin_finder_batch_start``."""
     import subprocess as _sp
     import sys as _sys
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     cmd = [_sys.executable, 'manage.py', 'run_scrapers_batch',
            str(int(batch_id)), '--kind', kind]
     if concurrency is not None:
@@ -6630,13 +6631,15 @@ def _spawn_batch_subprocess(batch_id: int, *, kind: str,
     env = os.environ.copy()
     env.setdefault('DJANGO_DEBUG', '1')
     env['DJANGO_SETTINGS_MODULE'] = 'permitdaily.settings'
-    log_path = f'/tmp/scrapers_batch_{int(batch_id)}.log'
+    log_dir = os.path.join(project_root, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, f'scrapers_batch_{int(batch_id)}.log')
     proc = _sp.Popen(
         cmd,
         start_new_session=True,
         stdout=_sp.DEVNULL,
         stderr=open(log_path, 'w'),
-        cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        cwd=project_root,
         env=env,
     )
     # Best-effort early stamp — the child also stamps its own PID
@@ -7454,11 +7457,6 @@ def _load_cron_settings():
         'days':           days,
         'count':          max(1, min(count, 500)),
         'window_minutes': max(1, min(window, 720)),
-        # When true, the at_utc / window gate is bypassed entirely — every
-        # external signal that authenticates fires a batch. Days-of-week
-        # filter still applies so weekend pauses still work. Default off
-        # so existing installs keep their current daily-window behaviour.
-        'always_fire':    bool(get_system_setting('scrapers_cron_always_fire')),
         'saved_at':       (get_system_setting('scrapers_cron_saved_at') or '').strip(),
     }
 
@@ -7526,9 +7524,9 @@ def _load_cron_health(cron_settings: dict) -> dict:
         from datetime import datetime as _dt
         age_secs = int((_dt.utcnow() - hb_dt).total_seconds())
         if age_secs <= expected_gap_min * 60:
-            status, label = 'healthy', 'External trigger is firing'
+            status, label = 'healthy', 'Server scheduler is running'
         else:
-            status, label = 'stale', 'External trigger looks stalled'
+            status, label = 'stale', 'Server scheduler looks stalled'
 
     return {
         'status':            status,
@@ -7623,13 +7621,11 @@ def admin_scraper_cron_save(request):
     raw_days = request.POST.getlist('days')
     days = sorted({d for d in raw_days if d in _VALID_DAY_VALUES})
 
-    always_fire = request.POST.get('always_fire') == '1'
-
     set_system_setting('scrapers_cron_enabled', enabled)
     set_system_setting('scrapers_cron_at_utc', at_utc)
     set_system_setting('scrapers_cron_count', str(count))
     set_system_setting('scrapers_cron_window_minutes', str(window))
-    set_system_setting('scrapers_cron_always_fire', always_fire)
+    set_system_setting('scrapers_cron_always_fire', False)
     set_system_setting('scrapers_cron_days', ','.join(days))
     set_system_setting(
         'scrapers_cron_saved_at',
@@ -13311,11 +13307,6 @@ def _cron_gate_check() -> str | None:
         today = _CRON_DAY_INDEX[now.weekday()]
         if today not in days:
             return f'today ({today}) is not in scrapers_cron_days={sorted(days)}'
-    # "Always fire" bypass — admin opted out of the time-of-day gate so
-    # every authenticated external signal fires (still subject to the
-    # days-of-week filter checked above and the enabled toggle).
-    if get_system_setting('scrapers_cron_always_fire'):
-        return None
     at_utc = (get_system_setting('scrapers_cron_at_utc') or '').strip()
     if at_utc:
         try:
@@ -13351,6 +13342,119 @@ def _cron_stamp_heartbeat(outcome: str, *, fired: bool = False) -> None:
         logging.exception('cron-heartbeat write failed (non-fatal)')
 
 
+def _server_cron_slot_key() -> str:
+    """Return the nearest scheduled UTC slot key for de-duping.
+
+    The server-local scheduler wakes repeatedly. When using the normal
+    Run-at/window schedule, one eligible window must create at most one
+    batch, so we remember this key in system_settings. The HTTP trigger
+    path intentionally does not use this key because external schedulers
+    already define their own cadence.
+    """
+    from .db import get_system_setting
+    raw = (get_system_setting('scrapers_cron_at_utc') or '08:00').strip()
+    try:
+        hh_s, mm_s = raw.split(':')
+        hh, mm = int(hh_s), int(mm_s)
+        if not (0 <= hh <= 23 and 0 <= mm <= 59):
+            raise ValueError
+    except Exception:
+        hh, mm = 8, 0
+    now = datetime.utcnow()
+    today = datetime(now.year, now.month, now.day, hh, mm)
+    from datetime import timedelta as _td
+    candidates = [today - _td(days=1), today, today + _td(days=1)]
+    slot = min(candidates, key=lambda d: abs((now - d).total_seconds()))
+    return slot.strftime('%Y-%m-%d %H:%M UTC')
+
+
+def _cron_signal_fire(*, source: str = 'http') -> dict:
+    """Apply cron gates and spawn a cron batch if this signal should fire."""
+    skip_reason = _cron_gate_check()
+    if skip_reason:
+        outcome = f'skipped: {skip_reason}'
+        _cron_stamp_heartbeat(outcome, fired=False)
+        return {'ok': True, 'fired': False, 'batch_id': None,
+                'outcome': outcome}
+
+    from .db import (list_enabled_scrapers_all, create_cron_batch,
+                     reap_stale_cron_batches, pg as _pg_cron)
+
+    server_slot = ''
+    if source == 'server':
+        try:
+            server_slot = _server_cron_slot_key()
+            last_slot = (get_system_setting('scrapers_cron_server_last_slot') or '').strip()
+            if server_slot and last_slot == server_slot:
+                outcome = f'skipped: server already fired slot {server_slot}'
+                _cron_stamp_heartbeat(outcome, fired=False)
+                return {'ok': True, 'fired': False, 'batch_id': None,
+                        'outcome': outcome, 'slot': server_slot}
+        except Exception:
+            logging.exception('server cron: slot de-dupe check failed (non-fatal)')
+
+    try:
+        reap_stale_cron_batches(60)
+    except Exception:
+        logging.exception('cron-trigger: reap_stale_cron_batches failed (non-fatal)')
+    try:
+        active = _pg_cron.query_one(
+            "SELECT id, started_at FROM cron_batches "
+            "WHERE finished_at IS NULL AND status = 'running' "
+            "ORDER BY id DESC LIMIT 1"
+        )
+    except Exception:
+        logging.exception('cron-trigger: active-batch lookup failed (non-fatal)')
+        active = None
+    if active:
+        outcome = (f'skipped: cron batch #{active["id"]} still running '
+                   f'(started {active.get("started_at")})')
+        _cron_stamp_heartbeat(outcome, fired=False)
+        return {'ok': True, 'fired': False, 'batch_id': None,
+                'outcome': outcome, 'active_batch_id': int(active['id'])}
+
+    try:
+        enabled = list_enabled_scrapers_all()
+    except Exception:
+        logging.exception('cron-trigger: list_enabled_scrapers_all failed')
+        _cron_stamp_heartbeat('failed: list_enabled_scrapers_all crashed', fired=False)
+        return {'ok': False, 'error': 'Could not enumerate enabled scrapers — see server logs.'}
+    if not enabled:
+        outcome = 'skipped: no enabled scrapers'
+        _cron_stamp_heartbeat(outcome, fired=False)
+        return {'ok': True, 'fired': False, 'batch_id': None,
+                'outcome': outcome}
+
+    try:
+        batch_id = create_cron_batch(kicked_by=None)
+    except Exception:
+        logging.exception('cron-trigger: create_cron_batch failed')
+        return {'ok': False, 'error': 'Could not create cron_batch row — see server logs.'}
+
+    try:
+        _spawn_batch_subprocess(batch_id, kind='cron')
+    except Exception:
+        logging.exception('cron-trigger: failed to spawn coordinator subprocess')
+        try:
+            from .db import update_cron_batch
+            from datetime import datetime as _dt
+            update_cron_batch(batch_id, status='failed', finished_at=_dt.utcnow(),
+                              note='failed to spawn coordinator subprocess')
+        except Exception:
+            pass
+        return {'ok': False, 'error': 'Could not spawn coordinator subprocess.'}
+
+    if server_slot:
+        try:
+            set_system_setting('scrapers_cron_server_last_slot', server_slot)
+        except Exception:
+            logging.exception('server cron: failed to store last slot')
+    _cron_stamp_heartbeat(f'fired ({source})', fired=True)
+    return {'ok': True, 'fired': True, 'batch_id': batch_id,
+            'outcome': f'fired ({source})', 'enabled_scrapers': len(enabled),
+            'slot': server_slot}
+
+
 @csrf_exempt
 @require_http_methods(['POST', 'GET'])
 def api_run_scrapers_cron(request):
@@ -13378,103 +13482,11 @@ def api_run_scrapers_cron(request):
             status=401,
         )
 
-    skip_reason = _cron_gate_check()
-    if skip_reason:
-        outcome = f'skipped: {skip_reason}'
-        _cron_stamp_heartbeat(outcome, fired=False)
-        return JsonResponse(
-            {'ok': True, 'fired': False, 'batch_id': None,
-             'outcome': outcome},
-            status=202,
-        )
-
-    # Concurrency guard — if a previous cron batch is still running,
-    # refuse to start a second one. Prevents external schedulers
-    # (cron-job.org / GitHub Actions every 30 min) from piling up
-    # overlapping batches that fight over the same scrapers and quota.
-    # Stale batches whose coordinator thread died (server restart, OOM,
-    # etc.) are reaped first so the guard can't lock the system out
-    # forever — anything still "running" past 60 minutes is treated as
-    # dead and force-finalized.
-    from .db import (list_enabled_scrapers_all, create_cron_batch,
-                     reap_stale_cron_batches, pg as _pg_cron)
-    try:
-        reap_stale_cron_batches(60)
-    except Exception:
-        logging.exception('cron-trigger: reap_stale_cron_batches failed (non-fatal)')
-    try:
-        active = _pg_cron.query_one(
-            "SELECT id, started_at FROM cron_batches "
-            "WHERE finished_at IS NULL AND status = 'running' "
-            "ORDER BY id DESC LIMIT 1"
-        )
-    except Exception:
-        logging.exception('cron-trigger: active-batch lookup failed (non-fatal)')
-        active = None
-    if active:
-        outcome = (f'skipped: cron batch #{active["id"]} still running '
-                   f'(started {active.get("started_at")})')
-        _cron_stamp_heartbeat(outcome, fired=False)
-        return JsonResponse(
-            {'ok': True, 'fired': False, 'batch_id': None,
-             'outcome': outcome, 'active_batch_id': int(active['id'])},
-            status=202,
-        )
-
-    # Gate passed — verify there's at least one enabled scraper before
-    # we record a "fired" heartbeat, so an admin who disabled them all
-    # doesn't get a misleading green health pill.
-    try:
-        enabled = list_enabled_scrapers_all()
-    except Exception:
-        logging.exception('cron-trigger: list_enabled_scrapers_all failed')
-        _cron_stamp_heartbeat('failed: list_enabled_scrapers_all crashed', fired=False)
-        return JsonResponse(
-            {'ok': False, 'error': 'Could not enumerate enabled scrapers — '
-                                   'see server logs.'},
-            status=500,
-        )
-    if not enabled:
-        outcome = 'skipped: no enabled scrapers'
-        _cron_stamp_heartbeat(outcome, fired=False)
-        return JsonResponse(
-            {'ok': True, 'fired': False, 'batch_id': None,
-             'outcome': outcome},
-            status=202,
-        )
-
-    # Stamp BEFORE kicking the worker so even if the thread dies on
-    # spawn we still record that the external trigger reached us.
-    _cron_stamp_heartbeat('fired', fired=True)
-
-    try:
-        batch_id = create_cron_batch(kicked_by=None)  # external = no user
-    except Exception:
-        logging.exception('cron-trigger: create_cron_batch failed')
-        return JsonResponse(
-            {'ok': False, 'error': 'Could not create cron_batch row — '
-                                   'see server logs.'},
-            status=500,
-        )
-
-    try:
-        _spawn_batch_subprocess(batch_id, kind='cron')
-    except Exception:
-        logging.exception('cron-trigger: failed to spawn coordinator subprocess')
-        try:
-            from .db import update_cron_batch
-            from datetime import datetime as _dt
-            update_cron_batch(batch_id, status='failed', finished_at=_dt.utcnow(),
-                              note='failed to spawn coordinator subprocess')
-        except Exception:
-            pass
-        return JsonResponse(
-            {'ok': False, 'error': 'Could not spawn coordinator subprocess.'},
-            status=500,
-        )
+    result = _cron_signal_fire(source='http')
+    if not result.get('ok'):
+        return JsonResponse(result, status=500)
     return JsonResponse(
-        {'ok': True, 'fired': True, 'batch_id': batch_id,
-         'outcome': 'fired', 'enabled_scrapers': len(enabled)},
+        result,
         status=202,
     )
 

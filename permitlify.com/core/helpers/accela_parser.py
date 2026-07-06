@@ -566,7 +566,7 @@ def parse_accela_detail(text: str, source_url: str = '') -> dict:
 
     out['valuation_cents'] = _money_after_label(
         lines,
-        r"Job\s+Value(?:\s*\(\$\))?|Project\s+Value|Declared\s+Value",
+        r"Job\s+Value(?:\s*\(\$\))?|Project\s+Value|Declared\s+Value|Cost\s+of\s+Construction(?:\s*\(\$\))?",
     )
     if not out['valuation_cents']:
         out['valuation_cents'] = _money_after_label(

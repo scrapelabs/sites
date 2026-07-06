@@ -68,9 +68,8 @@
 <div class="scc-card">
   <h2>🩺 Cron health</h2>
   <div class="scc-sub">
-    Permitlify is a web app, not a daemon — it depends on a
-    <b>GitHub Actions</b> workflow pinging the HTTP cron trigger below on a
-    fixed cadence. This card watches for that trigger so you don't have to guess.
+    Permitlify now runs its scraper scheduler from the Windows server service.
+    This card watches that in-service scheduler so you don't have to guess.
   </div>
   <div class="ch-row">
     <span id="chLight" class="ch-light {{ health.status }}">
@@ -93,43 +92,38 @@
 
   {% if health.status == 'never' %}
   <div class="ch-explainer" style="background:#fffbeb;border-color:#fcd34d;color:#78350f;">
-    ⚠ <b>No external trigger has been observed yet.</b> The schedule above is
-    saved correctly, but until something on your server invokes
-    <code>python3 scripts/run_scrapers.py</code> at least every {{ health.expected_gap_min }} minutes,
-    the automatic cron will <b>never fire</b>. The "Run cron now" button still
-    works because it spawns an in-process thread inside Django.
+    ⚠ <b>No server scheduler heartbeat has been observed yet.</b> Restart the
+    <code>Permitlify</code> Windows service after deploying scheduler changes.
+    The "Run cron now" button still works because it bypasses the schedule.
   </div>
   {% elif health.status == 'stale' %}
   <div class="ch-explainer" style="background:#fef2f2;border-color:#fca5a5;color:#7f1d1d;">
-    ⚠ <b>External trigger looks stalled.</b> The last heartbeat from
-    <code>scripts/run_scrapers.py</code> was <b>{{ health.heartbeat_age }}</b>,
-    which is older than the expected {{ health.expected_gap_min }}-minute gap.
-    Open your repo's <b>Actions</b> tab and check that the
-    <em>Permitlify scraper cron</em> workflow is still enabled and its
-    recent runs are succeeding.
+    ⚠ <b>Server scheduler looks stalled.</b> The last in-service scheduler
+    heartbeat was <b>{{ health.heartbeat_age }}</b>, older than the expected
+    {{ health.expected_gap_min }}-minute gap. Check that the
+    <code>Permitlify</code> Windows service is running.
   </div>
   {% else %}
   <div class="ch-explainer">
-    ✓ The external trigger is invoking the cron entrypoint as expected.
+    ✓ The server scheduler is invoking the cron entrypoint as expected.
     Heartbeats land in <code>system_settings</code> on every invocation
     (whether the schedule allows it to fire or not).
   </div>
   {% endif %}
 </div>
 
-<!-- ── HTTP cron trigger URL — GitHub Actions only ─────────────────── -->
+<!-- ── Server scheduler status ─────────────────────────────────────── -->
 <div class="scc-card">
-  <h2>🔗 HTTP cron trigger (GitHub Actions)</h2>
+  <h2>🖥 Server scheduler</h2>
   <div class="scc-sub">
-    Permitlify itself doesn't run a daemon — it relies on
-    <b>GitHub Actions</b> to ping the URL below on a fixed cadence. Every
-    authenticated ping triggers a scraper batch (subject to the schedule
-    + concurrency guard below). The full setup is in the
-    <em>GitHub Actions setup</em> block at the bottom of this card.
+    The scheduler starts inside <code>serve_waitress.py</code> with the
+    <code>Permitlify</code> Windows service. It checks the schedule every minute,
+    starts the existing cron batch subprocess when due, and prevents duplicate
+    fires for the same scheduled slot.
   </div>
 
   <div class="scc-field" style="margin-top:6px;">
-    <label>Trigger URL</label>
+    <label>Internal HTTP trigger URL (optional fallback)</label>
     <input type="text" id="cronTrigUrl" readonly
            value="{{ cron_trigger_url }}"
            style="width:100%;padding:9px 11px;font-family:'JetBrains Mono',monospace;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;color:#0f172a;">
@@ -162,8 +156,8 @@
       {% endif %}
     </div>
     <div class="scc-help" style="margin-top:6px;">
-      Authenticate with the <code>X-Scraper-Key</code> header
-      <b>or</b> a <code>?key=…</code> query param matching this value.
+      This key is only needed if you still want to trigger cron over HTTP.
+      The server-local scheduler does not need it.
       {% if cron_trigger_key_locked_by_env %}
         <span style="color:#1d4ed8;font-weight:600;">🔒 Locked — value is supplied by the <code>SCRAPER_INGEST_KEY</code> server env var (env always wins).</span>
       {% elif not cron_trigger_key_set %}
@@ -174,63 +168,20 @@
     </div>
   </div>
 
-  {% comment %}
-    Single canonical setup path — GitHub Actions only. cron-job.org and
-    UptimeRobot blocks were removed per admin decision to consolidate on
-    one method so the team isn't juggling multiple schedulers. Open by
-    default since it's now the only option.
-  {% endcomment %}
-  <details open style="margin-top:14px;">
-    <summary style="cursor:pointer;font-weight:600;color:#1d4ed8;">▾ GitHub Actions setup (recommended, free)</summary>
-    <ol style="margin:10px 0 14px 18px;font-size:13px;line-height:1.75;color:#334155;">
-      <li>
-        In your repo, go to <b>Settings → Secrets and variables → Actions → New repository secret</b>.
-        Name it <code>SCRAPER_INGEST_KEY</code> and paste the key from the field above
-        (click <b>👁 Show</b> to reveal it).
-      </li>
-      <li>
-        Create the file <code>.github/workflows/cron-scrapers.yml</code> on the
-        <code>main</code> branch with the YAML below. Edit the <code>cron:</code> line to
-        change the cadence — <code>*/30 * * * *</code> = every 30 min, <code>0 * * * *</code> = hourly,
-        <code>0 6 * * *</code> = 06:00 UTC daily.
-      </li>
-      <li>
-        Commit. Within your chosen cadence the 🩺 Cron-health card above will flip to green.
-        You can also fire on demand from the repo's <b>Actions</b> tab → <em>Permitlify scraper cron</em> → <b>Run workflow</b>.
-      </li>
-    </ol>
-<pre style="margin:0;background:#0b1220;color:#d8e3f3;padding:12px 14px;border-radius:8px;font-size:11.5px;overflow-x:auto;">{% verbatim %}# .github/workflows/cron-scrapers.yml
-name: Permitlify scraper cron
-on:
-  schedule:
-    - cron: '*/30 * * * *'   # every 30 min UTC — edit cadence here
-  workflow_dispatch:          # adds a manual "Run workflow" button
-jobs:
-  trigger:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Hit Permitlify cron endpoint
-        run: |
-          curl -fsS -X POST \
-            -H "X-Scraper-Key: ${{ secrets.SCRAPER_INGEST_KEY }}" \
-            "{% endverbatim %}{{ cron_trigger_url }}{% verbatim %}"{% endverbatim %}</pre>
-    <div style="margin-top:8px;font-size:12px;color:#64748b;">
-      Heads up: GitHub auto-pauses scheduled workflows on repos with no commits for 60 days — any push resumes them.
-      Permitlify's cron endpoint has a concurrency guard, so overlapping fires are safely skipped.
-    </div>
-  </details>
+  <div class="ch-explainer">
+    Operational knobs: set <code>PERMITLIFY_SERVER_CRON_DISABLED=1</code> to disable
+    the in-service scheduler, or <code>PERMITLIFY_SERVER_CRON_POLL_SECONDS</code>
+    to change the wake interval. Defaults to 60 seconds.
+  </div>
 </div>
 
 <!-- ── Run cron now + terminal panel ───────────────────────────────── -->
 <div class="scc-card">
   <h2>▶ Manual run</h2>
   <div class="scc-sub">
-    Runs every enabled scraper in series, in-process inside Django.
-    <b>This bypasses the external trigger entirely</b> — every click is logged
-    in the <em>Manual-run history</em> below, but it does <b>not</b> count as
-    an external cron heartbeat. Use the Cron-health card above to confirm your
-    real schedule is firing.
+    Runs every enabled scraper immediately. This bypasses the schedule window
+    and is logged in the history below. Use the Cron-health card above to
+    confirm the server-local scheduler is alive.
   </div>
   <button type="button" id="runCronNowBtn" class="scc-btn run" onclick="runCronNow()">▶ Run cron now</button>
 </div>
@@ -251,36 +202,15 @@ jobs:
   {% csrf_token %}
   <h2>⏰ Schedule</h2>
   <div class="scc-sub">
-    Permitlify itself does not run a daemon — the <b>GitHub Actions</b> workflow above pings the
-    HTTP cron trigger on a fixed cadence. The server honours these settings and
-    skips the run if today's day-of-week is not selected, or if the current UTC time is outside
-    the configured window around <em>Run at</em> (unless <em>Always fire on every signal</em> is on).
+    The server-local scheduler checks these settings every minute and starts a
+    cron batch when due. It skips the run if today's day-of-week is not selected,
+    or if the current UTC time is outside the configured window around
+    <em>Run at</em>.
   </div>
 
   <label class="scc-toggle" style="margin-bottom:14px;">
     <input type="checkbox" name="enabled" value="1" {% if cron.enabled %}checked{% endif %}>
     <span style="font-weight:600;color:#0f172a;">Cron enabled</span>
-  </label>
-
-  {% comment %}
-    "Always fire on every signal" — when on, the at_utc / window gate
-    below is bypassed and every authenticated external trigger fires a
-    batch. Days-of-week filter still applies. The fields below get
-    visually dimmed via JS so the admin sees they no longer matter.
-  {% endcomment %}
-  <label class="scc-toggle" style="margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;">
-    <input type="checkbox" name="always_fire" id="cronAlwaysFire" value="1"
-           {% if cron.always_fire %}checked{% endif %}
-           onchange="toggleAlwaysFire()">
-    <span>
-      <span style="font-weight:600;color:#0c4a6e;">Always fire on every signal</span>
-      <span style="display:block;font-size:12px;color:#075985;margin-top:2px;">
-        Bypasses the time-of-day window below. Use this when your
-        GitHub Actions workflow is already configured for the cadence you
-        want — every authenticated call will fire a batch.
-        Days-of-week selection still applies.
-      </span>
-    </span>
   </label>
 
   <div class="scc-grid" id="cronWindowFields">
@@ -300,24 +230,6 @@ jobs:
       <div class="scc-help">Max permits per scraper, per pass.</div>
     </div>
   </div>
-  <script>
-    /* Dim the Run-at / Window fields when "Always fire" is checked so it's
-       obvious those values are being ignored. Per-scraper count stays
-       editable since it still applies to every fire. */
-    function toggleAlwaysFire(){
-      var on = document.getElementById('cronAlwaysFire').checked;
-      var grid = document.getElementById('cronWindowFields');
-      if (!grid) return;
-      var fields = grid.querySelectorAll('.scc-field');
-      for (var i = 0; i < 2 && i < fields.length; i++) {
-        fields[i].style.opacity = on ? '0.45' : '1';
-        var inp = fields[i].querySelector('input');
-        if (inp) inp.disabled = on;
-      }
-    }
-    document.addEventListener('DOMContentLoaded', toggleAlwaysFire);
-  </script>
-
   <div class="scc-field" style="margin-top:14px;">
     <label>Run on</label>
     <div class="scc-days">
@@ -346,11 +258,8 @@ jobs:
 <div class="scc-card">
   <h2>📜 Manual-run history</h2>
   <div class="scc-sub">
-    Last {{ batches|length }} passes kicked from the <b>Run cron now</b>
-    button above. <b>External-cron passes (your GitHub Actions workflow)
-    do not appear here</b> — those only show up as a fresh heartbeat on the
-    Cron-health card and as <code>mode='cron'</code> rows in
-    <code>scraper_runs</code>. Click a row to re-attach the live terminal.
+    Last {{ batches|length }} server/manual cron passes. Click a row to
+    re-attach the live terminal.
   </div>
   {% if batches %}
   <table class="scc-batches">

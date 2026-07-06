@@ -78,7 +78,7 @@ LOCATION:
   • latitude/longitude: only emit if coordinates literally appear on the page. Never geocode.
 
 DATES: "04/12/2026" → "2026-04-12". Drop times. Omit key if absent.
-MONEY: "$120,000.00" → 12000000 (cents). Omit key if absent/unknown.
+MONEY: "$120,000.00" → 12000000 (cents). Treat labels such as "Job Value", "Project Value", "Declared Value", "Valuation", and "Cost of Construction($)" as valuation_cents. The label and amount may be split across adjacent lines, e.g. "Cost of Construction" / "($)" / "$32,500.00". Omit key if absent/unknown.
 PHONE: 10 digits → "(NNN) NNN-NNNN". Strip leading country code 1. Omit if <10 digits.
 EMAIL: lowercase, must have "@" and "." after @. Omit if absent.
 TRADE: exactly one of: roofing | hvac | plumbing | electrical | solar | general | civil | other. ("Safe to Restore Electric" → electrical.)
