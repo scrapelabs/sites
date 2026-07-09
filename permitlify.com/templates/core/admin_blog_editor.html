@@ -75,14 +75,13 @@
 {% block content %}
 <div id="toastBe"></div>
 
-{% if not has_firecrawl or not has_inference %}
+{% if not has_inference %}
 <div class="be-warn">
   <span class="be-warn-icon">⚠️</span>
   <div>
     <strong>AI not fully configured.</strong>
-    {% if not has_firecrawl %}Firecrawl is not configured — scraping will fail. {% endif %}
-    {% if not has_inference %}Local GPT-OSS is not configured — rewriting will fail. Check <a href="/admin-panel/scraper-settings/">Scraper Settings</a>. {% endif %}
-    Configure Firecrawl in <a href="/admin-panel/blog-settings/">Blog AI Settings</a>. You can still manually paste content below if you skip the AI flow.
+    {% if not has_inference %}Local GPT-OSS is not configured — rewriting will fail. Check the <code>GptOss20B</code> service. {% endif %}
+    Check <a href="/admin-panel/blog-settings/">Blog AI Settings</a>. You can still manually paste content below if you skip the AI flow.
   </div>
 </div>
 {% endif %}
@@ -93,7 +92,7 @@
     <div class="be-step-num idle" id="be-num-1">1</div>
     <div style="flex:1;min-width:0;">
       <div class="be-step-title">Scrape source URL</div>
-      <div class="be-step-sub">Paste any article URL — Firecrawl returns clean markdown.</div>
+      <div class="be-step-sub">Paste any article URL — Playwright renders it and extracts readable text.</div>
     </div>
     <span class="be-step-toggle">⌄</span>
   </div>

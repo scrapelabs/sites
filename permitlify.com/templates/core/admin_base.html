@@ -63,16 +63,17 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);dis
 
 /* Main */
 .main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh}
-.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:14px 26px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:14px 26px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:250;isolation:isolate}
 .topbar-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px}
 .topbar-meta{font-size:12px;color:var(--muted);margin-top:1px}
-.topbar-right{display:flex;align-items:center;gap:10px}
+.topbar-right{display:flex;align-items:center;gap:10px;position:relative;z-index:3;flex-shrink:0;pointer-events:auto}
 .btn-sm{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:7px;border:1px solid var(--border);background:var(--bg);font-size:12px;font-weight:500;color:var(--text);text-decoration:none;cursor:pointer;transition:background .15s;font-family:inherit}
 .btn-sm:hover{background:#e2e8f0}
 
 /* ── Admin notification bell + dropdown ─────────────────────── */
-.adm-bell-wrap{position:relative;}
-.adm-bell-btn{position:relative;width:36px;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--text);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,border-color .15s;}
+.adm-bell-wrap{position:relative;z-index:3;display:inline-flex;align-items:center;}
+.adm-bell-btn{position:relative;width:44px;height:44px;border-radius:11px;border:1px solid var(--border);background:var(--card);color:var(--text);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s,border-color .15s;touch-action:manipulation;}
+.adm-bell-btn > svg,.adm-bell-btn > span{pointer-events:none;}
 .adm-bell-btn:hover{background:var(--bg);border-color:#cbd5e1;}
 .adm-bell-badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#dc2626;color:#fff;font-size:10.5px;font-weight:800;display:none;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif;border:2px solid var(--card);box-shadow:0 1px 4px rgba(220,38,38,.4);}
 .adm-bell-badge.show{display:inline-flex;}
@@ -96,8 +97,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);dis
    buttons with a single trigger that mirrors the user-facing dropdown
    in templates/core/base.html. Reuses the .adm-dd open/close mechanic
    (and CSS positioning) so the bell and the avatar feel like siblings. ── */
-.adm-prof-wrap{position:relative;}
-.adm-prof-btn{display:inline-flex;align-items:center;gap:8px;padding:5px 10px 5px 5px;border-radius:99px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:background .15s,border-color .15s;}
+.adm-prof-wrap{position:relative;z-index:3;display:inline-flex;align-items:center;}
+.adm-prof-btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:7px 12px 7px 7px;border-radius:99px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:background .15s,border-color .15s;touch-action:manipulation;}
+.adm-prof-btn > *{pointer-events:none;}
 .adm-prof-btn:hover{background:var(--bg);border-color:#cbd5e1;}
 /* Base avatar: applies whether it's in the trigger button or the
    dropdown header. Header context only overrides size/font. The
@@ -396,18 +398,15 @@ td.td-act{padding:10px 14px;white-space:nowrap}
   .card-body > table{display:block;overflow-x:auto;max-width:100%;}
 
   /* ── Scraper-menu unwrapped tables ──
-   * Cron / Firecrawl / Claude / Stats render wide <table>s directly
-   * inside their own card classes (.scc-card, .fcu-card, .ccu-card,
-   * .st-runs) with no scroll wrapper, so they overflowed the page on
-   * mobile. Make the parent card scrollable horizontally and pin a
-   * sensible min-width on the table so columns stay readable. */
+   * Cron / Claude / Stats render wide <table>s directly inside their
+   * own card classes with no scroll wrapper, so they overflowed the
+   * page on mobile. Make the parent card scrollable horizontally and
+   * pin a sensible min-width on the table so columns stay readable. */
   .scc-card,
-  .fcu-card,
   .ccu-card,
   .st-runs,
   .st-chart-card{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .scc-batches{min-width:760px;}   /* 7 cols: # / start / fin / dur / scrs / status / note */
-  .fcu-fail{min-width:820px;}      /* 7 + 9-col tables on Firecrawl */
   .ccu-fail{min-width:680px;}      /* 6 cols on Claude */
   .st-table{min-width:720px;}      /* 6 cols on Stats */
 
@@ -416,24 +415,8 @@ td.td-act{padding:10px 14px;white-space:nowrap}
    * `!important` is required because the per-template <style> block
    * lives in the page's content block which is rendered AFTER
    * admin_base's <style> in the document, so same-specificity rules
-   * from the page (e.g. `.fcu-fail td.url{max-width:380px}`) would
-   * otherwise win the cascade. */
-  .fcu-fail td.url,
-  .fcu-fail td.err,
+   * from the page would otherwise win the cascade. */
   .ccu-fail td.err{max-width:none!important;white-space:normal!important;word-break:break-all;}
-
-  /* Firecrawl filter form: stack each field full-width instead of
-   * the desktop wrap-around row. Selects had min-width:150px which
-   * pushed the row past viewport. Same source-order rationale as
-   * above — `min-width:150px` from the per-template style block wins
-   * over a non-`!important` override here. */
-  .fcu-filter{flex-direction:column;align-items:stretch;}
-  .fcu-filter .fld{width:100%;}
-  .fcu-filter .fld select,
-  .fcu-filter .fld input{min-width:0!important;width:100%!important;}
-
-  /* Pager: prev / current / next stack rather than space-between row. */
-  .fcu-pager{flex-direction:column;align-items:flex-start;gap:8px;}
 
   /* Cron terminal panel header: title + Close button often collide. */
   #cronBatchPanel > div:first-child{flex-wrap:wrap;gap:8px;}
@@ -500,9 +483,9 @@ td.td-act{padding:10px 14px;white-space:nowrap}
   /* Modal: don't let it touch the screen edges */
   .modal,.sld-modal,.rl-modal{max-width:calc(100vw - 24px);width:100%;}
 
-  /* Topbar bell + profile slightly tighter on phones */
-  .adm-bell-btn{width:34px;height:34px;}
-  .adm-prof-btn{padding:4px 8px 4px 4px;}
+  /* Topbar bell + profile stay finger-clickable on phones */
+  .adm-bell-btn{width:40px;height:40px;}
+  .adm-prof-btn{min-height:40px;padding:5px 9px 5px 5px;}
   .adm-prof-btn .adm-prof-name{display:none;}
   .adm-prof-btn .adm-prof-chev{display:none;}
 }
@@ -598,7 +581,7 @@ td.td-act{padding:10px 14px;white-space:nowrap}
       <span class="sb-icon">📊</span> Dashboard
     </a>
 
-    <details class="sb-group" data-group="scrapers" open {% if as == 'scrapers' or as == 'scraper_stats' or as == 'scraper_settings' or as == 'scraper_logs' or as == 'scraper_cron' or as == 'scraper_claude' or as == 'scraper_accela_search' or as == 'scraper_agent_plan' or as == 'inference_stats' or as == 'all_permits' %}data-active{% endif %}>
+    <details class="sb-group" data-group="scrapers" open {% if as == 'scrapers' or as == 'scraper_logs' or as == 'scraper_cron' or as == 'scraper_claude' or as == 'scraper_accela_search' or as == 'all_permits' %}data-active{% endif %}>
       <summary>Scrapers</summary>
       <a href="/admin-panel/scrapers/" class="sb-link {% if as == 'scrapers' %}active{% endif %}" style="{% if danger_count %}color:{% if as == 'scrapers' %}#fff{% else %}#fca5a5{% endif %}{% endif %}">
         <span class="sb-icon">🤖</span> Scrapers
@@ -610,20 +593,8 @@ td.td-act{padding:10px 14px;white-space:nowrap}
       <a href="/admin-panel/scrapers/accela-search/" class="sb-link {% if as == 'scraper_accela_search' %}active{% endif %}">
         <span class="sb-icon">🔎</span> Accela Permit Search
       </a>
-      <a href="/admin-panel/scrapers/agent-plan/" class="sb-link {% if as == 'scraper_agent_plan' %}active{% endif %}">
-        <span class="sb-icon">🗺️</span> Agent Scraper Plan
-      </a>
-      <a href="/admin-panel/scraper-stats/" class="sb-link {% if as == 'scraper_stats' %}active{% endif %}">
-        <span class="sb-icon">📈</span> Scraper Stats
-      </a>
-      <a href="/admin-panel/scrapers/inference-stats/" class="sb-link {% if as == 'inference_stats' %}active{% endif %}">
-        <span class="sb-icon">💸</span> Inference Stats
-      </a>
       <a href="/admin-panel/scraper-logs/" class="sb-link {% if as == 'scraper_logs' %}active{% endif %}">
         <span class="sb-icon">📜</span> Scraper Logs
-      </a>
-      <a href="/admin-panel/scraper-settings/" class="sb-link {% if as == 'scraper_settings' %}active{% endif %}">
-        <span class="sb-icon">🛰️</span> Scraper Settings
       </a>
       <a href="/admin-panel/permits/" class="sb-link {% if as == 'all_permits' %}active{% endif %}">
         <span class="sb-icon">🗂️</span> All Permit Data
@@ -648,11 +619,8 @@ td.td-act{padding:10px 14px;white-space:nowrap}
       </a>
     </details>
 
-    <details class="sb-group" data-group="permits-cities" open {% if as == 'cities' or as == 'cities_manager' %}data-active{% endif %}>
+    <details class="sb-group" data-group="permits-cities" open {% if as == 'cities_manager' or as == 'states' %}data-active{% endif %}>
       <summary>Permits &amp; Cities</summary>
-      <a href="/admin-panel/cities/" class="sb-link {% if as == 'cities' %}active{% endif %}">
-        <span class="sb-icon">🏙️</span> Top Cities
-      </a>
       <a href="/admin-panel/cities-manager/" class="sb-link {% if as == 'cities_manager' %}active{% endif %}">
         <span class="sb-icon">🏗️</span> Cities Manager
       </a>
@@ -682,14 +650,8 @@ td.td-act{padding:10px 14px;white-space:nowrap}
       </a>
     </details>
 
-    <details class="sb-group" data-group="marketing" open {% if as == 'mk_analytics' or as == 'mk_testimonials' or as == 'mk_recovery' or as == 'mk_prices' or as == 'mk_campaigns' %}data-active{% endif %}>
+    <details class="sb-group" data-group="marketing" open {% if as == 'mk_recovery' or as == 'mk_prices' or as == 'mk_campaigns' %}data-active{% endif %}>
       <summary>Marketing</summary>
-      <a href="/admin-panel/marketing/analytics/" class="sb-link {% if as == 'mk_analytics' %}active{% endif %}">
-        <span class="sb-icon">📈</span> Analytics &amp; Pixels
-      </a>
-      <a href="/admin-panel/marketing/testimonials/" class="sb-link {% if as == 'mk_testimonials' %}active{% endif %}">
-        <span class="sb-icon">💬</span> Testimonials
-      </a>
       <a href="/admin-panel/marketing/campaigns/" class="sb-link {% if as == 'mk_campaigns' %}active{% endif %}">
         <span class="sb-icon">📣</span> Campaigns
       </a>

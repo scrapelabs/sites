@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 
 def _default_expires_at():
@@ -46,7 +46,19 @@ class UserProfile(models.Model):
 
     @property
     def has_active_subscription(self):
-        return self.plan in ('starter', 'pro', 'agency') and not self.whop_cancelled
+        if self.plan not in ('starter', 'pro', 'agency') or self.whop_paused:
+            return False
+        if not self.whop_cancelled:
+            return True
+        try:
+            period_end = datetime.strptime(self.billing_period_end[:10], '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            # A cancellation without a reliable period end should not
+            # immediately cut off already-paid digital access. Whop sync or a
+            # terminal webhook will disable access once the end date/status is
+            # known.
+            return True
+        return period_end >= timezone.localdate()
 
     @property
     def plan_display(self):
@@ -62,6 +74,76 @@ class UserProfile(models.Model):
             'agency':  {'gb': 100, 'dc_ips': 2000, 'threads': 10000, 'ipv6': 50000},
         }
         return limits.get(self.plan, limits['free'])
+
+
+class ProxyCredential(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='proxy_credential')
+    username = models.CharField(max_length=80, unique=True)
+    password = models.CharField(max_length=128)
+    plan = models.CharField(max_length=50, blank=True, default='')
+    whop_membership_id = models.CharField(max_length=100, blank=True, default='')
+    is_active = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    activated_at = models.DateTimeField(null=True, blank=True)
+    disabled_at = models.DateTimeField(null=True, blank=True)
+    rotated_at = models.DateTimeField(null=True, blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    credentials_emailed_at = models.DateTimeField(null=True, blank=True)
+    disabled_reason = models.CharField(max_length=120, blank=True, default='')
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['is_active', 'plan']),
+            models.Index(fields=['whop_membership_id']),
+        ]
+
+    def __str__(self):
+        status = 'active' if self.is_active else 'disabled'
+        return f'{self.user.email} — {self.username} ({status})'
+
+
+class CheckoutConsent(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='checkout_consents')
+    plan = models.CharField(max_length=50)
+    period = models.CharField(max_length=20)
+    terms_version = models.CharField(max_length=40)
+    accepted_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default='')
+    whop_membership_id = models.CharField(max_length=100, blank=True, default='')
+    checkout_url = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-accepted_at']
+        indexes = [
+            models.Index(fields=['user', 'accepted_at']),
+            models.Index(fields=['whop_membership_id']),
+        ]
+
+    def __str__(self):
+        return f'{self.user.email} — {self.plan}/{self.period} terms {self.terms_version}'
+
+
+class EmailLoginCode(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_login_codes')
+    code_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    sent_to = models.EmailField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default='')
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['expires_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.user.email} login code at {self.created_at:%Y-%m-%d %H:%M}'
 
 
 class Purchase(models.Model):

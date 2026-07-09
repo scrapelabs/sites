@@ -67,6 +67,25 @@ class LoginForm(AuthenticationForm):
     )
 
 
+class LoginCodeForm(forms.Form):
+    code = forms.CharField(
+        min_length=6,
+        max_length=6,
+        widget=forms.TextInput(attrs={
+            "placeholder": "6-digit code",
+            "class": INPUT_CLS + " text-center tracking-[0.35em] font-mono",
+            "inputmode": "numeric",
+            "autocomplete": "one-time-code",
+        }),
+    )
+
+    def clean_code(self):
+        code = self.cleaned_data["code"].strip().replace(" ", "")
+        if not code.isdigit():
+            raise forms.ValidationError("Enter the 6-digit code from your email.")
+        return code
+
+
 SELECT_CLS = (
     "w-full px-4 py-3 rounded-xl border border-[#D4AF37]/20 "
     "bg-gradient-to-br from-white/38 to-[#FFFCF0]/18 "

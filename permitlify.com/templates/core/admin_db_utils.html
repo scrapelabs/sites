@@ -12,7 +12,7 @@
 
 <!-- KPI row: shows exactly what's currently in the DB so the admin
      can see what a wipe would destroy before clicking the button. -->
-<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px">
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px">
   <div class="kpi-card">
     <div class="kpi-label">Permits</div>
     <div class="kpi-value">{{ permits_count|default:0 }}</div>
@@ -28,16 +28,6 @@
     <div class="kpi-value">{{ runs_count|default:0 }}</div>
     <div class="kpi-sub">historical runs</div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-label">Firecrawl Calls</div>
-    <div class="kpi-value">{{ firecrawl_count|default:0 }}</div>
-    <div class="kpi-sub">ledger rows</div>
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-label">Claude Calls</div>
-    <div class="kpi-value">{{ claude_count|default:0 }}</div>
-    <div class="kpi-sub">ledger rows</div>
-  </div>
 </div>
 
 <!-- ─── Wipe Permits ──────────────────────────────────────────── -->
@@ -49,7 +39,7 @@
       </div>
       <div class="card-sub" style="margin-bottom:0">
         TRUNCATEs <code>permits</code>, <code>scraper_runs</code>,
-        <code>firecrawl_calls</code>, and <code>claude_calls</code>,
+        and <code>claude_calls</code>,
         and resets <code>total_permits</code> + last-run state on
         every scraper so the admin grid and client dashboard match
         the now-empty table. <strong>This cannot be undone — take a
@@ -62,6 +52,11 @@
         style="padding:18px 20px 22px"
         onsubmit="var n={{ permits_count|default:0 }}; return confirm('This will permanently delete '+n+' permits, clear all run/AI ledger rows, and reset every scraper counter to 0.\n\nThis cannot be undone — take a backup first if you might want the data back.\n\nContinue?');">
     {% csrf_token %}
+    <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">
+      Type <code>WIPE</code> to confirm
+      <input type="text" name="confirm" autocomplete="off" pattern="WIPE" required
+             style="display:block;margin-top:6px;width:180px;padding:8px 10px;border:1px solid var(--border,#e2e8f0);border-radius:7px;font-family:'JetBrains Mono',monospace">
+    </label>
     <button type="submit" class="btn"
             style="background:var(--red,#dc2626);color:#fff;border:none;padding:10px 22px;border-radius:8px;font-weight:600;font-size:13.5px;cursor:pointer">
       🔥 Wipe {{ permits_count|default:0 }} permits + reset counters
@@ -219,15 +214,26 @@
         <div style="font-size:11.5px;color:var(--muted);margin-top:6px">Path inside your Dropbox where backups are stored. For "App folder" apps Dropbox places this under <code>/Apps/&lt;app-name&gt;/</code> automatically. Auto-created on first upload.</div>
       </div>
 
+      <!-- Full Dropbox web path / URL -->
+      <div>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Dropbox web folder URL/path <span style="color:var(--muted);font-weight:500">(optional override)</span></label>
+        <div class="dbx-input-wrap">
+          <input type="text" name="dropbox_web_path" value="{{ dbx_web_path }}"
+                 autocomplete="off"
+                 placeholder="https://www.dropbox.com/home/Apps/permitlify.com/Permitlify-Backups" class="dbx-input">
+        </div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px">Paste the exact Dropbox folder URL here. On save, Permitlify extracts <code>Apps/permitlify.com</code> for the web link and uses <code>/Permitlify-Backups</code> for API uploads.</div>
+      </div>
+
       <!-- App name (used only to build the "Open folder in Dropbox" link) -->
       <div>
         <label style="display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Dropbox app name <span style="color:var(--muted);font-weight:500">(for the open-folder link)</span></label>
         <div class="dbx-input-wrap">
           <input type="text" name="dropbox_app_name" value="{{ dbx_app_name }}"
-                 autocomplete="off"
-                 placeholder="permitlify" class="dbx-input">
+                  autocomplete="off"
+                  placeholder="permitlify.com" class="dbx-input">
         </div>
-        <div style="font-size:11.5px;color:var(--muted);margin-top:6px">The folder name Dropbox shows under <code>/Apps/</code> for your app (usually the app name in lowercase). Only used to build the green "Open in Dropbox" link below — leaves API calls unchanged.</div>
+        <div style="font-size:11.5px;color:var(--muted);margin-top:6px">The folder name Dropbox shows under <code>/Apps/</code> for your app, e.g. <code>permitlify.com</code>. Only used to build the green "Open in Dropbox" link below — API uploads still use the folder path above.</div>
       </div>
 
       <!-- Status / Save -->
@@ -257,6 +263,7 @@
         above to make backups durable</strong>{% endif %}. Local copies are capped at the
         <strong>{{ backup_retain }} most recent</strong>; Dropbox copies are kept forever
         (delete them in Dropbox if you want a cap). Click any row below to download.
+        {% if pg_dump_available %}<br><span style="color:#059669">pg_dump ready:</span> <code>{{ pg_dump_path }}</code>{% else %}<br><strong style="color:#dc2626">pg_dump is not available. Install PostgreSQL client tools or set <code>PG_DUMP_PATH</code> before creating backups.</strong>{% endif %}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
@@ -266,8 +273,8 @@
       <form method="POST" action="/admin-panel/db-utils/backup/create/"
             id="bk-create-form" style="margin:0">
         {% csrf_token %}
-        <button type="submit" id="bk-create-btn"
-                style="background:var(--pr,#1d4ed8);color:#fff;border:none;padding:9px 18px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:8px">
+        <button type="submit" id="bk-create-btn" {% if not pg_dump_available %}disabled title="pg_dump is not available"{% endif %}
+                style="background:var(--pr,#1d4ed8);color:#fff;border:none;padding:9px 18px;border-radius:8px;font-weight:600;font-size:13px;cursor:{% if pg_dump_available %}pointer{% else %}not-allowed{% endif %};{% if not pg_dump_available %}opacity:.55;{% endif %}display:inline-flex;align-items:center;gap:8px">
           <span id="bk-create-spinner" style="display:none;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:bk-spin .8s linear infinite"></span>
           <span id="bk-create-label">+ Create backup</span>
         </button>
@@ -283,6 +290,16 @@
   <script src="/lib/grid.min.js?v=3"></script>
 
   <div style="padding:8px 20px 0">
+    <div id="bk-progress-wrap" style="display:none;margin:4px 0 16px;padding:12px 14px;background:#f8fafc;border:1px solid var(--border,#e2e8f0);border-radius:9px">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px">
+        <div id="bk-progress-msg" style="font-size:12.5px;font-weight:600;color:var(--text)">Preparing backup...</div>
+        <div id="bk-progress-pct" style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--muted)">0%</div>
+      </div>
+      <div style="height:9px;background:#e2e8f0;border-radius:999px;overflow:hidden">
+        <div id="bk-progress-bar" style="height:100%;width:0;background:linear-gradient(90deg,#1d4ed8,#059669);border-radius:999px;transition:width .25s ease"></div>
+      </div>
+      <div id="bk-progress-upload" style="margin-top:7px;font-size:11.5px;color:var(--muted);font-family:'JetBrains Mono',monospace"></div>
+    </div>
     <table class="tbl display compact" id="bk-table" style="width:100%;border-collapse:collapse">
       <thead>
         <tr style="background:#f8fafc">
@@ -299,6 +316,47 @@
   <div id="bk-empty" style="padding:24px 20px 32px;text-align:center;color:var(--muted);display:none">
     No backups yet. Click <strong>+ Create backup</strong> to take one — the file will appear here and in your Dropbox folder.
   </div>
+</div>
+
+<!-- ─── Daily automatic backup cron ──────────────────────────── -->
+<div class="users-card" style="margin-top:24px;border-left:3px solid #059669">
+  <div class="users-header">
+    <div>
+      <div class="card-title" style="display:flex;align-items:center;gap:8px;color:#059669">
+        🕒 Daily Full-DB Backup Cron
+        {% if db_backup_cron.enabled %}
+          <span style="font-size:11px;font-weight:600;background:rgba(5,150,105,.12);color:#059669;padding:3px 9px;border-radius:20px;letter-spacing:.03em">ENABLED</span>
+        {% else %}
+          <span style="font-size:11px;font-weight:600;background:rgba(245,158,11,.15);color:#b45309;padding:3px 9px;border-radius:20px;letter-spacing:.03em">DISABLED</span>
+        {% endif %}
+      </div>
+      <div class="card-sub" style="margin-bottom:0">
+        Disabled by default. When explicitly enabled, runs inside the <code>Permitlify</code> Windows service once per day and creates the same full <code>pg_dump</code> backup as the manual button above. The backup is uploaded to Dropbox when Dropbox credentials are valid.
+      </div>
+    </div>
+  </div>
+  <form method="POST" action="/admin-panel/db-utils/backup/cron/save/" style="padding:18px 20px 22px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:end">
+    {% csrf_token %}
+    <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;color:var(--text)">
+      <input type="checkbox" name="enabled" value="1" {% if db_backup_cron.enabled %}checked{% endif %}>
+      Enable daily backup
+    </label>
+    <label style="display:block;font-size:12px;font-weight:600;color:var(--text)">
+      Run at UTC
+      <input type="time" name="at_utc" value="{{ db_backup_cron.at_utc }}" style="display:block;margin-top:6px;width:100%;padding:8px 10px;border:1px solid var(--border,#e2e8f0);border-radius:7px;font-family:'JetBrains Mono',monospace">
+    </label>
+    <label style="display:block;font-size:12px;font-weight:600;color:var(--text)">
+      Window minutes
+      <input type="number" name="window_minutes" min="1" max="720" value="{{ db_backup_cron.window_minutes }}" style="display:block;margin-top:6px;width:100%;padding:8px 10px;border:1px solid var(--border,#e2e8f0);border-radius:7px;font-family:'JetBrains Mono',monospace">
+    </label>
+    <button type="submit" style="background:#059669;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer">Save cron</button>
+    <div style="grid-column:1/-1;font-size:12px;color:var(--muted);line-height:1.65;background:#f8fafc;border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:10px 12px">
+      <strong>Last check:</strong> {{ db_backup_cron.last_check_at|default:"never" }}<br>
+      <strong>Last outcome:</strong> {{ db_backup_cron.last_outcome|default:"none" }}<br>
+      <strong>Last backup:</strong> {% if db_backup_cron.last_filename %}{{ db_backup_cron.last_filename }} ({{ db_backup_cron.last_status }}){% else %}none yet{% endif %}<br>
+      <strong>Last message:</strong> {{ db_backup_cron.last_message|default:"none" }}
+    </div>
+  </form>
 </div>
 
 {% if dbx_configured %}
@@ -383,6 +441,15 @@
 }
 </style>
 
+{{ backups_initial|json_script:"bk-initial" }}
+{{ dbx_list_error|default:""|json_script:"bk-dbx-error" }}
+{{ backup_active_job|json_script:"bk-active-job" }}
+<script>
+try{ window.__BK_INITIAL = JSON.parse(document.getElementById('bk-initial').textContent); }catch(e){ window.__BK_INITIAL = []; }
+try{ window.__BK_DBX_ERROR = JSON.parse(document.getElementById('bk-dbx-error').textContent) || ''; }catch(e){ window.__BK_DBX_ERROR = ''; }
+try{ window.__BK_ACTIVE_JOB = JSON.parse(document.getElementById('bk-active-job').textContent) || null; }catch(e){ window.__BK_ACTIVE_JOB = null; }
+</script>
+
 <script>
 (function(){
   // ── AJAX-driven backup table ──────────────────────────────
@@ -402,6 +469,11 @@
   var spin  = document.getElementById('bk-create-spinner');
   var stat  = document.getElementById('bk-status');
   var empty = document.getElementById('bk-empty');
+  var progWrap = document.getElementById('bk-progress-wrap');
+  var progBar  = document.getElementById('bk-progress-bar');
+  var progMsg  = document.getElementById('bk-progress-msg');
+  var progPct  = document.getElementById('bk-progress-pct');
+  var progUpload = document.getElementById('bk-progress-upload');
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,
     function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -440,7 +512,13 @@
                   zeroRecords: 'No backups match your search.' },
     columns: [
       { data: 'name',
-        render: function(d){ return '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12.5px;color:var(--text);word-break:break-all">'+esc(d)+'</span>'; }},
+        render: function(d, type, row){
+          var html = '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12.5px;color:var(--text);word-break:break-all">'+esc(d)+'</span>';
+          if(row.remote_path){
+            html += '<div style="margin-top:3px;font-family:\'JetBrains Mono\',monospace;font-size:10.5px;color:#059669;word-break:break-all">Dropbox: '+esc(row.remote_path)+'</div>';
+          }
+          return html;
+        }},
       { data: 'mtime_iso',
         render: function(d, type, row){
           if (type === 'sort' || type === 'type') return d;
@@ -483,6 +561,67 @@
     setStatus('⚠️ ' + err, true);
   }
 
+  function showProgress(show){
+    if(!progWrap) return;
+    progWrap.style.display = show ? 'block' : 'none';
+  }
+
+  function fmtMb(n){
+    n = Number(n || 0);
+    return (n / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  function updateProgress(job){
+    job = job || {};
+    var pct = Math.max(0, Math.min(100, Number(job.percent || 0)));
+    showProgress(true);
+    progBar.style.width = pct + '%';
+    progPct.textContent = pct + '%';
+    progMsg.textContent = job.message || job.stage || 'Working...';
+    if(job.upload_total){
+      progUpload.textContent = 'Dropbox upload: ' + fmtMb(job.upload_sent || 0) + ' / ' + fmtMb(job.upload_total);
+    } else if(job.filename){
+      progUpload.textContent = 'File: ' + job.filename;
+    } else {
+      progUpload.textContent = '';
+    }
+  }
+
+  function pollBackupJob(jobId){
+    if(!jobId) return;
+    btn.disabled = true; spin.style.display = 'inline-block';
+    lbl.textContent = 'Backing up...';
+    return fetch('/admin-panel/db-utils/backup/status/' + encodeURIComponent(jobId) + '.json', {
+      credentials:'same-origin',
+      headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}
+    }).then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
+      .then(function(res){
+        var j = res.body || {};
+        if(!(res.status >= 200 && res.status < 300) || !j.ok){
+          setStatus('⚠️ ' + (j.error || ('HTTP ' + res.status)), true);
+          btn.disabled = false; spin.style.display = 'none'; lbl.textContent = '+ Create backup';
+          return;
+        }
+        var job = j.job || {};
+        updateProgress(job);
+        if(job.done){
+          btn.disabled = false; spin.style.display = 'none'; lbl.textContent = '+ Create backup';
+          if(job.ok){
+            render(job.backups || []);
+            setStatus((job.dbx_ok ? '✅ ' : '⚠️ ') + (job.message || 'Backup complete.'), !job.dbx_ok);
+            showDbxError(job.dbx_list_error);
+          } else {
+            setStatus('⚠️ ' + (job.error || job.message || 'Backup failed.'), true);
+          }
+          return;
+        }
+        setTimeout(function(){ pollBackupJob(jobId); }, 1000);
+      }).catch(function(e){
+        setStatus('⚠️ Failed to poll backup progress: ' + e, true);
+        setTimeout(function(){ pollBackupJob(jobId); }, 2500);
+      });
+  }
+
   function refresh(){
     return fetch('/admin-panel/db-utils/backup/list.json', {
       credentials: 'same-origin',
@@ -495,9 +634,10 @@
   document.getElementById('bk-create-form').addEventListener('submit', function(ev){
     ev.preventDefault();
     btn.disabled = true; spin.style.display = 'inline-block';
-    lbl.textContent = 'Backing up…';
-    setStatus('Running pg_dump — this may take a moment.', false);
-    var t0 = Date.now();
+    lbl.textContent = 'Starting...';
+    setStatus('Starting full database backup...', false);
+    showProgress(true);
+    updateProgress({percent:1, message:'Starting backup...'});
     fetch('/admin-panel/db-utils/backup/create/', {
       method: 'POST', credentials: 'same-origin',
       headers: {'X-Requested-With':'XMLHttpRequest', 'Accept':'application/json',
@@ -505,17 +645,16 @@
     }).then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
       .then(function(res){
         var j = res.body || {};
-        if(res.status >= 200 && res.status < 300 && j.ok){
-          render(j.backups || []);
-          var secs = ((Date.now()-t0)/1000).toFixed(1);
-          setStatus('✅ ' + (j.msg || 'Backup created') + ' (' + secs + 's)', false);
-          showDbxError(j.dbx_list_error);
+        if(res.status >= 200 && res.status < 300 && j.ok && j.job_id){
+          updateProgress(j.job || {percent:2, message:'Backup queued...'});
+          pollBackupJob(j.job_id);
         } else {
           setStatus('⚠️ ' + (j.error || ('HTTP ' + res.status)), true);
+          btn.disabled = false; spin.style.display = 'none';
+          lbl.textContent = '+ Create backup';
         }
       }).catch(function(e){
         setStatus('⚠️ Request failed: ' + e, true);
-      }).then(function(){
         btn.disabled = false; spin.style.display = 'none';
         lbl.textContent = '+ Create backup';
       });
@@ -560,6 +699,10 @@
   // Dropbox-list error too if one was passed down.
   render(window.__BK_INITIAL || []);
   if (window.__BK_DBX_ERROR) showDbxError(window.__BK_DBX_ERROR);
+  if (window.__BK_ACTIVE_JOB && window.__BK_ACTIVE_JOB.job_id){
+    updateProgress(window.__BK_ACTIVE_JOB);
+    pollBackupJob(window.__BK_ACTIVE_JOB.job_id);
+  }
   refresh();
 
   // ── Refresh-token helper: build authorize URL + exchange code ──
@@ -703,13 +846,6 @@
     });
   }
 })();
-</script>
-
-{{ backups_initial|json_script:"bk-initial" }}
-{{ dbx_list_error|default:""|json_script:"bk-dbx-error" }}
-<script>
-try{ window.__BK_INITIAL = JSON.parse(document.getElementById('bk-initial').textContent); }catch(e){ window.__BK_INITIAL = []; }
-try{ window.__BK_DBX_ERROR = JSON.parse(document.getElementById('bk-dbx-error').textContent) || ''; }catch(e){ window.__BK_DBX_ERROR = ''; }
 </script>
 
 {% endblock %}

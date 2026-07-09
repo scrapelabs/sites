@@ -1,0 +1,35 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": [
+      "../.agents/skills"
+    ]
+  },
+  "references": {
+    "goldenproxies": {
+      "path": "goldenproxies.com",
+      "description": "GoldenProxies Django paid-proxy service, Whop billing, auth, proxy credentials, and admin tooling."
+    },
+    "permitlify": {
+      "path": "permitlify.com",
+      "description": "Permitlify Django scraping platform, permit parsers, Accela pipelines, and production service code."
+    },
+    "setup": {
+      "path": "0_setup",
+      "description": "Shared Windows service, NSSM, and Caddy setup for the Django sites."
+    }
+  },
+  "mcp": {
+    "goldenproxies-sqlite": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@berthojoris/mcp-sqlite-server",
+        "sqlite:///C:/Users/Administrator/Desktop/github/sites/goldenproxies.com/artifacts/goldenproxies-django/db.sqlite3",
+        "list,read"
+      ],
+      "enabled": true
+    }
+  }
+}

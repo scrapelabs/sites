@@ -1,10 +1,10 @@
-"""Accela permit scraper — Firecrawl + Claude AI.
+"""Accela permit scraper — HTTP/Playwright + local GPT-OSS.
 
 A "scraper" in this codebase is a saved Accela CapDetail URL plus
-metadata. Each run fetches one or more URLs through Firecrawl (which
-handles the .NET WebForms JS rendering), feeds the resulting markdown
-to Claude with a strict extraction prompt, and pushes the structured
-permit dict into the existing ``permits`` table via ``upsert_permit``.
+metadata. Each run fetches one or more URLs through deterministic HTTP
+helpers, feeds rendered text to local GPT-OSS when enrichment is needed,
+and pushes the structured permit dict into the existing ``permits`` table
+via ``upsert_permit``.
 
 Background runs are tracked in ``scraper_runs`` so the admin UI can
 poll progress and render a progress bar without any external job
@@ -40,6 +40,7 @@ from .db import (
     update_scraper_run,
     upsert_permit,
 )
+from .browser_fetch import BrowserFetchError, fetch_rendered_text, web_search
 
 log = logging.getLogger(__name__)
 
@@ -423,7 +424,7 @@ def kill_run_process(run_id: int) -> dict:
 
 
 class _track_run:
-    """Context manager: tags every Firecrawl/Claude call made on the
+    """Context manager: tags every scraper/LLM call made on the
     current thread with the given scraper_run_id (and optional source
     label for the usage tables)."""
 
@@ -538,12 +539,10 @@ def build_accela_url(template_url: str, *, cap_id_3: int | str) -> str:
     return urllib.parse.urlunparse(parsed._replace(query=new_q))
 
 
-# ─────────────────────────── Firecrawl ────────────────────────────────
+# ───────────────────────── Structured Extraction ──────────────────────
 
-# JSON schema we send to Firecrawl's `jsonOptions`. The schema both
-# (1) tells Firecrawl's LLM the exact shape we expect back, and
-# (2) lets us pass the same shape into Claude as a fallback. Keep this
-# in sync with `_normalise_permit` field names.
+# JSON schema used by the local extraction prompts. Keep this in sync
+# with `_normalise_permit` field names.
 PERMIT_JSON_SCHEMA: dict = {
     'type': 'object',
     'properties': {
@@ -605,7 +604,7 @@ PERMIT_JSON_SCHEMA: dict = {
 def get_extraction_prompt() -> str:
     """Active DETAIL-page extraction prompt — admin override
     (system_setting 'extraction_prompt') or the built-in default.
-    Used for BOTH Firecrawl's `jsonOptions.prompt` AND Claude's
+    Used for both list extraction and detail extraction prompts.
     system message when scraping a single CapDetail page."""
     override = (get_system_setting('extraction_prompt') or '').strip()
     return override or EXTRACT_SYSTEM_PROMPT
@@ -824,7 +823,7 @@ def _http_fetch_page(url: str, *, timeout: int = 60, mode: str = 'detail',
     DigitalOcean Serverless Inference model to pull a structured
     ``{permits: [...]}`` envelope out of the visible page text.
 
-    Drop-in replacement for the old Firecrawl-backed scraper helper:
+    Fetch helper for Accela pages:
     same return shape (``markdown`` / ``html`` / ``json`` / ``metadata``)
     so the surrounding upsert pipeline is unchanged.
 
@@ -836,8 +835,8 @@ def _http_fetch_page(url: str, *, timeout: int = 60, mode: str = 'detail',
       * ``mode='detail'`` returns only markdown; the caller already
         runs Claude/OSS extraction on it.
       * ``mode='list'`` calls the OSS chat endpoint with the active
-        list-extraction prompt so the returned ``json`` matches what
-        the previous Firecrawl ``jsonOptions`` produced.
+        list-extraction prompt so the returned ``json`` matches the
+        shape the surrounding pipeline expects.
     """
     url = (url or '').strip()
     if not url:
@@ -948,8 +947,7 @@ def _http_fetch_page(url: str, *, timeout: int = 60, mode: str = 'detail',
                 js = {}
         except ScraperError:
             # Empty / malformed JSON → return no rows; downstream code
-            # treats this as a 0-row page (the legacy Firecrawl path
-            # behaved the same way when its hosted model returned junk).
+            # treats this as a 0-row page.
             js = {}
 
     return {
@@ -1099,12 +1097,11 @@ def claude_extract(markdown: str, *, source_url: str = '',
     dict matching the columns of the ``permits`` table."""
     md = (markdown or '').strip()
     if not md:
-        raise ScraperError('No markdown to extract from — Firecrawl returned empty.')
+        raise ScraperError('No markdown to extract from — page fetch returned empty.')
 
     key = (api_key or get_system_setting('claude_api_key') or '').strip()
     if not key:
-        raise ScraperError('Claude API key is not configured. '
-                           'Add it in Scraper Settings.')
+        raise ScraperError('Claude API key is not configured.')
     mdl = (model or get_system_setting('claude_model') or '').strip() or DEFAULT_MODEL
 
     user_parts = []
@@ -1193,29 +1190,16 @@ def claude_extract(markdown: str, *, source_url: str = '',
 # ─────────────────────────── Accela link finder ──────────────────────────
 #
 # Helpers for the Scrapers → "Accela Permit Search" admin page. Given a
-# city + state, we hand the lookup to Firecrawl's autonomous Agent
-# (``app.agent(prompt=…, schema=…, model=…, max_credits=…)``) which
-# performs its own browsing/search and returns a structured pick that
-# matches our Pydantic schema. The agent call is recorded to
-# ``firecrawl_calls`` with ``mode='agent'`` and ``source='accela_finder'``
-# so the Firecrawl Usage dashboard keeps a single canonical view of
-# every external API hit.
+# city + state, we collect public search results with our own proxied HTTP
+# search helper, ask local GPT-OSS to choose the best Accela URL, then verify
+# the chosen URL by rendering it with Playwright.
 
 ACCELA_FINDER_SOURCE = 'accela_finder'
 
-# ── Claude-backed finder ─────────────────────────────────────────────
-# The finder used to call Firecrawl's autonomous Agent (one HTTP call
-# per city, browses the open web, returns a structured pick). It has
-# been switched to Claude per admin request: Claude has been verified
-# to return the right URL from its training-data knowledge of public
-# Accela deployments, doesn't require a per-call browse credit, and
-# keeps all AI usage in one ledger (`claude_calls`).
-#
-# The Firecrawl helper below (`firecrawl_agent_pick`) is kept in the
-# file as dead code for revertability — nothing currently calls it.
-# The Claude finder (`claude_finder_pick`) is also kept below for
-# revertability but replaced by `oss_finder_pick` which uses the same
-# DigitalOcean Serverless Inference the scrapers already run on.
+# ── Local GPT-OSS-backed finder ──────────────────────────────────────
+# The current finder uses our own search + Playwright verification path and
+# local GPT-OSS for the final URL choice. Older paid browse-agent paths were
+# removed so there is a single operational path to maintain.
 ACCELA_FINDER_DEFAULT_MODEL       = 'openai-gpt-oss-20b'
 ACCELA_FINDER_DEFAULT_MAX_TOKENS  = 1500
 ACCELA_FINDER_MAX_TOKENS_CAP      = 8000
@@ -1226,8 +1210,6 @@ ACCELA_FINDER_DEFAULT_PROMPT = (
     "Find the public 'Citizen Access' building-permit search page "
     "for {city}, {state} hosted by Accela."
 )
-
-FIRECRAWL_SEARCH_URL = 'https://api.firecrawl.dev/v1/search'
 
 ACCELA_FINDER_SYSTEM_PROMPT = (
     "You are a research assistant. You are given Google search results "
@@ -1279,36 +1261,15 @@ ACCELA_FINDER_BUDGET_HINT_NEEDLES = (
 )
 
 
-def _firecrawl_search(query: str, *, limit: int = 10,
-                      timeout: int = 20) -> list[dict]:
-    """Google search via Firecrawl ``/v1/search``.
+def _browser_search(query: str, *, limit: int = 10,
+                    timeout: int = 20) -> list[dict]:
+    """Search the public web via proxied Bing HTML.
 
     Returns a list of ``{url, title, description}`` dicts (may be
     empty on error or zero results). Never raises — the caller treats
     an empty list as "no search results" and tells the model accordingly.
     """
-    key = (get_system_setting('firecrawl_api_key') or '').strip()
-    if not key:
-        log.warning('firecrawl_api_key not set — skipping search')
-        return []
-    body = json.dumps({'query': query, 'limit': limit}).encode('utf-8')
-    req = urllib.request.Request(
-        FIRECRAWL_SEARCH_URL, data=body, method='POST',
-        headers={
-            'Authorization': f'Bearer {key}',
-            'Content-Type':  'application/json',
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-        return data.get('data') or []
-    except Exception as e:
-        log.exception('Firecrawl search failed for query=%s', query[:80])
-        return []
-
-
-FIRECRAWL_SCRAPE_URL = 'https://api.firecrawl.dev/v1/scrape'
+    return web_search(query, limit=limit, timeout=timeout)
 
 ACCELA_VERIFY_SYSTEM_PROMPT = (
     "You are a verification assistant. You are given the rendered page "
@@ -1336,46 +1297,23 @@ ACCELA_VERIFY_SYSTEM_PROMPT = (
 )
 
 
-def _firecrawl_fetch_page(url: str, *, timeout: int = 30) -> str | None:
-    """Fetch a URL via Firecrawl /v1/scrape and return markdown content.
+def _browser_fetch_page(url: str, *, timeout: int = 30) -> str | None:
+    """Render a URL via Playwright and return readable content.
 
-    Lightweight call — only requests markdown, no JSON extraction.
-    Returns the markdown string or None on any error. Never raises.
+    Returns the text string or None on any error. Never raises.
     """
-    key = (get_system_setting('firecrawl_api_key') or '').strip()
-    if not key:
-        log.warning('firecrawl_api_key not set — skipping page fetch')
-        return None
-    body = json.dumps({
-        'url': url,
-        'formats': ['markdown'],
-        'onlyMainContent': True,
-        'waitFor': 3000,
-        'timeout': 20000,
-        'actions': [
-            {'type': 'wait', 'milliseconds': 2000},
-        ],
-    }).encode('utf-8')
-    req = urllib.request.Request(
-        FIRECRAWL_SCRAPE_URL, data=body, method='POST',
-        headers={
-            'Authorization': f'Bearer {key}',
-            'Content-Type':  'application/json',
-        },
-    )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-        if not data.get('success'):
-            return None
-        return (data.get('data') or {}).get('markdown') or None
-    except Exception as e:
-        log.exception('Firecrawl page fetch failed for url=%s', url[:120])
+        return fetch_rendered_text(url, timeout=timeout).get('markdown') or None
+    except BrowserFetchError:
+        log.exception('Playwright page fetch failed for url=%s', url[:120])
+        return None
+    except Exception:
+        log.exception('Browser page fetch failed for url=%s', url[:120])
         return None
 
 
 def _format_search_results(results: list[dict]) -> str:
-    """Format Firecrawl search results as numbered text for the model."""
+    """Format search results as numbered text for the model."""
     if not results:
         return '(No search results found.)'
     lines = []
@@ -1395,7 +1333,7 @@ def oss_finder_pick(city: str, state_name: str,
     """Find the best Accela permit-search URL for one city.
 
     Two-step flow:
-      1. **Firecrawl search** — Google for the city's Accela page
+      1. **Web search** — find likely Accela pages
       2. **DO Inference** — analyse those results and pick the best URL
 
     Every step is logged to a ``step_log`` text field and the full
@@ -1447,7 +1385,7 @@ def oss_finder_pick(city: str, state_name: str,
     search_query_used = search_query
     _step(f'SEARCH query: {search_query}')
     _ts = time.monotonic()
-    search_results = _firecrawl_search(search_query, limit=10)
+    search_results = _browser_search(search_query, limit=10)
     search_ms = int((time.monotonic() - _ts) * 1000)
     search_count = len(search_results)
     _step(f'SEARCH returned {search_count} results in {search_ms}ms')
@@ -1460,7 +1398,7 @@ def oss_finder_pick(city: str, state_name: str,
         fallback_q = f'{safe_city} {safe_state} Accela building permit'
         search_query_used = fallback_q
         _ts2 = time.monotonic()
-        search_results = _firecrawl_search(fallback_q, limit=10)
+        search_results = _browser_search(fallback_q, limit=10)
         fb_ms = int((time.monotonic() - _ts2) * 1000)
         search_ms += fb_ms
         search_count = len(search_results)
@@ -1557,7 +1495,7 @@ def oss_finder_pick(city: str, state_name: str,
         else:
             _step(f'URL PICKED: {chosen_url} — starting verification')
             _tv = time.monotonic()
-            page_md = _firecrawl_fetch_page(chosen_url, timeout=35)
+            page_md = _browser_fetch_page(chosen_url, timeout=35)
             verify_fetch_ms = int((time.monotonic() - _tv) * 1000)
             if page_md:
                 _step(f'VERIFY FETCH ok in {verify_fetch_ms}ms — {len(page_md)} chars')
@@ -1601,12 +1539,18 @@ def oss_finder_pick(city: str, state_name: str,
                             chosen_url = None
                             confidence = 'low'
                     except ScraperError:
-                        _step(f'VERIFY PARSE ERROR — keeping URL as-is')
+                        _step(f'VERIFY PARSE ERROR — rejecting URL')
+                        reason = 'Page verification returned invalid JSON'
+                        chosen_url = None
+                        confidence = 'low'
                 except Exception as ve:
-                    _step(f'VERIFY INFERENCE ERROR: {ve} — keeping URL as-is')
+                    _step(f'VERIFY INFERENCE ERROR: {ve} — rejecting URL')
+                    reason = f'Page verification failed: {ve}'
+                    chosen_url = None
+                    confidence = 'low'
             else:
                 _step(f'VERIFY FETCH FAILED in {verify_fetch_ms}ms — page is dead/unreachable')
-                reason = f'Page could not be loaded (Firecrawl fetch failed)'
+                reason = f'Page could not be loaded (browser fetch failed)'
                 chosen_url = None
                 confidence = 'low'
     else:
@@ -1675,7 +1619,7 @@ def claude_finder_pick(city: str, state_name: str,
                        timeout: int = 120) -> dict:
     """Ask Claude to pick the best Accela permit-search URL for one city.
 
-    Replaces the previous Firecrawl-Agent finder. Returns the SAME
+    Replaces the previous hosted-agent finder. Returns the SAME
     envelope shape so the JS / push wiring stays unchanged::
 
         {
@@ -1705,8 +1649,7 @@ def claude_finder_pick(city: str, state_name: str,
     """
     key = (api_key or get_system_setting('claude_api_key') or '').strip()
     if not key:
-        raise ScraperError('Claude API key is not configured. '
-                           'Add it in Scraper Settings.')
+        raise ScraperError('Claude API key is not configured.')
 
     # ── Sanitise the optional knobs ────────────────────────────────
     tmpl = (prompt_template or ACCELA_FINDER_DEFAULT_PROMPT).strip()
@@ -1970,239 +1913,10 @@ def claude_finder_pick(city: str, state_name: str,
     }
 
 
-def firecrawl_agent_pick(city: str, state_name: str,
-                         *, prompt_template: str | None = None,
-                         model: str | None = None,
-                         max_credits: int | None = None,
-                         api_key: str | None = None,
-                         timeout: int = 180) -> dict:
-    """Use Firecrawl's autonomous Agent to find the best Accela
-    permit-search URL for one city.
-
-    Returns a dict::
-
-        {
-          'ok':           bool,
-          'url':          str | None,
-          'confidence':   'high' | 'medium' | 'low',
-          'reason':       str,
-          'error':        str | None,
-          'log': {
-              'status':       'completed' | 'failed' | 'processing' | None,
-              'agent_id':     str | None,
-              'model':        str | None,
-              'credits_used': int | None,
-              'prompt':       str,         # what we actually sent
-              'data':         Any,         # raw .data from the agent (may be None)
-              'error':        str | None,
-              'latency_ms':   int,
-          },
-        }
-
-    Records exactly one row in ``firecrawl_calls`` with
-    ``mode='agent'`` and ``source='accela_finder'`` so the existing
-    Firecrawl Usage dashboard counts it. Never raises on a Firecrawl
-    failure — surfaces the error in the returned envelope so the
-    table can render it inline alongside successful rows.
-    """
-    # Lazy imports — keep the SDK out of the import path of every
-    # request that doesn't use the finder, and make the optional
-    # dependency easy to spot.
-    try:
-        from firecrawl import Firecrawl
-        from pydantic import BaseModel, Field
-    except Exception as e:                               # pragma: no cover
-        raise ScraperError(
-            'Firecrawl SDK is not installed. Run '
-            '"pip install firecrawl-py pydantic".'
-        ) from e
-
-    key = (api_key or get_system_setting('firecrawl_api_key') or '').strip()
-    if not key:
-        raise ScraperError('Firecrawl API key is not configured. '
-                           'Add it in Scraper Settings.')
-
-    # ── Sanitise the optional knobs ────────────────────────────────
-    tmpl = (prompt_template or ACCELA_FINDER_DEFAULT_PROMPT).strip()
-    if not tmpl:
-        tmpl = ACCELA_FINDER_DEFAULT_PROMPT
-    if len(tmpl) > 4000:
-        tmpl = tmpl[:4000]
-
-    mdl = (model or ACCELA_FINDER_DEFAULT_MODEL).strip()
-    if mdl not in ACCELA_FINDER_VALID_MODELS:
-        mdl = ACCELA_FINDER_DEFAULT_MODEL
-
-    try:
-        mc = int(max_credits) if max_credits is not None else ACCELA_FINDER_DEFAULT_MAX_CREDITS
-    except (TypeError, ValueError):
-        mc = ACCELA_FINDER_DEFAULT_MAX_CREDITS
-    mc = max(1, mc)
-
-    # Substitute {city} / {state} placeholders (forgive missing braces
-    # on a custom prompt — str.format would raise KeyError).
-    safe_city  = (city  or '').strip()
-    safe_state = (state_name or '').strip()
-    try:
-        prompt = tmpl.format(city=safe_city, state=safe_state)
-    except (IndexError, KeyError):
-        prompt = (tmpl
-                  .replace('{city}',  safe_city)
-                  .replace('{state}', safe_state))
-
-    # ── Schema the agent must conform its answer to ────────────────
-    class AccelaSuggestion(BaseModel):
-        url:        str | None = Field(
-            None,
-            description=(
-                'Public Citizen Access permit-search URL on accela.com or '
-                'a subdomain of accela.com. Null if no suitable URL exists.'
-            ),
-        )
-        confidence: str = Field(
-            'low',
-            description='One of: high, medium, low.',
-        )
-        reason:     str = Field(
-            '',
-            description='One short sentence explaining the choice.',
-        )
-
-    fc = Firecrawl(api_key=key)
-
-    _t0 = time.monotonic()
-    _err = None
-    _status = None
-    _agent_id = None
-    _credits = None
-    _data = None
-    response_obj = None
-    try:
-        try:
-            response_obj = fc.agent(
-                prompt=prompt,
-                schema=AccelaSuggestion,
-                model=mdl,                # 'spark-1-mini' | 'spark-1-pro'
-                max_credits=mc,
-                timeout=timeout,
-            )
-        except Exception as e:
-            _err = f'Firecrawl agent error: {e}'
-
-        if response_obj is not None:
-            _status   = getattr(response_obj, 'status', None)
-            _agent_id = getattr(response_obj, 'id', None)
-            _credits  = getattr(response_obj, 'credits_used', None)
-            _data     = getattr(response_obj, 'data', None)
-            resp_err  = getattr(response_obj, 'error', None)
-            if not _err and resp_err:
-                _err = f'Firecrawl agent reported: {resp_err}'
-
-        # If the agent ran out of *our* per-call budget (not the
-        # Firecrawl account balance), rewrite the error so the admin
-        # knows the fix is to raise "Max credits / city" — not to top
-        # up their Firecrawl account. Also covers the agent's own
-        # "Refusal: Error: Agent reached max credits" wording.
-        if _err:
-            _err_lc = _err.lower()
-            if any(n in _err_lc for n in ACCELA_FINDER_BUDGET_HINT_NEEDLES):
-                _err = (
-                    f"Agent ran out of the per-city credit budget "
-                    f"(used {mc} credits before finishing). "
-                    f"Increase 'Max credits / city' in the Firecrawl "
-                    f"agent settings above and retry. "
-                    f"(Original error: {_err})"
-                )
-    finally:
-        try:
-            db.record_firecrawl_call(
-                scraper_run_id=_current_run_id(),
-                source=_current_source(ACCELA_FINDER_SOURCE),
-                mode='agent',
-                url=(safe_city + ', ' + safe_state)[:2048],
-                status_code=200 if _status == 'completed' else (500 if _err else None),
-                latency_ms=int((time.monotonic() - _t0) * 1000),
-                response_bytes=None,
-                error=_err,
-                city=safe_city or None,
-                state=safe_state or None,
-            )
-        except Exception:
-            log.exception('firecrawl agent usage recording failed')
-
-    # Normalise the structured pick into our standard envelope ──
-    chosen_url = None
-    confidence = 'low'
-    reason     = ''
-    if isinstance(_data, dict):
-        chosen_url = (_data.get('url') or '').strip() or None
-        confidence = (_data.get('confidence') or 'low').strip().lower()
-        reason     = (_data.get('reason') or '').strip()[:300]
-    elif _data is not None:
-        # Pydantic model instance (or namespace-like)
-        try:
-            chosen_url = (getattr(_data, 'url', None) or '').strip() or None
-            confidence = (getattr(_data, 'confidence', None) or 'low').strip().lower()
-            reason     = (getattr(_data, 'reason', None) or '').strip()[:300]
-        except Exception:
-            pass
-    if confidence not in ('high', 'medium', 'low'):
-        confidence = 'low'
-
-    # ── Defence-in-depth: enforce the host rule the prompt sets ──
-    if chosen_url:
-        try:
-            host = (urllib.parse.urlparse(chosen_url).hostname or '').lower()
-        except Exception:
-            host = ''
-        if host != 'accela.com' and not host.endswith('.accela.com'):
-            reason     = f'Agent picked non-accela host: {host or "unknown"}'
-            chosen_url = None
-            confidence = 'low'
-
-    # ── Log payload (browser-renderable) ──────────────────────────
-    if isinstance(_data, dict):
-        log_data = _data
-    elif _data is None:
-        log_data = None
-    else:
-        try:
-            log_data = _data.model_dump()
-        except Exception:
-            try:
-                log_data = dict(_data)
-            except Exception:
-                log_data = {'_repr': repr(_data)[:500]}
-
-    return {
-        'ok':         _err is None,
-        'url':        chosen_url,
-        'confidence': confidence,
-        'reason':     reason or (_err or '')[:300],
-        'error':      _err,
-        'log': {
-            'status':         _status,
-            'agent_id':       _agent_id,
-            'model':          mdl,
-            'credits_used':   _credits,
-            'credits_budget': mc,
-            'prompt':         prompt[:2000],
-            'data':           log_data,
-            'error':          _err,
-            'latency_ms':     int((time.monotonic() - _t0) * 1000),
-        },
-    }
-
-
-
 # ───────────────────────── Per-scraper Agent ──────────────────────────
 #
-# The per-scraper page (/admin-panel/scrapers/<sid>/) used to drive a
-# two-stage Firecrawl-scrape + Claude-extract pipeline. We now hand the
-# entire job (browse the search page, paginate, open each detail page,
-# pull every interesting field) to Firecrawl's autonomous Agent — same
-# SDK the finder uses, just with a permits-list schema. One prompt =
-# one HTTP call = N structured permit dicts back, ready for upsert.
+# The per-scraper page (/admin-panel/scrapers/<sid>/) uses deterministic
+# Accela HTTP/WebForms helpers first and local GPT-OSS only for enrichment.
 
 ACCELA_SCRAPER_AGENT_SOURCE = 'accela_scraper_agent'
 
@@ -2490,9 +2204,8 @@ def scrape_one(scraper: dict, url: str | None = None,
     """Run the full pipeline for one Accela URL.
 
     Steps:
-      1. Firecrawl scrape (markdown + html + Firecrawl-LLM json)
-      2. If Firecrawl's `json` is non-empty → use it directly
-         (skip the second Claude call — saves time and tokens).
+      1. Fetch the page (markdown + html + optional list JSON)
+      2. If fetched `json` is non-empty, use it directly.
       3. Otherwise → Claude extracts from the markdown.
       4. Normalise → register city → upsert_permit.
     Returns the upserted permit dict on success.
@@ -2559,7 +2272,7 @@ def _scrape_one_inner(scraper: dict, url: str | None = None,
     permit['source']           = db._scraper_source_tag(scraper['id'])
     permit['source_permit_id'] = composite
     permit['jurisdiction']     = scraper.get('agency_code') or scraper.get('city') or ''
-    # Stash a generous chunk of Firecrawl's raw markdown so the
+    # Stash a generous chunk of raw markdown so the
     # admin can hit "View source" later and audit what the LLM saw.
     permit['raw'] = {
         'scraped_url':        target_url,
@@ -2568,8 +2281,8 @@ def _scrape_one_inner(scraper: dict, url: str | None = None,
         'mode':               'detail',
         'fetched_at':         datetime.utcnow().isoformat() + 'Z',
         'markdown':           (fc.get('markdown') or '')[:80000],
-        'firecrawl_json':     fc_json,
-        'firecrawl_metadata': fc.get('metadata') or {},
+        'extracted_json':     fc_json,
+        'metadata':           fc.get('metadata') or {},
         # Inference-savings audit — see _extract_with_fallback().
         'inference_used':     _scrape_one_inference_used,
         'parse_method':       _scrape_one_parse_method,
@@ -2588,8 +2301,8 @@ def scrape_list(scraper: dict, url: str | None = None,
                 *, run_id: int | None = None) -> list[dict]:
     """Scrape an Accela CapHome / search-results LIST URL.
 
-    Fires ONE Firecrawl request that returns the rendered markdown
-    PLUS a structured ``{permits: […]}`` JSON extraction. We then
+    Fetches the list page and builds a structured ``{permits: [...]}``
+    JSON extraction. We then
     iterate the rows, upsert each, and return the list of upserted
     permit dicts so the caller (the worker thread) can tick a
     real progress bar.
@@ -2646,7 +2359,7 @@ def _scrape_list_inner(scraper: dict, url: str | None = None,
             # works on every row of this run. Truncated to 80KB.
             'markdown':           md,
             'list_row':           row,
-            'firecrawl_metadata': fc.get('metadata') or {},
+            'metadata':           fc.get('metadata') or {},
         }
         _validate_and_register_city(permit.get('city', ''), permit.get('state', ''))
         if run_id is not None:
@@ -2726,8 +2439,8 @@ def _accela_paged_url(url: str, page_num: int) -> str:
 def _run_agent_branch(*, scraper: dict, run_id: int,
                       date_from=None, date_to=None,
                       max_pages: int | None = None) -> None:
-    """Branch 0: hand the whole list+detail+extract job to Firecrawl
-    Agent in a single SDK call, then upsert each returned permit.
+    """Branch 0: run the local list+detail+extract scraper, then
+    upsert each returned permit.
 
     Reads the admin-saved agent settings (prompt template / model /
     max credits) from system_settings, falling back to the constants
@@ -2740,7 +2453,7 @@ def _run_agent_branch(*, scraper: dict, run_id: int,
     df = _coerce_iso_date(date_from)
     dt = _coerce_iso_date(date_to)
 
-    # Pure-HTTP + DigitalOcean OSS path — no Firecrawl involved.
+    # Pure-HTTP + DigitalOcean OSS path.
     saved_model = (get_system_setting('accela_scraper_agent_model') or '').strip()
     model = saved_model or ACCELA_SCRAPER_AGENT_DEFAULT_MODEL
 
@@ -2759,7 +2472,7 @@ def _run_agent_branch(*, scraper: dict, run_id: int,
     )
 
     # ── Pure-HTTP + DigitalOcean Serverless Inference path.
-    # No third-party agent service, no Firecrawl API key required.
+    # No third-party agent service or scraping API key required.
     # Searches via raw HTTP (proxy-aware), paginates through results,
     # opens each CapDetail page, and parses with the admin-chosen
     # DO Inference model (free-text from the DO Inference settings card).
@@ -2796,7 +2509,7 @@ def _run_agent_branch(*, scraper: dict, run_id: int,
     def _is_already_inserted(permit_number: str) -> bool:
         """Cheap pre-extraction skip: drop permits already in DB AND
         permits we previously proved junk (no contractor email/phone),
-        so a re-run only pays Firecrawl + LLM tokens for genuinely-new
+        so a re-run only pays fetch + LLM tokens for genuinely-new
         rows. Pre-junk-table this loop re-fetched + re-extracted every
         junk row on every re-scrape — burnt $230 of inference in one
         day before the user caught it.
@@ -3292,11 +3005,10 @@ def _run_worker_body(scraper_id: int, run_id: int, *, mode: str,
             last_run_status=final_status,
         )
 
-    # ─── Branch 0: single-mode via the Firecrawl Agent ─────────────
-    # New default for the per-scraper "Run now" button. ONE agent
-    # call replaces the old list-fetch + per-row Claude pipeline:
-    # the agent autonomously paginates, opens each detail page and
-    # returns a structured permits[] array we can upsert directly.
+    # ─── Branch 0: single-mode via the local scraper agent ─────────
+    # New default for the per-scraper "Run now" button. The local agent
+    # paginates, opens detail pages, and returns structured permits[]
+    # rows we can upsert directly.
     # Set system_setting `accela_scraper_use_agent` = 'off' to fall
     # through to the legacy code path below.
     _agent_pref = (get_system_setting('accela_scraper_use_agent') or 'on').strip().lower()
@@ -3501,7 +3213,7 @@ def _run_worker_body(scraper_id: int, run_id: int, *, mode: str,
                     if not pnum:
                         raise ScraperError(f'row {j} missing permit_number')
 
-                    # ── Per-row detail follow-up via Firecrawl + Claude ──
+                    # ── Per-row detail follow-up via HTTP + Claude ──
                     # If the list extractor surfaced a detail_url, fetch
                     # that page so we can fill in contractor info, dates,
                     # owner, valuation — fields the LIST table never
@@ -3588,7 +3300,7 @@ def _run_worker_body(scraper_id: int, run_id: int, *, mode: str,
                         'fetched_at':         datetime.utcnow().isoformat() + 'Z',
                         'markdown':           detail_md or (fc_list.get('markdown') or '')[:80000],
                         'list_row':           row,
-                        'firecrawl_metadata': fc_list.get('metadata') or {},
+                        'metadata':           fc_list.get('metadata') or {},
                         # Inference-savings audit — set per-row by
                         # _extract_with_fallback (or stays at defaults
                         # when the row had no detail_url).

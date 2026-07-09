@@ -1,21 +1,20 @@
-"""Django signal handlers. Auto-creates UserProfile and mirrors writes to TinyDB."""
+"""Django signal handlers. Auto-creates UserProfile and mirrors safe rows to TinyDB."""
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 
 from .models import (
     BlogPost,
-    Invoice,
-    Purchase,
-    SupportMessage,
-    SystemSetting,
     UserProfile,
 )
 from . import persistence
 
-# Models whose writes/deletes we mirror to TinyDB.
-# Ordering matters for restore (FK deps): User first, then everything else.
-PERSISTED = [User, UserProfile, SystemSetting, BlogPost, Purchase, Invoice, SupportMessage]
+# Only mirror non-secret content. Do not persist users, password hashes, system
+# settings/API keys, proxy credentials, checkout PII, invoices, or support data
+# into data/persistent.json.
+PERSISTED = [
+    BlogPost,
+]
 for _m in PERSISTED:
     persistence.register(_m)
 

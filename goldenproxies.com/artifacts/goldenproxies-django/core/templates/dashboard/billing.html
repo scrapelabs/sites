@@ -153,18 +153,28 @@
           {% if plan_key == profile.plan and not profile.whop_cancelled %}
             <div class="text-center py-2 text-sm font-semibold text-[#D4AF37]">✓ Current Plan</div>
           {% else %}
-            <a href="/billing/checkout/{{ plan_key }}/monthly/"
-               class="monthly-checkout block text-center
-               {% if plan_key == 'pro' %}gold-btn{% else %}glass-btn{% endif %}
-               py-2 rounded-xl text-sm font-semibold w-full">
-              Get {{ plan_info.label }}
-            </a>
-            <a href="/billing/checkout/{{ plan_key }}/annual/"
-               class="annual-checkout hidden block text-center
-               {% if plan_key == 'pro' %}gold-btn{% else %}glass-btn{% endif %}
-               py-2 rounded-xl text-sm font-semibold w-full">
-              Get {{ plan_info.label }} Annual
-            </a>
+            <form method="post" action="/billing/checkout/{{ plan_key }}/monthly/" class="monthly-checkout space-y-3">
+              {% csrf_token %}
+              <label class="flex items-start gap-2 text-[11px] leading-snug text-gray-500 rounded-xl border border-[#D4AF37]/15 bg-white/40 p-3">
+                <input type="checkbox" name="accept_terms" value="1" required class="mt-0.5 rounded border-[#D4AF37]/40 text-[#D4AF37] focus:ring-[#D4AF37]">
+                <span>{{ checkout_terms_text }}</span>
+              </label>
+              <button type="submit"
+                 class="{% if plan_key == 'pro' %}gold-btn{% else %}glass-btn{% endif %} py-2 rounded-xl text-sm font-semibold w-full">
+                Get {{ plan_info.label }}
+              </button>
+            </form>
+            <form method="post" action="/billing/checkout/{{ plan_key }}/annual/" class="annual-checkout hidden space-y-3">
+              {% csrf_token %}
+              <label class="flex items-start gap-2 text-[11px] leading-snug text-gray-500 rounded-xl border border-[#D4AF37]/15 bg-white/40 p-3">
+                <input type="checkbox" name="accept_terms" value="1" required class="mt-0.5 rounded border-[#D4AF37]/40 text-[#D4AF37] focus:ring-[#D4AF37]">
+                <span>{{ checkout_terms_text }}</span>
+              </label>
+              <button type="submit"
+                 class="{% if plan_key == 'pro' %}gold-btn{% else %}glass-btn{% endif %} py-2 rounded-xl text-sm font-semibold w-full">
+                Get {{ plan_info.label }} Annual
+              </button>
+            </form>
           {% endif %}
         </div>
       </div>

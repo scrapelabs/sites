@@ -195,27 +195,27 @@ def get_pricing_dict(mode: str = None) -> dict:
 
 
 def create_checkout_url(plan: str, email: str, user_id: int,
-                        success_url: str, period: str = 'monthly') -> str:
+                        success_url: str, period: str = 'monthly',
+                        metadata: dict | None = None) -> str:
+    metadata = metadata or {}
+    params = {
+        'redirect_url':      success_url,
+        'prefill_email':     email,
+        'metadata[user_id]': str(user_id),
+    }
+    for key, value in metadata.items():
+        params[f'metadata[{key}]'] = str(value)
+
     plan_id = get_plan_id(plan, period)
     if plan_id:
-        params = urllib.parse.urlencode({
-            'redirect_url':      success_url,
-            'prefill_email':     email,
-            'metadata[user_id]': str(user_id),
-        })
-        return f'https://whop.com/checkout/{plan_id}/?{params}'
+        return f'https://whop.com/checkout/{plan_id}/?{urllib.parse.urlencode(params)}'
 
     base = get_checkout_url(plan.lower(), period.lower())
     if not base:
         raise ValueError(f'No checkout URL configured for {plan}/{period}')
-    params = urllib.parse.urlencode({
-        'd2c':               'true',
-        'redirect_url':      success_url,
-        'prefill_email':     email,
-        'metadata[user_id]': str(user_id),
-    })
+    params['d2c'] = 'true'
     sep = '&' if '?' in base else '?'
-    return f'{base}{sep}{params}'
+    return f'{base}{sep}{urllib.parse.urlencode(params)}'
 
 
 def get_membership(membership_id: str, timeout: int = 15) -> dict | None:
@@ -343,8 +343,8 @@ def cancel_all_active_for_email(email: str, immediate: bool = False,
 
 def verify_webhook_signature(payload_bytes: bytes, signature: str) -> bool:
     secret = _webhook_secret()
-    if not secret:
-        return True
+    if not secret or not signature:
+        return False
     digest = hmac.new(secret.encode(), payload_bytes, hashlib.sha256).hexdigest()
     clean  = signature.replace('sha256=', '').strip()
     return hmac.compare_digest(digest, clean)

@@ -2,7 +2,7 @@ from functools import wraps
 from django.shortcuts import redirect
 from .db import get_user_by_id
 
-ADMIN_EMAILS = {'admin@permitlify.com', 'mk@permitdaily.com', 'khemiri.mohamed@utrsports.com'}
+ADMIN_EMAILS = {'admin@permitlify.com', 'khemiri@permitlify.com'}
 
 _ONBOARDING_EXEMPT_PATHS = {
     '/onboarding/',
@@ -39,7 +39,7 @@ def admin_required(view_func):
         if not user_id:
             return redirect('login')
         user = get_user_by_id(user_id) or {}
-        email = user.get('email') or request.session.get('user_email') or ''
+        email = (user.get('email') or request.session.get('user_email') or '').lower().strip()
         if email not in ADMIN_EMAILS:
             return redirect('dashboard')
         return view_func(request, *args, **kwargs)

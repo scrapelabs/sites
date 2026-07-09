@@ -34,6 +34,23 @@
 .tkt-subject-cell{font-weight:600;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tkt-msg-count{font-size:11.5px;color:var(--tx2);}
 .empty-cell{padding:56px;text-align:center;color:var(--tx3);font-size:13.5px;}
+.flash{padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px;border:1px solid;}
+.flash.ok{background:#ecfdf5;border-color:#bbf7d0;color:#065f46;}
+.flash.err{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+.tkt-actions{display:flex;gap:6px;align-items:center;justify-content:flex-end;}
+.tkt-del{border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;}
+.tkt-del:hover{background:#fef2f2;border-color:#dc2626;}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;color:var(--tx2);font-size:12.5px;}
+.pager-btn{display:inline-flex;align-items:center;justify-content:center;padding:7px 12px;border-radius:8px;border:1px solid var(--b1);background:#fff;color:var(--tx);text-decoration:none;font-weight:700;}
+.pager-btn:hover{border-color:var(--pr);color:var(--pr);}
+.pager-btn.disabled{opacity:.45;pointer-events:none;}
+.bulkbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border:1px solid var(--b1);border-radius:12px;padding:10px 14px;margin-bottom:14px;}
+.bulkbar .hint{font-size:12.5px;color:var(--tx2);}
+.bulk-del{border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;}
+.bulk-del:hover{background:#fef2f2;border-color:#dc2626;}
+.bulk-del:disabled{opacity:.45;cursor:not-allowed;}
+.sel-cell{width:34px;text-align:center;}
+.sel-box{width:15px;height:15px;cursor:pointer;}
 </style>
 
 <div class="admsup-header">
@@ -42,6 +59,16 @@
     <div class="admsup-sub">Manage and respond to user support tickets</div>
   </div>
 </div>
+
+{% if msg %}<div class="flash ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="flash err">{{ err }}</div>{% endif %}
+
+<form id="bulkDeleteForm" method="post" action="{% url 'admin_support_bulk_delete' %}" class="bulkbar">
+  {% csrf_token %}
+  <div class="hint"><strong id="bulkCount">0</strong> selected on this page</div>
+  <div id="bulkIds"></div>
+  <button type="submit" class="bulk-del" id="bulkDeleteBtn" disabled>Delete selected</button>
+</form>
 
 <div class="filter-tabs">
   <a class="ftab {% if not status_filter %}active{% endif %}" href="{% url 'admin_support' %}">
@@ -65,6 +92,7 @@
   <table>
     <thead>
       <tr>
+        <th class="sel-cell"><input type="checkbox" class="sel-box" id="selectAllTickets" aria-label="Select all tickets on page"></th>
         <th>Ticket ID</th>
         <th>Subject</th>
         <th>User</th>
@@ -72,11 +100,13 @@
         <th>Priority</th>
         <th>Messages</th>
         <th>Updated</th>
+        <th style="text-align:right">Actions</th>
       </tr>
     </thead>
     <tbody>
       {% for t in tickets %}
       <tr onclick="window.location='{% url 'admin_support_ticket' t.id %}'">
+        <td class="sel-cell" onclick="event.stopPropagation()"><input type="checkbox" class="sel-box ticket-select" value="{{ t.id }}" aria-label="Select ticket {{ t.ticket_id }}"></td>
         <td class="tkt-id">{{ t.ticket_id }}</td>
         <td class="tkt-subject-cell">{{ t.subject }}</td>
         <td>
@@ -96,11 +126,72 @@
         </td>
         <td class="tkt-msg-count">{{ t.msg_count }}</td>
         <td style="font-size:12px;color:var(--tx2);">{{ t.updated_fmt }}</td>
+        <td onclick="event.stopPropagation()">
+          <div class="tkt-actions">
+            <form method="post" action="{% url 'admin_support_ticket_delete' t.id %}" onsubmit="return confirm('Delete ticket {{ t.ticket_id|escapejs }}? This cannot be undone.');">
+              {% csrf_token %}
+              <button type="submit" class="tkt-del">Delete</button>
+            </form>
+          </div>
+        </td>
       </tr>
       {% empty %}
-      <tr><td colspan="7" class="empty-cell">No tickets found</td></tr>
+      <tr><td colspan="9" class="empty-cell">No tickets found</td></tr>
       {% endfor %}
     </tbody>
   </table>
+</div>
+
+<script>
+(function(){
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.ticket-select'));
+  var all = document.getElementById('selectAllTickets');
+  var count = document.getElementById('bulkCount');
+  var btn = document.getElementById('bulkDeleteBtn');
+  var ids = document.getElementById('bulkIds');
+  var form = document.getElementById('bulkDeleteForm');
+  function sync(){
+    var selected = boxes.filter(function(b){ return b.checked; });
+    count.textContent = selected.length;
+    btn.disabled = selected.length === 0;
+    if(all){
+      all.checked = selected.length > 0 && selected.length === boxes.length;
+      all.indeterminate = selected.length > 0 && selected.length < boxes.length;
+    }
+  }
+  boxes.forEach(function(b){ b.addEventListener('change', sync); });
+  if(all){
+    all.addEventListener('change', function(){
+      boxes.forEach(function(b){ b.checked = all.checked; });
+      sync();
+    });
+  }
+  if(form){
+    form.addEventListener('submit', function(e){
+      var selected = boxes.filter(function(b){ return b.checked; });
+      if(!selected.length){ e.preventDefault(); return; }
+      if(!confirm('Delete ' + selected.length + ' selected ticket(s)? This cannot be undone.')){
+        e.preventDefault(); return;
+      }
+      ids.innerHTML = '';
+      selected.forEach(function(b){
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'ticket_ids';
+        input.value = b.value;
+        ids.appendChild(input);
+      });
+    });
+  }
+  sync();
+})();
+</script>
+
+<div class="pager">
+  <div>Page {{ page }} of {{ total_pages }} · {{ total_tickets }} ticket{{ total_tickets|pluralize }}</div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <a class="pager-btn {% if not has_prev %}disabled{% endif %}" href="?{{ query_base }}page={{ prev_page }}">← Previous</a>
+    <a class="pager-btn {% if not has_next %}disabled{% endif %}" href="?{{ query_base }}page={{ next_page }}">Next →</a>
+  </div>
 </div>
 {% endblock %}

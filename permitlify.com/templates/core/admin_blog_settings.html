@@ -1,7 +1,7 @@
 {% extends "core/admin_base.html" %}
 {% block title %}Blog AI Settings{% endblock %}
 {% block page_title %}Blog AI Settings{% endblock %}
-{% block page_meta %} &nbsp;·&nbsp; Firecrawl scraping + local GPT-OSS rewriting{% endblock %}
+{% block page_meta %} &nbsp;·&nbsp; Playwright scraping + local GPT-OSS rewriting{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -25,6 +25,10 @@
 .bs-label span{font-weight:400;color:var(--muted);margin-left:4px;}
 .bs-input{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'JetBrains Mono',monospace;color:var(--text);background:#fff;outline:none;transition:border .15s,box-shadow .15s;box-sizing:border-box;}
 .bs-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(29,78,216,.08);}
+.bs-secret-wrap{display:flex;gap:8px;align-items:center;}
+.bs-secret-wrap .bs-input{flex:1;min-width:0;}
+.bs-toggle-secret{padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.bs-toggle-secret:hover{background:var(--bg);}
 
 .bs-foot{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;background:var(--bg);border-top:1px solid var(--border);gap:12px;flex-wrap:wrap;}
 .bs-save{padding:9px 22px;background:var(--grad);color:#fff;border:none;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:7px;box-shadow:var(--sh-grad);transition:opacity .18s,transform .18s;}
@@ -53,35 +57,39 @@
 <div id="toastBs"></div>
 
 <div class="bs-grid">
-  {# ── Firecrawl ── #}
+  {# ── Datacenter proxy ── #}
   <div class="bs-card">
     <div class="bs-head">
-      <div class="bs-ico">🔥</div>
+      <div class="bs-ico">🌐</div>
       <div style="flex:1;min-width:0;">
-        <div class="bs-title">Firecrawl</div>
-        <div class="bs-sub">Scrapes any URL into clean markdown for the rewrite step.</div>
+        <div class="bs-title">Playwright scraper proxy</div>
+        <div class="bs-sub">Optional datacenter proxy for rendered article scraping.</div>
       </div>
-      <span class="bs-pill {% if has_firecrawl %}live{% else %}off{% endif %}" id="bs-pill-fc">
-        {% if has_firecrawl %}Configured{% else %}Not set{% endif %}
+      <span class="bs-pill {% if proxy_info.configured %}live{% else %}off{% endif %}" id="bs-pill-proxy">
+        {% if proxy_info.configured %}Configured{% else %}Direct{% endif %}
       </span>
     </div>
     <div class="bs-body">
       <div class="bs-field">
-        <label class="bs-label" for="bs-fc-key">Firecrawl API Key <span>(starts with <code>fc-</code>)</span></label>
-        <input type="password" class="bs-input" id="bs-fc-key" autocomplete="off" spellcheck="false"
-               placeholder="{% if has_firecrawl %}•••••••• key already saved — paste new key to replace{% else %}fc-xxxxxxxxxxxxxxxxxxxxxxxx{% endif %}">
+        <label class="bs-label" for="bs-proxy">Datacenter proxy <span>(optional)</span></label>
+        <div class="bs-secret-wrap">
+          <input type="password" class="bs-input" id="bs-proxy" autocomplete="off" spellcheck="false"
+                 value="{{ datacenter_proxy_value|default:'' }}"
+                 placeholder="{% if proxy_info.configured %}{{ proxy_info.label }} saved — paste new proxy to replace{% else %}user:pass@host:port or host:port{% endif %}">
+          <button type="button" class="bs-toggle-secret" id="bs-toggle-proxy" onclick="toggleProxySecret()" aria-controls="bs-proxy" aria-pressed="false">Show</button>
+        </div>
       </div>
       <div class="bs-help">
-        Get a key at <a href="https://www.firecrawl.dev/app" target="_blank" rel="noopener">firecrawl.dev/app</a>. Free plan covers 500 scrapes/month — plenty for the blog.
+        Blog URL scraping now runs locally in Chrome/Edge through Playwright. Leave this blank for direct fetches, or enter a datacenter proxy such as <code>user:pass@host:port</code>.
       </div>
     </div>
     <div class="bs-foot">
-      <div class="bs-result" id="bs-res-fc"></div>
+      <div class="bs-result" id="bs-res-proxy"></div>
       <div style="display:flex;gap:10px;align-items:center;">
-        {% if has_firecrawl %}<button class="bs-clear" type="button" onclick="clearKey('clear_firecrawl')">Clear key</button>{% endif %}
-        <button class="bs-save" type="button" onclick="saveFirecrawl()" id="bs-save-fc">
+        {% if proxy_info.configured %}<button class="bs-clear" type="button" onclick="clearSetting('clear_proxy')">Clear proxy</button>{% endif %}
+        <button class="bs-save" type="button" onclick="saveProxy()" id="bs-save-proxy">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-          Save Firecrawl key
+          Save proxy
         </button>
       </div>
     </div>
@@ -142,25 +150,33 @@ function showResult(id, ok, msg){
   el.textContent = msg; el.className = 'bs-result show ' + (ok?'ok':'err');
   setTimeout(()=>el.classList.remove('show'), 2400);
 }
-async function saveFirecrawl(){
-  const key = document.getElementById('bs-fc-key').value.trim();
-  if (!key) { showResult('bs-res-fc', false, 'Paste a key first.'); return; }
-  const btn = document.getElementById('bs-save-fc'); btn.disabled = true;
-  const fd = new FormData(); fd.append('section','firecrawl'); fd.append('firecrawl_api_key', key);
+async function saveProxy(){
+  const proxy = document.getElementById('bs-proxy').value.trim();
+  const btn = document.getElementById('bs-save-proxy'); btn.disabled = true;
+  const fd = new FormData(); fd.append('section','proxy'); fd.append('datacenter_proxy', proxy);
   try {
     const r = await postSection(fd);
     if (r.ok) {
-      document.getElementById('bs-pill-fc').className = 'bs-pill live';
-      document.getElementById('bs-pill-fc').textContent = 'Configured';
-      document.getElementById('bs-fc-key').value = '';
-      document.getElementById('bs-fc-key').placeholder = '•••••••• key already saved — paste new key to replace';
-      showResult('bs-res-fc', true, '✓ Saved');
-      toast('Firecrawl key saved', 'ok');
+      const savedProxy = r.datacenter_proxy || proxy;
+      document.getElementById('bs-pill-proxy').className = 'bs-pill ' + (savedProxy ? 'live' : 'off');
+      document.getElementById('bs-pill-proxy').textContent = savedProxy ? 'Configured' : 'Direct';
+      document.getElementById('bs-proxy').value = savedProxy;
+      document.getElementById('bs-proxy').placeholder = savedProxy ? 'Proxy saved — paste new proxy to replace' : 'user:pass@host:port or host:port';
+      showResult('bs-res-proxy', true, '✓ Saved');
+      toast(savedProxy ? 'Proxy saved' : 'Direct scraping saved', 'ok');
     } else {
-      showResult('bs-res-fc', false, r.error || 'Save failed');
+      showResult('bs-res-proxy', false, r.error || 'Save failed');
     }
-  } catch(e){ showResult('bs-res-fc', false, 'Network error'); }
+  } catch(e){ showResult('bs-res-proxy', false, 'Network error'); }
   finally { btn.disabled = false; }
+}
+function toggleProxySecret(){
+  const input = document.getElementById('bs-proxy');
+  const btn = document.getElementById('bs-toggle-proxy');
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  btn.textContent = showing ? 'Show' : 'Hide';
+  btn.setAttribute('aria-pressed', showing ? 'false' : 'true');
 }
 async function saveRewrite(){
   const model = document.getElementById('bs-rw-model').value.trim();
@@ -179,8 +195,8 @@ async function saveRewrite(){
   } catch(e){ showResult('bs-res-rw', false, 'Network error'); }
   finally { btn.disabled = false; }
 }
-async function clearKey(section){
-  if (!confirm('Clear the saved key?')) return;
+async function clearSetting(section){
+  if (!confirm('Clear this saved setting?')) return;
   const fd = new FormData(); fd.append('section', section);
   const r = await postSection(fd);
   if (r.ok) { toast('Cleared. Refreshing…', 'ok'); setTimeout(()=>location.reload(), 600); }

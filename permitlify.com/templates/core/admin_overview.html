@@ -91,7 +91,7 @@
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
   <div class="card">
     <div class="card-title">Top Cities by Coverage</div>
-    <div class="card-sub">Cities tracked across all accounts · <a href="/admin-panel/cities/" style="color:var(--blue);font-weight:600;text-decoration:none">View all →</a></div>
+    <div class="card-sub">Cities tracked across all accounts</div>
     {% for city, count in top_cities %}{% with max_count=top_cities.0.1 %}
     <div class="city-item">
       <div class="city-name">{{ city }}</div>

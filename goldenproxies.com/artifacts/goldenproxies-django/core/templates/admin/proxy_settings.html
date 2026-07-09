@@ -1,0 +1,145 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Proxy Settings - Admin - GoldenProxies{% endblock %}
+{% block mobile_title %}Proxy Settings{% endblock %}
+{% block dashboard_content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="px-4 py-3 rounded-xl text-sm font-medium border
+      {% if 'error' in msg.tags %}border-red-300 bg-red-50/80 text-red-700
+      {% else %}border-green-300 bg-green-50/80 text-green-700{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-serif font-bold text-gray-900">Proxy Settings</h1>
+      <p class="text-sm text-gray-400 mt-1">Global gateway settings and every user's issued proxy login.</p>
+    </div>
+    <form method="post" onsubmit="return confirm('Sync credentials for all users now?')">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="sync_active">
+      <button type="submit" class="gold-btn px-5 py-2.5 rounded-xl text-sm font-semibold">Sync Active Users</button>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="glass-card rounded-2xl p-5">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Users</p>
+      <p class="text-2xl font-serif font-bold text-gray-900">{{ total_users }}</p>
+    </div>
+    <div class="glass-card rounded-2xl p-5">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Active Subscriptions</p>
+      <p class="text-2xl font-serif font-bold text-[#D4AF37]">{{ active_subscriptions }}</p>
+    </div>
+    <div class="glass-card rounded-2xl p-5">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Issued / Active Logins</p>
+      <p class="text-2xl font-serif font-bold text-gray-900">{{ issued_credentials }} / {{ active_credentials }}</p>
+    </div>
+  </div>
+
+  <div class="glass-card rounded-2xl p-6 shadow-md">
+    <div class="flex items-start justify-between gap-4 flex-wrap mb-5">
+      <div>
+        <h2 class="font-bold text-gray-900">Global Gateway</h2>
+        <p class="text-xs text-gray-400 mt-1">These values are used for every user's displayed proxy connection string.</p>
+      </div>
+      <span class="text-xs font-mono text-gray-500 bg-gray-100 rounded-lg px-2.5 py-1">DB/env backed</span>
+    </div>
+
+    <form method="post" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_gateway">
+      <div class="md:col-span-2">
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Gateway Host</label>
+        <input type="text" name="proxy_gateway_host" value="{{ proxy_gateway.host }}" placeholder="proxy.goldenproxies.com"
+          class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">HTTP Port</label>
+        <input type="text" name="proxy_gateway_http_port" value="{{ proxy_gateway.http_port }}" placeholder="8001"
+          class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">SOCKS5 Port</label>
+        <input type="text" name="proxy_gateway_socks5_port" value="{{ proxy_gateway.socks5_port }}" placeholder="8002"
+          class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition font-mono">
+      </div>
+      <div class="md:col-span-4 flex justify-end">
+        <button type="submit" class="gold-btn px-6 py-2.5 rounded-xl text-sm font-semibold">Save Global Settings</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="glass-card rounded-2xl shadow-md overflow-hidden">
+    <div class="p-5 border-b border-[#D4AF37]/10 flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <h2 class="font-bold text-gray-900">User Proxy Logins</h2>
+        <p class="text-xs text-gray-400 mt-1">Passwords are visible here because this page is admin-only. The response is not cached.</p>
+      </div>
+      <a href="/admin-panel/users/" class="text-xs text-[#D4AF37] font-semibold hover:underline">Open Users</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-[#D4AF37]/10 bg-[#D4AF37]/3">
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">User</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">Plan</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">Credential</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">Username</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">Password</th>
+            <th class="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">HTTP Login</th>
+            <th class="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[#D4AF37]/8">
+          {% for row in rows %}
+          <tr class="hover:bg-[#D4AF37]/3 transition-colors">
+            <td class="px-5 py-3.5 min-w-64">
+              <div class="font-semibold text-gray-900">{{ row.user.get_full_name|default:row.user.email }}</div>
+              <div class="text-xs text-gray-500">{{ row.user.email }}</div>
+              {% if not row.user.is_active %}<div class="text-[10px] text-red-500 mt-0.5">Suspended user</div>{% endif %}
+            </td>
+            <td class="px-4 py-3.5 whitespace-nowrap">
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full border
+                {% if row.profile.plan == 'agency' %}bg-purple-100 text-purple-700 border-purple-300
+                {% elif row.profile.plan == 'pro' %}bg-amber-100 text-amber-700 border-amber-300
+                {% elif row.profile.plan == 'starter' %}bg-blue-100 text-blue-700 border-blue-300
+                {% else %}bg-gray-100 text-gray-500 border-gray-200{% endif %}">
+                {{ row.profile.plan_display }}
+              </span>
+            </td>
+            <td class="px-4 py-3.5 whitespace-nowrap">
+              {% if row.credential and row.credential.is_active %}
+                <span class="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">Active</span>
+              {% elif row.credential %}
+                <span class="text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">Disabled</span>
+                {% if row.credential.disabled_reason %}<div class="text-[10px] text-gray-400 mt-1">{{ row.credential.disabled_reason }}</div>{% endif %}
+              {% elif row.profile.has_active_subscription and row.user.is_active %}
+                <span class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">Missing</span>
+              {% else %}
+                <span class="text-xs text-gray-400">Not issued</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3.5 font-mono text-xs text-gray-700 break-all min-w-40">{{ row.credential.username|default:"-" }}</td>
+            <td class="px-4 py-3.5 font-mono text-xs text-gray-700 break-all min-w-48">{{ row.credential.password|default:"-" }}</td>
+            <td class="px-4 py-3.5 font-mono text-xs text-gray-600 break-all min-w-72">{{ row.http_line|default:"-" }}</td>
+            <td class="px-5 py-3.5 text-right whitespace-nowrap">
+              <a href="/admin-panel/users/{{ row.user.pk }}/" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100/80 hover:bg-[#D4AF37]/15 hover:text-[#D4AF37] transition-colors">View User</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="px-5 py-12 text-center text-gray-400 text-sm">No users found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

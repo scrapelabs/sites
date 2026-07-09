@@ -1,8 +1,7 @@
 """Per-source municipal-permit scraper engines.
 
 Each public-records platform (Accela, Tyler EnerGov, OpenGov, CivicPlus,
-Granicus, …) lives in its own module — same shape, copied from the
-runbook in ``templates/core/admin_scraper_agent_plan.html``:
+Granicus, …) lives in its own module with the same engine shape:
 
   * ``base.py``    — shared utilities every engine reuses: HTML cleaner,
                      ASP.NET WebForms helpers, proxied HTTP client,

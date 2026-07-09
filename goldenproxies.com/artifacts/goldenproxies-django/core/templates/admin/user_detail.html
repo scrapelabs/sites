@@ -111,6 +111,68 @@
     {% endif %}
   </div>
 
+  <!-- Proxy Credentials -->
+  <div class="glass-card rounded-2xl p-6">
+    <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+      <div>
+        <h3 class="text-sm font-bold text-gray-900">Proxy Credentials</h3>
+        <p class="text-xs text-gray-400 mt-1">Admin-only view of this user's GoldenProxies login.</p>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="proxy_sync">
+        <button type="submit" class="glass-btn px-4 py-2 rounded-xl text-xs font-semibold">Sync Credential</button>
+      </form>
+    </div>
+
+    {% if credential %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+      <div>
+        <p class="text-xs text-gray-400">Status</p>
+        {% if credential.is_active %}
+          <span class="inline-block mt-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">Active</span>
+        {% else %}
+          <span class="inline-block mt-1 text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">Disabled</span>
+        {% endif %}
+      </div>
+      <div>
+        <p class="text-xs text-gray-400">Gateway</p>
+        <p class="font-mono text-xs text-gray-600 break-all">{{ proxy_gateway.host }}:{{ proxy_gateway.http_port }}</p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400">Username</p>
+        <p class="font-mono text-xs text-gray-700 break-all">{{ credential.username }}</p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400">Password</p>
+        <p class="font-mono text-xs text-gray-700 break-all">{{ credential.password }}</p>
+      </div>
+      <div class="sm:col-span-2">
+        <p class="text-xs text-gray-400">HTTP Login</p>
+        <p class="font-mono text-xs text-gray-700 break-all">{{ http_proxy_line }}</p>
+      </div>
+      <div class="sm:col-span-2">
+        <p class="text-xs text-gray-400">SOCKS5 Login</p>
+        <p class="font-mono text-xs text-gray-700 break-all">{{ socks_proxy_line }}</p>
+      </div>
+      {% if credential.disabled_reason %}
+      <div class="sm:col-span-2">
+        <p class="text-xs text-gray-400">Disabled Reason</p>
+        <p class="text-xs text-gray-600">{{ credential.disabled_reason }}</p>
+      </div>
+      {% endif %}
+    </div>
+    {% elif profile.has_active_subscription and target_user.is_active %}
+    <div class="rounded-xl bg-amber-50/70 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+      This paid user does not have proxy credentials yet. Click Sync Credential to issue them.
+    </div>
+    {% else %}
+    <div class="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-500">
+      No proxy credentials are issued because this user is not an active paid customer.
+    </div>
+    {% endif %}
+  </div>
+
   <!-- Invoice History -->
   {% if invoices %}
   <div class="glass-card rounded-2xl p-6">

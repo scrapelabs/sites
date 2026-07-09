@@ -442,8 +442,7 @@ def parse_proxy_string(s: str) -> dict | None:
 def _resolve_proxy_url() -> str | None:
     """Active scraper proxy URL or ``None``.
 
-    Priority: system_setting ``scraper_proxy`` (admin-editable in
-    Scraper Settings) → env var ``SCRAPER_PROXY``. Returns the
+    Priority: system_setting ``scraper_proxy`` → env var ``SCRAPER_PROXY``. Returns the
     full ``http://user:pass@host:port`` URL ready for ProxyHandler.
     """
     raw = (get_system_setting('scraper_proxy') or '').strip()

@@ -43,7 +43,7 @@ def hash_password(password: str) -> str:
 # ── lightweight in-process TTL cache for hot read-only admin queries ──
 #
 # Admin pages (`admin_dashboard`, `admin_users_view`, `admin_revenue_view`,
-# `admin_cities_view`, every `_admin_base_ctx` call) hammer the same
+# every `_admin_base_ctx` call) hammer the same
 # read-only queries on every navigation. Across coast-to-coast latency
 # (DigitalOcean NYC1 ↔ Supabase us-west-1 ≈ 90 ms RTT) those round-trips
 # dominate page load time even though the underlying queries are cheap.
@@ -425,6 +425,11 @@ def delete_user(user_id: int) -> bool:
         uid = int(user_id)
     except (TypeError, ValueError):
         return False
+    try:
+        _ensure_recovery_table()
+        pg.execute("DELETE FROM recovery_queue WHERE user_id = %s", (uid,))
+    except Exception:
+        pass
     pg.execute("DELETE FROM users WHERE id = %s", (uid,))
     _invalidate_users_cache()
     return True
@@ -440,6 +445,11 @@ def bulk_delete_users(user_ids: list[int]) -> int:
             continue
     if not ids:
         return 0
+    try:
+        _ensure_recovery_table()
+        pg.execute("DELETE FROM recovery_queue WHERE user_id = ANY(%s)", (ids,))
+    except Exception:
+        pass
     n = pg.execute("DELETE FROM users WHERE id = ANY(%s)", (ids,))
     if n:
         _invalidate_users_cache()
@@ -838,7 +848,7 @@ def delete_sessions_for_user(user_id: int, except_key: str = None) -> int:
 # ── Demo seed ──────────────────────────────────────────────────
 
 def _seed_demo_user_now():
-    """Internal: insert the built-in demo admin (mk@permitdaily.com).
+    """Internal: insert the built-in demo API user (mk@permitdaily.com).
 
     Caller is responsible for the one-shot guard. See
     ``seed_demo_user()`` for the public entry-point with the flag check.
@@ -852,7 +862,7 @@ def _seed_demo_user_now():
         'avatar_initials': 'MK',
         'joined': '2026-01-05',
         'status': 'active',
-        'is_admin': True,
+        'is_admin': False,
         'alerts_sent': 1840,
         'api_calls': 14200,
     }
@@ -868,7 +878,7 @@ def _seed_demo_user_now():
 
 
 def seed_demo_user():
-    """One-shot seeder for the built-in demo admin (mk@permitdaily.com).
+    """One-shot seeder for the built-in demo API user (mk@permitdaily.com).
 
     Runs at most once per database. After the first run the
     ``demo_user_seeded`` flag is recorded in ``system_settings`` and we
@@ -1789,7 +1799,7 @@ def get_customer_visible_states(*, force_refresh: bool = False,
     """States we sell on the customer-facing pickers (onboarding step 2
     and settings → coverage). A state graduates from "data exists" to
     "customer visible" once it has at least ``min_permits`` permit rows
-    — defaults to 100 (the "solid" tier from /admin-panel/scraper-stats/).
+    — defaults to 100, the current threshold for enough local permit volume.
 
     Returns ``[{'state': 'CA', 'name': 'California', 'count': 6473}, ...]``
     sorted by permit count DESC then name ASC. This replaces the old
@@ -2005,6 +2015,91 @@ def get_all_tickets(status_filter: str = '') -> list:
     return [_row_to_doc(r) for r in rows]
 
 
+def get_tickets_page(status_filter: str = '', page: int = 1,
+                     per_page: int = 25) -> tuple[list, int, int, int]:
+    """Paginated admin ticket list.
+
+    Returns ``(tickets, total, total_pages, page)``. The list page only needs
+    one slice at a time; notification endpoints still use ``get_all_tickets``.
+    """
+    valid_statuses = {'open', 'in_progress', 'resolved', 'closed'}
+    status_filter = status_filter if status_filter in valid_statuses else ''
+    page = max(1, int(page or 1))
+    per_page = max(1, min(int(per_page or 25), 100))
+    where = 'WHERE status = %s' if status_filter else ''
+    params = (status_filter,) if status_filter else ()
+    total_row = pg.query_one(
+        f"SELECT COUNT(*) AS n FROM support_tickets {where}", params)
+    total = int((total_row or {}).get('n') or 0)
+    total_pages = max(1, (total + per_page - 1) // per_page) if total else 1
+    if page > total_pages:
+        page = total_pages
+    offset = (page - 1) * per_page
+    rows = pg.query(
+        f"""SELECT id, data FROM support_tickets
+              {where}
+             ORDER BY data->>'updated_at' DESC NULLS LAST
+             LIMIT %s OFFSET %s""",
+        params + (per_page, offset),
+    )
+    return [_row_to_doc(r) for r in rows], total, total_pages, page
+
+
+def update_ticket_details(doc_id: int, *, subject: str | None = None,
+                          user_name: str | None = None,
+                          user_email: str | None = None,
+                          category: str | None = None,
+                          status: str | None = None,
+                          priority: str | None = None,
+                          messages: list | None = None) -> bool:
+    """Update editable admin ticket fields and keep indexed columns synced."""
+    from datetime import datetime
+    ticket = get_ticket(doc_id)
+    if not ticket:
+        return False
+    if subject is not None:
+        ticket['subject'] = subject.strip()[:300] or ticket.get('subject') or 'Support ticket'
+    if user_name is not None:
+        ticket['user_name'] = user_name.strip()[:160]
+    if user_email is not None:
+        ticket['user_email'] = user_email.strip().lower()[:240]
+    if category is not None:
+        ticket['category'] = category.strip()[:80] or 'general'
+    if status is not None:
+        if status not in {'open', 'in_progress', 'resolved', 'closed'}:
+            return False
+        ticket['status'] = status
+    if priority is not None:
+        if priority not in {'low', 'normal', 'high', 'urgent'}:
+            return False
+        ticket['priority'] = priority
+    if messages is not None:
+        clean = []
+        for m in messages:
+            if not isinstance(m, dict):
+                continue
+            sender = (m.get('sender') or 'user').strip()
+            if sender not in {'user', 'agent', 'system'}:
+                sender = 'user'
+            clean.append({
+                'sender': sender,
+                'name':   (m.get('name') or '').strip()[:160],
+                'text':   (m.get('text') or '').strip(),
+                'ts':     (m.get('ts') or '').strip(),
+            })
+        ticket['messages'] = clean
+    now = datetime.now().isoformat()
+    ticket['updated_at'] = now
+    row = pg.execute_returning(
+        """UPDATE support_tickets
+              SET status = %s, priority = %s, data = %s
+            WHERE id = %s RETURNING id""",
+        (ticket.get('status', 'open'), ticket.get('priority', 'normal'),
+         Json(ticket), int(doc_id)),
+    )
+    return row is not None
+
+
 def add_ticket_message(doc_id: int, sender: str, name: str, text: str) -> bool:
     """Atomically append a message to the ticket's messages array."""
     from datetime import datetime
@@ -2024,12 +2119,77 @@ def add_ticket_message(doc_id: int, sender: str, name: str, text: str) -> bool:
     return row is not None
 
 
+def _clear_ticket_read_marks(ticket_rows: list[dict]) -> None:
+    """Remove deleted ticket IDs from customer and admin read-state maps."""
+    ticket_ids = sorted({int(r.get('id') or 0) for r in ticket_rows if r.get('id')})
+    user_ids = sorted({int(r.get('user_id') or 0) for r in ticket_rows if r.get('user_id')})
+    if not ticket_ids:
+        return
+    changed = 0
+    try:
+        for tid in ticket_ids:
+            key = str(tid)
+            if user_ids:
+                changed += int(pg.execute(
+                    """UPDATE users
+                          SET data = jsonb_set(data, '{support_read_marks}',
+                                               (data->'support_read_marks') - %s, true)
+                        WHERE id = ANY(%s)
+                          AND data->'support_read_marks' ? %s""",
+                    (key, user_ids, key),
+                ) or 0)
+            changed += int(pg.execute(
+                """UPDATE users
+                      SET data = jsonb_set(data, '{admin_read_marks}',
+                                           (data->'admin_read_marks') - %s, true)
+                    WHERE data->'admin_read_marks' ? %s""",
+                (key, key),
+            ) or 0)
+    except Exception:
+        log.exception('ticket read-mark cleanup failed for ticket_ids=%s', ticket_ids)
+        return
+    if changed:
+        _invalidate_users_cache()
+
+
 def delete_ticket(doc_id: int) -> bool:
     try:
-        n = pg.execute("DELETE FROM support_tickets WHERE id = %s", (int(doc_id),))
+        tid = int(doc_id)
     except (TypeError, ValueError):
         return False
+    ticket = pg.query_one(
+        "SELECT id, user_id FROM support_tickets WHERE id = %s",
+        (tid,),
+    )
+    if not ticket:
+        return False
+    n = pg.execute("DELETE FROM support_tickets WHERE id = %s", (tid,))
+    if n:
+        _clear_ticket_read_marks([ticket])
     return bool(n)
+
+
+def bulk_delete_tickets(doc_ids: list[int]) -> int:
+    ids = []
+    for x in doc_ids or []:
+        try:
+            ids.append(int(x))
+        except (TypeError, ValueError):
+            continue
+    ids = sorted(set(ids))
+    if not ids:
+        return 0
+    tickets = pg.query(
+        "SELECT id, user_id FROM support_tickets WHERE id = ANY(%s)",
+        (ids,),
+    )
+    if not tickets:
+        return 0
+    delete_ids = [int(t['id']) for t in tickets]
+    deleted = int(pg.execute("DELETE FROM support_tickets WHERE id = ANY(%s)", (delete_ids,)) or 0)
+    if deleted:
+        _clear_ticket_read_marks(tickets)
+    return deleted
 
 
 def update_ticket_status(doc_id: int, status: str) -> bool:
@@ -2673,7 +2833,7 @@ def delete_permits_by_state(state: str) -> int:
 # verdict. Burnt $230 of inference in a single day this way. Solution:
 # remember the junk verdict, keyed on the same ``(source, source_permit_id)``
 # tuple ``permits`` uses, and short-circuit the per-detail loop BEFORE
-# the Firecrawl/HTTP fetch + LLM call.
+# the detail fetch + LLM call.
 _JUNK_PERMITS_TABLE_READY = False
 
 
@@ -2722,7 +2882,7 @@ def is_junk_permit(source: str, source_permit_id: str) -> bool:
     determined to be junk (no contractor email AND no contractor phone).
 
     Called by the scraper's per-grid-row pre-detail skip loop so we
-    never re-pay the Firecrawl fetch + LLM extraction cost on a row
+    never re-pay the fetch + LLM extraction cost on a row
     we've already proven worthless.
     """
     if not source or not source_permit_id:
@@ -5263,7 +5423,7 @@ def delete_scraper_run(run_id: int, *, delete_permits: bool = False) -> dict:
 # ── Stale scraper-run reaper ─────────────────────────────────────────
 #
 # Daemon threads can die mid-flight (gunicorn worker recycle, OOM kill,
-# Firecrawl hanging past the urllib timeout). When that happens the
+# network fetch hanging past the urllib timeout). When that happens the
 # scraper_runs row is left frozen in ``status='running'`` forever, the
 # scraper detail page shows a permanent fake "in progress" run, and the
 # delete-run cascade refuses to touch it because it looks live. Reap
@@ -5597,86 +5757,12 @@ def count_finder_requests() -> int:
     return int(row['cnt']) if row else 0
 
 
-# ── Firecrawl + Claude API call tracking ─────────────────────────────
+# ── Claude API call tracking ─────────────────────────────────────────
 #
-# Every Firecrawl HTTP call and every Anthropic call gets one row here
-# so the admin "Firecrawl Usage" / "Claude Usage" pages can chart
-# volume, success rate, latency, and rough cost. Both tables are
-# write-mostly (one INSERT per call, no updates) and indexed by
-# called_at + scraper_run_id for the typical query patterns.
+# Anthropic calls are written to a small append-only ledger so admin
+# usage pages can chart volume, latency, token counts, and rough cost.
 
-_FIRECRAWL_CALLS_TABLE_READY = False
-_CLAUDE_CALLS_TABLE_READY    = False
-
-
-def _ensure_firecrawl_calls_table():
-    global _FIRECRAWL_CALLS_TABLE_READY
-    if _FIRECRAWL_CALLS_TABLE_READY:
-        return
-    pg.execute(
-        """CREATE TABLE IF NOT EXISTS firecrawl_calls (
-              id              BIGSERIAL PRIMARY KEY,
-              called_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-              scraper_run_id  BIGINT,
-              source          TEXT,                  -- 'accela' | 'blog' | 'accela_finder'
-              mode            TEXT,                  -- 'detail' | 'list' | 'blog' | 'agent'
-              url             TEXT,
-              status_code     INTEGER,
-              latency_ms      INTEGER,
-              response_bytes  INTEGER,
-              error           TEXT
-           )"""
-    )
-    # ── city/state columns (added later — IF NOT EXISTS so it is safe
-    #    to call on every boot AND on a fresh database). They let the
-    #    Firecrawl Usage page filter / sort by location for finder runs
-    #    AND for per-scraper agent runs (which also know city+state).
-    pg.execute(
-        "ALTER TABLE firecrawl_calls ADD COLUMN IF NOT EXISTS city  TEXT"
-    )
-    pg.execute(
-        "ALTER TABLE firecrawl_calls ADD COLUMN IF NOT EXISTS state TEXT"
-    )
-    pg.execute(
-        "CREATE INDEX IF NOT EXISTS firecrawl_calls_called_idx "
-        "ON firecrawl_calls(called_at DESC)"
-    )
-    pg.execute(
-        "CREATE INDEX IF NOT EXISTS firecrawl_calls_run_idx "
-        "ON firecrawl_calls(scraper_run_id) WHERE scraper_run_id IS NOT NULL"
-    )
-    # Composite index keyed by state then city — matches the typical
-    # filter shape on the usage page (state dropdown narrows first,
-    # city dropdown narrows second). Partial index keeps it tiny: only
-    # rows that actually carry a state are included, so the legacy
-    # detail/list calls (no city/state) don't bloat it.
-    pg.execute(
-        "CREATE INDEX IF NOT EXISTS firecrawl_calls_state_city_called_idx "
-        "ON firecrawl_calls(state, city, called_at DESC) "
-        "WHERE state IS NOT NULL"
-    )
-    # One-shot backfill — older accela_finder rows were logged with
-    # the city/state concatenated into the `url` column as
-    # "City, ST". Parse them back into the dedicated columns so the
-    # filter dropdowns + recent-calls table cover historical runs too.
-    # Idempotent: WHERE city IS NULL AND state IS NULL skips already-
-    # backfilled rows, and the regex only matches rows whose url
-    # actually looks like "Word, XX".
-    try:
-        pg.execute(
-            """UPDATE firecrawl_calls
-                  SET city  = TRIM(SPLIT_PART(url, ',', 1)),
-                      state = UPPER(TRIM(SPLIT_PART(url, ',', 2)))
-                WHERE source = 'accela_finder'
-                  AND city  IS NULL
-                  AND state IS NULL
-                  AND url   ~ '^[^,]+,\\s*[A-Za-z]{2}$'"""
-        )
-    except Exception:
-        import logging as _log
-        _log.getLogger(__name__).exception(
-            'firecrawl_calls finder backfill failed (non-fatal)')
-    _FIRECRAWL_CALLS_TABLE_READY = True
+_CLAUDE_CALLS_TABLE_READY = False
 
 
 def _ensure_claude_calls_table():
@@ -5709,53 +5795,6 @@ def _ensure_claude_calls_table():
     _CLAUDE_CALLS_TABLE_READY = True
 
 
-def record_firecrawl_call(*, scraper_run_id=None, source='accela',
-                          mode=None, url='', status_code=None,
-                          latency_ms=None, response_bytes=None,
-                          error=None, city=None, state=None) -> None:
-    """One INSERT per Firecrawl HTTP call. Never raises — usage
-    tracking must not break the actual scrape if the table or
-    connection is briefly unavailable.
-
-    ``city`` and ``state`` are stored as dedicated columns so the
-    Firecrawl Usage page can filter / sort the history without having
-    to parse them out of the ``url`` column. Both are normalised here
-    (trimmed; state upper-cased and length-capped to 2 chars) so the
-    state filter dropdown gets clean values regardless of the caller.
-    """
-    try:
-        _ensure_firecrawl_calls_table()
-        # Normalise city / state once, here — keep the dropdowns on
-        # the usage page tidy and the partial state index small.
-        city_v = (str(city).strip())[:120] if city else None
-        state_v = (str(state).strip().upper())[:2] if state else None
-        if state_v and not state_v.isalpha():
-            # Reject obviously bogus state codes ("12", "—", etc.) so
-            # the dropdown isn't littered with junk values.
-            state_v = None
-        pg.execute(
-            """INSERT INTO firecrawl_calls
-                  (scraper_run_id, source, mode, url, status_code,
-                   latency_ms, response_bytes, error, city, state)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (
-                int(scraper_run_id) if scraper_run_id else None,
-                str(source or '')[:32],
-                str(mode or '')[:32] if mode else None,
-                (str(url or ''))[:2048],
-                int(status_code) if status_code is not None else None,
-                int(latency_ms) if latency_ms is not None else None,
-                int(response_bytes) if response_bytes is not None else None,
-                (str(error)[:500]) if error else None,
-                city_v,
-                state_v,
-            ),
-        )
-    except Exception:
-        import logging as _log
-        _log.getLogger(__name__).exception('record_firecrawl_call failed')
-
-
 def record_claude_call(*, scraper_run_id=None, source='accela',
                        model=None, status_code=None, latency_ms=None,
                        input_tokens=0, output_tokens=0,
@@ -5786,9 +5825,8 @@ def record_claude_call(*, scraper_run_id=None, source='accela',
 
 
 def claude_usage_summary(days: int = 30) -> dict:
-    """Mirror of firecrawl_usage_summary but for Claude. Adds tokens
-    in/out as the primary KPI since cost scales with tokens, not call
-    count."""
+    """Summarise Claude usage. Tokens in/out are the primary KPI since
+    cost scales with tokens, not call count."""
     _ensure_claude_calls_table()
     days = max(1, min(int(days or 30), 90))
     totals = {
@@ -5860,87 +5898,6 @@ def claude_usage_summary(days: int = 30) -> dict:
         'totals':          totals,
         'per_day':         per_day,
         'recent_failures': [dict(r) for r in recent_failures],
-    }
-
-
-def inference_stats(*, extraction_only: bool = True) -> dict:
-    """Aggregate stats for the Scrapers → Inference Stats page.
-
-    Returns counts of LLM calls (== HTML pages processed) and token
-    sums bucketed by today / 7d / 30d / month-to-date / total, plus
-    per-model breakdown and 30-day daily series. Caller turns the
-    token counts into dollar costs using the (editable) per-model
-    price table — keeping pricing out of SQL means admins can change
-    rates without touching the DB.
-
-    ``extraction_only`` excludes the URL-finder calls
-    (``source='accela_finder'``) so the "pages processed" KPI counts
-    real permit-detail extractions only, which is what the admin
-    asked for.
-    """
-    _ensure_claude_calls_table()
-    where_extract = "WHERE source IS DISTINCT FROM 'accela_finder'" if extraction_only else ""
-    totals = pg.query_one(
-        f"""SELECT
-              COUNT(*) FILTER (WHERE called_at >= date_trunc('day',  NOW()))                                          AS calls_today,
-              COUNT(*) FILTER (WHERE called_at >= NOW() - INTERVAL '7 days')                                          AS calls_7d,
-              COUNT(*) FILTER (WHERE called_at >= NOW() - INTERVAL '30 days')                                         AS calls_30d,
-              COUNT(*) FILTER (WHERE called_at >= date_trunc('month', NOW()))                                         AS calls_mtd,
-              COUNT(*)                                                                                                AS calls_total,
-              COALESCE(SUM(input_tokens)  FILTER (WHERE called_at >= date_trunc('day',  NOW())),         0)           AS in_today,
-              COALESCE(SUM(output_tokens) FILTER (WHERE called_at >= date_trunc('day',  NOW())),         0)           AS out_today,
-              COALESCE(SUM(input_tokens)  FILTER (WHERE called_at >= NOW() - INTERVAL '7 days'),         0)           AS in_7d,
-              COALESCE(SUM(output_tokens) FILTER (WHERE called_at >= NOW() - INTERVAL '7 days'),         0)           AS out_7d,
-              COALESCE(SUM(input_tokens)  FILTER (WHERE called_at >= NOW() - INTERVAL '30 days'),        0)           AS in_30d,
-              COALESCE(SUM(output_tokens) FILTER (WHERE called_at >= NOW() - INTERVAL '30 days'),        0)           AS out_30d,
-              COALESCE(SUM(input_tokens)  FILTER (WHERE called_at >= date_trunc('month', NOW())),        0)           AS in_mtd,
-              COALESCE(SUM(output_tokens) FILTER (WHERE called_at >= date_trunc('month', NOW())),        0)           AS out_mtd,
-              COALESCE(SUM(input_tokens),  0)                                                                         AS in_total,
-              COALESCE(SUM(output_tokens), 0)                                                                         AS out_total
-             FROM claude_calls {where_extract}"""
-    ) or {}
-
-    # Per-model breakdown over the last 30 days — the table the admin
-    # will look at most often to compare 20b vs 120b vs 5-nano spend.
-    per_model_rows = pg.query(
-        f"""SELECT
-                 COALESCE(model, '(unknown)') AS model,
-                 COUNT(*)                     AS calls,
-                 COALESCE(SUM(input_tokens),  0) AS in_tok,
-                 COALESCE(SUM(output_tokens), 0) AS out_tok
-             FROM claude_calls
-             {where_extract}
-              {'AND' if extraction_only else 'WHERE'} called_at >= NOW() - INTERVAL '30 days'
-            GROUP BY COALESCE(model, '(unknown)')
-            ORDER BY COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) DESC"""
-    ) or []
-
-    # 30-day daily series for the bar chart. generate_series fills
-    # zero days so the chart x-axis is continuous.
-    per_day_rows = pg.query(
-        f"""SELECT d::date AS day,
-                  COALESCE(c.calls,   0) AS calls,
-                  COALESCE(c.in_tok,  0) AS in_tok,
-                  COALESCE(c.out_tok, 0) AS out_tok
-             FROM generate_series((NOW() - INTERVAL '29 days')::date,
-                                  NOW()::date, '1 day') d
-             LEFT JOIN (
-                SELECT date_trunc('day', called_at)::date AS day,
-                       COUNT(*) AS calls,
-                       COALESCE(SUM(input_tokens),  0) AS in_tok,
-                       COALESCE(SUM(output_tokens), 0) AS out_tok
-                  FROM claude_calls
-                  {where_extract}
-                   {'AND' if extraction_only else 'WHERE'} called_at >= (NOW() - INTERVAL '29 days')::date
-                 GROUP BY 1
-             ) c ON c.day = d::date
-            ORDER BY d ASC"""
-    ) or []
-
-    return {
-        'totals':    {k: int(v or 0) for k, v in (totals or {}).items()},
-        'per_model': [dict(r) for r in per_model_rows],
-        'per_day':   [dict(r) for r in per_day_rows],
     }
 
 
@@ -6243,7 +6200,7 @@ def get_scraper_daily_stats(days: int = 30) -> list:
 def get_permits_by_state(*, daily_window_hours: int = 24) -> list:
     """Per-state permit counts: today (rolling 24h), 7d, 30d, all-time.
 
-    Powers the per-state stats table on /admin-panel/scraper-stats/
+    Powers the per-state stats table on /admin-panel/states/
     so the admin can see at a glance which states have enough volume
     to justify a state-priced subscription tier. ``state`` is the raw
     permits.state value (upper-cased, NULLs grouped under '—').
@@ -6923,55 +6880,6 @@ def delete_testimonial(tid: int) -> int:
                           (int(tid),)) or 0)
 
 
-def permits_ingested_stats() -> dict:
-    """Bucketed permit-ingestion counts for the Inference Stats KPI cards.
-
-    Each row in ``permits`` corresponds to one real-world permit the
-    scraper parsed (cross-source deduped via ``dedup_hash``) — this
-    is the honest "HTML pages processed" metric. The previous
-    implementation counted ``claude_calls`` rows, but the Accela
-    scraper agent makes several LLM calls per permit (list-page
-    browse + tool-use turns + the final extraction), so the LLM-call
-    count over-reported real throughput by ~5x. See PR following
-    #441 for the swap.
-
-    Returns the same shape as the ``totals`` block of
-    ``inference_stats()`` so the template can stay unchanged:
-    today / 7d / 30d / mtd / total, plus a 30-day per-day series.
-    """
-    totals = pg.query_one(
-        """SELECT
-              COUNT(*) FILTER (WHERE created_at >= date_trunc('day',   NOW())) AS today,
-              COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')  AS d7,
-              COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS d30,
-              COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW())) AS mtd,
-              COUNT(*)                                                         AS total
-             FROM permits"""
-    ) or {}
-    per_day = pg.query(
-        """SELECT d::date AS day,
-                  COALESCE(c.n, 0) AS calls
-             FROM generate_series((NOW() - INTERVAL '29 days')::date,
-                                  NOW()::date, '1 day') d
-             LEFT JOIN (
-                SELECT date_trunc('day', created_at)::date AS day,
-                       COUNT(*) AS n
-                  FROM permits
-                 WHERE created_at >= (NOW() - INTERVAL '29 days')::date
-                 GROUP BY 1
-             ) c ON c.day = d::date
-            ORDER BY d ASC"""
-    ) or []
-    return {
-        'today': int(totals.get('today') or 0),
-        'd7':    int(totals.get('d7')    or 0),
-        'd30':   int(totals.get('d30')   or 0),
-        'mtd':   int(totals.get('mtd')   or 0),
-        'total': int(totals.get('total') or 0),
-        'per_day': [{'day': r['day'], 'calls': int(r['calls'] or 0)} for r in per_day],
-    }
-
-
 def permits_count_last_24h() -> int:
     """Total permits ingested in the last 24 hours.
 
@@ -7541,6 +7449,10 @@ def recovery_enqueue(user_id: int, trigger: str, steps: list,
     {'step': 1, 'delay_hours': 1, 'subject': '...', 'body': '...'}.
     Returns the number of rows actually queued (enabled & non-empty)."""
     _ensure_recovery_table()
+    user = pg.query_one("SELECT email FROM users WHERE id = %s", (int(user_id),))
+    email = ((user or {}).get('email') or '').strip()
+    if not email or email == '?':
+        return 0
     # Cancel any previously-pending rows for the same (user, trigger) —
     # if the user re-triggers (e.g. starts another signup) we want a
     # fresh sequence, not duplicates.
@@ -7624,10 +7536,12 @@ def recovery_recent(limit: int = 50) -> list:
     _ensure_recovery_table()
     rows = pg.query(
         """SELECT rq.id, rq.user_id, rq.trigger, rq.step, rq.fire_at,
-                  rq.sent_at, rq.status,
-                  COALESCE(u.email, '?') AS email
-             FROM recovery_queue rq
-        LEFT JOIN users u ON u.id = rq.user_id
+                   rq.sent_at, rq.status,
+                   u.email AS email
+              FROM recovery_queue rq
+              JOIN users u ON u.id = rq.user_id
+             WHERE COALESCE(NULLIF(TRIM(u.email), ''), '') <> ''
+               AND u.email <> '?'
             ORDER BY rq.id DESC LIMIT %s""", (int(limit),))
     out = []
     for r in rows or []:

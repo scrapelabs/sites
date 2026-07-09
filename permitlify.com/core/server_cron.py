@@ -80,4 +80,15 @@ def _scheduler_loop(poll_seconds: int, first_delay: int) -> None:
                 log.error('server cron signal failed: %s', result)
         except Exception:
             log.exception('server cron scheduler tick failed')
+        try:
+            from .views import _db_backup_cron_tick
+
+            backup_result = _db_backup_cron_tick()
+            if backup_result.get('fired'):
+                log.info('server DB backup cron fired job_id=%s slot=%s',
+                         backup_result.get('job_id'), backup_result.get('slot') or '')
+            elif not backup_result.get('ok', True):
+                log.error('server DB backup cron failed: %s', backup_result)
+        except Exception:
+            log.exception('server DB backup cron tick failed')
         time.sleep(poll_seconds)

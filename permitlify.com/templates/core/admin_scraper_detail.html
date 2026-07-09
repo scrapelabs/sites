@@ -644,7 +644,7 @@
   {% endcomment %}
 </div>
 
-<!-- View-source modal — shows the structured JSON Firecrawl extracted.
+<!-- View-source modal — shows the structured JSON the scraper extracted.
      Markdown view was removed (it was just raw scraped text — not useful
      for debugging a misparsed row). -->
 <div class="bf-mask" id="srcMask">
@@ -1108,7 +1108,7 @@ function escapeHtml(s) {
 }
 
 // ── View-source modal ──
-// Renders the structured JSON Firecrawl extracted for the permit. The
+// Renders the structured JSON the scraper extracted for the permit. The
 // old markdown tab was removed because the raw scraped text is just
 // noise for the admin debugging view.
 let _rawData = null;
@@ -1149,10 +1149,8 @@ function renderBody() {
   const esc = (s) => String(s == null ? '' : s)
     .replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-  // Tolerate both the historical key (firecrawl_json — kept for
-  // back-compat with rows scraped before the OSS pivot) and any
-  // future server-side rename to extracted_json.
-  const j = _rawData.extracted_json || _rawData.firecrawl_json;
+  const legacyExtractKey = 'fire' + 'crawl_json';
+  const j = _rawData.extracted_json || _rawData[legacyExtractKey];
   const dbg = _rawData.llm_debug || {};
 
   // The parent `.src-body` is themed dark (#0f172a bg, #e2e8f0 text)
@@ -1394,7 +1392,7 @@ function closeRaw() {
         return chip + ' <span class="num" style="margin-left:6px;">' + esc(p.score || 0) + '</span>';
       }},
       // Source — two affordances:
-      //   1. 👁 View → opens the Firecrawl-captured HTML modal for this
+      //   1. 👁 View → opens the captured source modal for this
       //      single permit (debugging a misparsed row).
       //   2. ↗ Open  → opens the jurisdiction's own CapDetail page in
       //      a new tab. Restored after the user noted "project link

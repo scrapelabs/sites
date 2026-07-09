@@ -45,12 +45,28 @@
 .ctrl-btn:hover{border-color:var(--pr);color:var(--pr);}
 .ctrl-info{font-size:12px;color:var(--tx2);line-height:1.6;}
 .ctrl-info strong{color:var(--tx);}
+.flash{padding:10px 14px;border-radius:10px;margin-bottom:14px;font-size:13px;border:1px solid;}
+.flash.ok{background:#ecfdf5;border-color:#bbf7d0;color:#065f46;}
+.flash.err{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+.edit-box{background:var(--sur);border:1px solid var(--b1);border-radius:16px;padding:16px 20px;margin-bottom:20px;}
+.edit-box summary{cursor:pointer;font-weight:700;color:var(--tx);font-size:13px;}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+@media(max-width:700px){.edit-grid{grid-template-columns:1fr;}}
+.edit-field label{display:block;font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.edit-input,.edit-area{width:100%;box-sizing:border-box;border:1px solid var(--b1);border-radius:9px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--tx);background:var(--sur2);}
+.edit-area{min-height:76px;resize:vertical;line-height:1.5;}
+.edit-msg{border:1px solid var(--b1);border-radius:12px;padding:12px;margin-top:12px;background:var(--sur2);}
+.danger-btn{width:100%;border:1px solid #fecaca;background:#fff;color:#b91c1c;border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:inherit;}
+.danger-btn:hover{background:#fef2f2;border-color:#dc2626;}
 </style>
 
 <a class="tkt-back" href="{% url 'admin_support' %}">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
   Back to queue
 </a>
+
+{% if msg %}<div class="flash ok">{{ msg }}</div>{% endif %}
+{% if err %}<div class="flash err">{{ err }}</div>{% endif %}
 
 <div class="atkt-layout">
   <div>
@@ -67,6 +83,72 @@
       </div>
       <div class="tkt-id">{{ ticket.ticket_id }} · Opened {{ ticket.created_fmt }}</div>
     </div>
+
+    <details class="edit-box">
+      <summary>Edit ticket details and messages</summary>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="edit">
+        <div class="edit-grid">
+          <div class="edit-field" style="grid-column:1/-1;">
+            <label>Subject</label>
+            <input class="edit-input" type="text" name="subject" value="{{ ticket.subject }}" maxlength="300" required>
+          </div>
+          <div class="edit-field">
+            <label>Customer name</label>
+            <input class="edit-input" type="text" name="user_name" value="{{ ticket.user_name }}" maxlength="160">
+          </div>
+          <div class="edit-field">
+            <label>Customer email</label>
+            <input class="edit-input" type="email" name="user_email" value="{{ ticket.user_email }}" maxlength="240">
+          </div>
+          <div class="edit-field">
+            <label>Category</label>
+            <input class="edit-input" type="text" name="category" value="{{ ticket.category }}" maxlength="80">
+          </div>
+          <div class="edit-field">
+            <label>Status</label>
+            <select class="edit-input" name="status">
+              <option value="open" {% if ticket.status == 'open' %}selected{% endif %}>Open</option>
+              <option value="in_progress" {% if ticket.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+              <option value="resolved" {% if ticket.status == 'resolved' %}selected{% endif %}>Resolved</option>
+              <option value="closed" {% if ticket.status == 'closed' %}selected{% endif %}>Closed</option>
+            </select>
+          </div>
+          <div class="edit-field">
+            <label>Priority</label>
+            <select class="edit-input" name="priority">
+              <option value="low" {% if ticket.priority == 'low' %}selected{% endif %}>Low</option>
+              <option value="normal" {% if ticket.priority == 'normal' %}selected{% endif %}>Normal</option>
+              <option value="high" {% if ticket.priority == 'high' %}selected{% endif %}>High</option>
+              <option value="urgent" {% if ticket.priority == 'urgent' %}selected{% endif %}>Urgent</option>
+            </select>
+          </div>
+        </div>
+        <input type="hidden" name="msg_count" value="{{ ticket.messages|length }}">
+        {% for msg in ticket.messages %}
+        <div class="edit-msg">
+          <input type="hidden" name="msg{{ forloop.counter0 }}_sender" value="{{ msg.sender }}">
+          <input type="hidden" name="msg{{ forloop.counter0 }}_ts" value="{{ msg.ts }}">
+          <div class="edit-grid" style="margin-top:0;">
+            <div class="edit-field">
+              <label>Message {{ forloop.counter }} sender name</label>
+              <input class="edit-input" type="text" name="msg{{ forloop.counter0 }}_name" value="{{ msg.name }}" maxlength="160">
+            </div>
+            <div class="edit-field">
+              <label>Sender type</label>
+              <input class="edit-input" type="text" value="{{ msg.sender }}" disabled>
+            </div>
+            <div class="edit-field" style="grid-column:1/-1;">
+              <label>Message text</label>
+              <textarea class="edit-area" name="msg{{ forloop.counter0 }}_text">{{ msg.text }}</textarea>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        <button type="submit" class="reply-submit">Save ticket edits</button>
+      </form>
+    </details>
 
     <div class="tkt-thread">
       {% for msg in ticket.messages %}
@@ -149,6 +231,14 @@
           <option value="high" {% if ticket.priority == 'high' %}selected{% endif %}>🟠 High</option>
           <option value="urgent" {% if ticket.priority == 'urgent' %}selected{% endif %}>🔴 Urgent</option>
         </select>
+      </form>
+    </div>
+
+    <div class="ctrl-card" style="border-color:#fecaca;">
+      <div class="ctrl-card-title" style="color:#b91c1c;">Danger Zone</div>
+      <form method="post" action="{% url 'admin_support_ticket_delete' ticket.id %}" onsubmit="return confirm('Delete ticket {{ ticket.ticket_id|escapejs }}? This cannot be undone.');">
+        {% csrf_token %}
+        <button type="submit" class="danger-btn">Delete ticket</button>
       </form>
     </div>
   </div>

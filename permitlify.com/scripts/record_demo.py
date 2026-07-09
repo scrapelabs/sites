@@ -128,11 +128,9 @@ def main():
                   scrolls=[(500, 1800), (1000, 1800)])
         tour_page(page, "/admin-panel/scrapers/cron/", "Daily cron schedule",
                   scrolls=[(500, 1500), (1000, 1500)])
-        tour_page(page, "/admin-panel/scrapers/firecrawl/", "Firecrawl + Claude AI ingest",
-                  scrolls=[(500, 1500)])
         tour_page(page, "/admin-panel/scrapers/accela-search/", "Accela permit-search finder",
                   scrolls=[(500, 1500)])
-        tour_page(page, "/admin-panel/scraper-stats/", "Scraper stats",
+        tour_page(page, "/admin-panel/states/", "State permit stats",
                   scrolls=[(500, 1500)])
         tour_page(page, "/admin-panel/users/", "User management",
                   scrolls=[(500, 1500), (1000, 1500)])
@@ -142,7 +140,7 @@ def main():
                   scrolls=[(500, 1500)])
         tour_page(page, "/admin-panel/support/", "Support inbox",
                   scrolls=[(400, 1300)])
-        tour_page(page, "/admin-panel/cities/", "City coverage",
+        tour_page(page, "/admin-panel/cities-manager/", "Cities manager",
                   scrolls=[(500, 1500), (1000, 1500)])
 
         # ─── 4. CLOSING — back to homepage ───────────────────────

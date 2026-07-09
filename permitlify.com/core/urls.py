@@ -46,7 +46,9 @@ urlpatterns = [
     path('support/api/tickets/<int:ticket_id>/delete/', views.support_widget_delete, name='support_widget_delete'),
     path('support/api/notifications/read/', views.support_widget_mark_read, name='support_widget_mark_read'),
     path('admin-panel/support/', views.admin_support_view, name='admin_support'),
+    path('admin-panel/support/bulk-delete/', views.admin_support_bulk_delete_view, name='admin_support_bulk_delete'),
     path('admin-panel/support/<int:ticket_id>/', views.admin_support_ticket_view, name='admin_support_ticket'),
+    path('admin-panel/support/<int:ticket_id>/delete/', views.admin_support_ticket_delete_view, name='admin_support_ticket_delete'),
     path('admin-panel/api/support/notifications/', views.admin_support_notifications, name='admin_support_notifications'),
     path('admin-panel/api/support/notifications/read/', views.admin_support_mark_read, name='admin_support_mark_read'),
     path('privacy/', views.privacy, name='privacy'),
@@ -98,12 +100,8 @@ urlpatterns = [
     path('admin-panel/scrapers/accela-search/finder-batch/<int:batch_id>/',  views.admin_finder_batch_status, name='admin_finder_batch_status'),
     path('admin-panel/scrapers/accela-search/finder-batch/stop/',            views.admin_finder_batch_stop,   name='admin_finder_batch_stop'),
     path('admin-panel/scrapers/accela-search/finder-batch/active/',          views.admin_finder_batch_active, name='admin_finder_batch_active'),
-    path('admin-panel/scrapers/agent-plan/',                    views.admin_scraper_agent_plan_view,    name='admin_scraper_agent_plan'),
     path('admin-panel/scrapers/<int:sid>/runs/<int:rid>/log/',    views.admin_scraper_run_log_view,    name='admin_scraper_run_log'),
     path('admin-panel/scrapers/<int:sid>/runs/<int:rid>/delete/', views.admin_scraper_run_delete_view, name='admin_scraper_run_delete'),
-    path('admin-panel/scraper-settings/',                  views.admin_scraper_settings_view,name='admin_scraper_settings'),
-    path('admin-panel/scraper-stats/',                     views.admin_scraper_stats_view,   name='admin_scraper_stats'),
-    path('admin-panel/scrapers/inference-stats/',          views.admin_inference_stats_view, name='admin_inference_stats'),
     path('admin-panel/scraper-logs/',                      views.admin_scraper_logs_index_view,        name='admin_scraper_logs'),
     path('admin-panel/scraper-logs/<int:sid>/',            views.admin_scraper_logs_detail_view,       name='admin_scraper_logs_detail'),
     path('admin-panel/scraper-logs/<int:sid>/bulk-delete/', views.admin_scraper_logs_bulk_delete_view, name='admin_scraper_logs_bulk_delete'),
@@ -113,11 +111,10 @@ urlpatterns = [
     # and the table fills in a moment later.
     path('admin-panel/users/_rows/', views.admin_users_rows_view, name='admin_users_rows'),
     path('admin-panel/revenue/',  views.admin_revenue_view,  name='admin_revenue'),
-    path('admin-panel/cities/',          views.admin_cities_view,          name='admin_cities'),
     path('admin-panel/cities-manager/',  views.admin_cities_manager_view,  name='admin_cities_manager'),
     # ── States manager ─────────────────────────────────────────
-    # Per-state stats (moved off the scraper-stats page), banned-
-    # states list for ingest, and per-state "delete permits" button.
+    # Per-state stats, banned-states list for ingest, and per-state
+    # "delete permits" button.
     path('admin-panel/states/',                       views.admin_states_view,            name='admin_states'),
     path('admin-panel/states/data.json',              views.admin_states_data,            name='admin_states_data'),
     path('admin-panel/states/ban/',                   views.admin_states_ban,             name='admin_states_ban'),
@@ -133,6 +130,8 @@ urlpatterns = [
     path('admin-panel/db-utils/storage/save/',             views.admin_db_utils_storage_save,     name='admin_db_utils_storage_save'),
     path('admin-panel/db-utils/dropbox/exchange-code/',    views.admin_db_utils_dropbox_exchange, name='admin_db_utils_dropbox_exchange'),
     path('admin-panel/db-utils/backup/create/',            views.admin_db_utils_backup_create,    name='admin_db_utils_backup_create'),
+    path('admin-panel/db-utils/backup/status/<str:job_id>.json', views.admin_db_utils_backup_status, name='admin_db_utils_backup_status'),
+    path('admin-panel/db-utils/backup/cron/save/',          views.admin_db_utils_backup_cron_save, name='admin_db_utils_backup_cron_save'),
     path('admin-panel/db-utils/backup/list.json',          views.admin_db_utils_backup_list,      name='admin_db_utils_backup_list'),
     path('admin-panel/db-utils/dropbox/diag/',             views.admin_db_utils_dropbox_diag,     name='admin_db_utils_dropbox_diag'),
     path('admin-panel/db-utils/backup/<str:filename>/download/', views.admin_db_utils_backup_download, name='admin_db_utils_backup_download'),
@@ -142,9 +141,7 @@ urlpatterns = [
     path('admin-panel/whop-settings/', views.admin_whop_settings,    name='admin_whop_settings'),
     path('admin-panel/whop-resync-user/', views.admin_whop_resync_user, name='admin_whop_resync_user'),
     path('admin-panel/google-settings/', views.admin_google_settings, name='admin_google_settings'),
-    # ── Marketing (Analytics & Pixels, Testimonials, Recovery Emails) ──
-    path('admin-panel/marketing/analytics/',       views.admin_analytics_view,       name='admin_analytics'),
-    path('admin-panel/marketing/testimonials/',    views.admin_testimonials_view,    name='admin_testimonials'),
+    # ── Marketing (Recovery Emails) ──
     path('admin-panel/marketing/recovery-emails/', views.admin_recovery_emails_view, name='admin_recovery_emails'),
     path('admin-panel/marketing/recovery-emails/preview/', views.admin_recovery_email_preview, name='admin_recovery_email_preview'),
     # ── Email campaigns (CSV + Resend bulk send) ────────────────

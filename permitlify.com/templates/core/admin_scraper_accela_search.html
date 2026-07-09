@@ -10,8 +10,8 @@
 .aps-card .aps-sub{color:#6b7280;font-size:12.5px;margin-bottom:14px;}
 .aps-row{display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start;}
 @media (max-width:780px){.aps-row{grid-template-columns:1fr;}}
-.aps-fc-row{display:grid;grid-template-columns:1fr 200px 160px;gap:16px;align-items:start;}
-@media (max-width:780px){.aps-fc-row{grid-template-columns:1fr;}}
+.aps-finder-row{display:grid;grid-template-columns:1fr 200px 160px;gap:16px;align-items:start;}
+@media (max-width:780px){.aps-finder-row{grid-template-columns:1fr;}}
 .aps-label{display:block;font-size:11.5px;font-weight:600;color:#475569;margin-bottom:5px;letter-spacing:.02em;text-transform:uppercase;}
 .aps-input,.aps-select,.aps-area{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;color:#0f172a;font-family:inherit;box-sizing:border-box;}
 .aps-area{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;line-height:1.55;min-height:120px;resize:vertical;}
@@ -61,8 +61,8 @@
 .aps-log pre{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;color:#0f172a;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto;}
 .aps-log h4{font-size:10.5px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin:8px 0 4px 0;}
 .aps-empty{padding:30px;text-align:center;color:#94a3b8;font-size:13px;}
-.aps-fc-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#475569;font-weight:600;user-select:none;}
-.aps-fc-toggle input{margin:0;}
+.aps-finder-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#475569;font-weight:600;user-select:none;}
+.aps-finder-toggle input{margin:0;}
 .aps-btn.stop{background:#ef4444;color:#fff;border:none;}
 .aps-btn.stop:hover{background:#dc2626;}
 </style>
@@ -72,9 +72,9 @@
 <h1 style="margin-top:0;">Accela Permit Search Finder</h1>
 <p style="color:#6b7280;margin-top:4px;font-size:13px;max-width:760px;">
   Pick a state, edit the city list if you want, then click <b>Search all cities</b>.
-  Each city goes through 3 steps: <b>1)</b> Google search via Firecrawl,
+  Each city goes through 3 steps: <b>1)</b> local web search,
   <b>2)</b> DO Inference picks the best <code>*.accela.com</code> URL,
-  <b>3)</b> Firecrawl fetches the chosen page and DO Inference verifies it&rsquo;s
+  <b>3)</b> local Playwright fetches the chosen page and DO Inference verifies it&rsquo;s
   actually a live permit-search page. Only verified URLs are <b>auto-pushed to scrapers</b>.
   Cities that already exist in
   <a href="/admin-panel/scrapers/" style="color:#1d4ed8;">your scrapers</a> are
@@ -88,34 +88,34 @@
     These knobs are sent with every per-city call. Use <code>{city}</code> and <code>{state}</code> in the prompt &mdash; they're substituted before the call. Each call is logged in the <b>Request log</b> below and on the <b>AI Usage</b> page under <code>source=accela_finder</code>.
   </div>
   <div>
-    <label class="aps-label" for="aps-fc-prompt">Prompt template</label>
-    <textarea id="aps-fc-prompt" class="aps-area tall" spellcheck="false">{{ firecrawl_default_prompt }}</textarea>
+    <label class="aps-label" for="aps-finder-prompt">Prompt template</label>
+    <textarea id="aps-finder-prompt" class="aps-area tall" spellcheck="false">{{ finder_default_prompt }}</textarea>
     <div class="aps-help">Up to 4&nbsp;000 characters. This is just the &ldquo;ask&rdquo; &mdash; the mandatory rules (accela.com host rule, JSON output schema) are baked into the system prompt and always sent, so a one-liner like the default works fine.</div>
   </div>
-  <div class="aps-fc-row" style="margin-top:14px;">
+  <div class="aps-finder-row" style="margin-top:14px;">
     <div></div>
     <div>
-      <label class="aps-label" for="aps-fc-model">Model</label>
-      <input id="aps-fc-model" type="text" class="aps-input" value="{{ firecrawl_default_model }}" placeholder="openai-gpt-oss-20b" style="font-family:'JetBrains Mono',monospace;font-size:12px;">
+      <label class="aps-label" for="aps-finder-model">Model</label>
+      <input id="aps-finder-model" type="text" class="aps-input" value="{{ finder_default_model }}" placeholder="openai-gpt-oss-20b" style="font-family:'JetBrains Mono',monospace;font-size:12px;">
       <div class="aps-help">Any DO Inference model id. <b>openai-gpt-oss-20b</b> is cheapest.</div>
     </div>
     <div>
-      <label class="aps-label" for="aps-fc-credits">Max output tokens</label>
-      <input id="aps-fc-credits" type="number" class="aps-input" min="1" max="{{ firecrawl_credits_cap }}" step="1" value="{{ firecrawl_default_credits }}">
-      <div class="aps-help">Cap is <b>{{ firecrawl_credits_cap }}</b>. The reply is small JSON so 1000&ndash;1500 is usually enough.</div>
+      <label class="aps-label" for="aps-finder-tokens">Max output tokens</label>
+      <input id="aps-finder-tokens" type="number" class="aps-input" min="1" max="{{ finder_tokens_cap }}" step="1" value="{{ finder_default_tokens }}">
+      <div class="aps-help">Cap is <b>{{ finder_tokens_cap }}</b>. The reply is small JSON so 1000&ndash;1500 is usually enough.</div>
     </div>
   </div>
   <div class="aps-actions" style="margin-top:14px;">
-    <div class="aps-progress" id="aps-fc-status">
-      {% if firecrawl_settings_saved_at %}
-        Last saved {{ firecrawl_settings_saved_at }}.
+    <div class="aps-progress" id="aps-finder-status">
+      {% if finder_settings_saved_at %}
+        Last saved {{ finder_settings_saved_at }}.
       {% else %}
         Using built-in defaults — click <b>Save settings</b> to persist your edits.
       {% endif %}
     </div>
     <div style="display:flex;gap:8px;">
-      <button type="button" class="aps-btn alt" id="aps-fc-reset">Reset to defaults</button>
-      <button type="button" class="aps-btn" id="aps-fc-save">Save settings</button>
+      <button type="button" class="aps-btn alt" id="aps-finder-reset">Reset to defaults</button>
+      <button type="button" class="aps-btn" id="aps-finder-save">Save settings</button>
     </div>
   </div>
 </div>
@@ -123,7 +123,7 @@
 <!-- ── Pick state &amp; cities ─────────────────────────────────── -->
 <div class="aps-card">
   <h2>Pick a state &amp; cities</h2>
-  <div class="aps-sub">Each city = 1 Firecrawl search + 1 Inference pick + 1 Firecrawl page verify + 1 Inference verify. The full log is in the <i>Request log</i> below. Cities are processed one at a time with an 8s gap.</div>
+  <div class="aps-sub">Each city = 1 local search + 1 Inference pick + 1 Playwright page verify + 1 Inference verify. The full log is in the <i>Request log</i> below. Cities are processed one at a time with an 8s gap.</div>
   <div class="aps-row">
     <div>
       <label class="aps-label" for="aps-state">State</label>
@@ -275,9 +275,9 @@
   const $clear    = document.getElementById('aps-clear');
   const $tbody    = document.getElementById('aps-tbody');
   const $progress = document.getElementById('aps-progress');
-  const $fcPrompt = document.getElementById('aps-fc-prompt');
-  const $fcModel  = document.getElementById('aps-fc-model');
-  const $fcCred   = document.getElementById('aps-fc-credits');
+  const $finderPrompt = document.getElementById('aps-finder-prompt');
+  const $finderModel  = document.getElementById('aps-finder-model');
+  const $finderTokens = document.getElementById('aps-finder-tokens');
 
   function existingSet(state){
     const list = EXISTING_BY_STATE[state] || [];
@@ -307,7 +307,7 @@
     const all = CITIES_BY_STATE[$state.value] || [];
     const have = existingSet($state.value);
     // Filter out cities already saved as scrapers — they don't need
-    // a Firecrawl run. Keep insertion order from CITIES_BY_STATE so
+    // another finder run. Keep insertion order from CITIES_BY_STATE so
     // the largest cities still bubble to the top.
     const fresh = all.filter(c => !have.has(String(c).trim().toLowerCase()));
     const skipped = all.length - fresh.length;
@@ -514,11 +514,11 @@
   });
 
   function currentSettings(){
-    const credits = parseInt($fcCred.value, 10);
+    const tokens = parseInt($finderTokens.value, 10);
     return {
-      prompt_template: $fcPrompt.value || '',
-      model:           $fcModel.value || '',
-      max_credits:     Number.isFinite(credits) ? credits : null,
+      prompt_template: $finderPrompt.value || '',
+      model:           $finderModel.value || '',
+      max_tokens:      Number.isFinite(tokens) ? tokens : null,
     };
   }
 
@@ -788,70 +788,70 @@
 
   refreshCount();
 
-  // ── Save / reset Firecrawl agent settings ─────────────────────
-  const $fcSave   = document.getElementById('aps-fc-save');
-  const $fcReset  = document.getElementById('aps-fc-reset');
-  const $fcStatus = document.getElementById('aps-fc-status');
+  // ── Save / reset finder settings ──────────────────────────────
+  const $finderSave   = document.getElementById('aps-finder-save');
+  const $finderReset  = document.getElementById('aps-finder-reset');
+  const $finderStatus = document.getElementById('aps-finder-status');
 
   // Stash the page-load values so "Reset to defaults" rolls back to
   // whatever was rendered (which is itself either the saved values or
   // the built-in defaults — see core/views.py admin_scraper_accela_search_view).
-  const FC_INITIAL = {
-    prompt:  $fcPrompt.value,
-    model:   $fcModel.value,
-    credits: $fcCred.value,
+  const FINDER_INITIAL = {
+    prompt: $finderPrompt.value,
+    model:  $finderModel.value,
+    tokens: $finderTokens.value,
   };
 
-  function fcStatus(text, kind){
+  function finderStatus(text, kind){
     // kind: '', 'ok', 'err'
-    $fcStatus.textContent = text;
-    $fcStatus.style.color = kind === 'err' ? '#991b1b'
-                          : kind === 'ok'  ? '#047857'
-                          : '';
+    $finderStatus.textContent = text;
+    $finderStatus.style.color = kind === 'err' ? '#991b1b'
+                              : kind === 'ok'  ? '#047857'
+                              : '';
   }
 
-  $fcSave.addEventListener('click', async () => {
-    const credits = parseInt($fcCred.value, 10);
-    const promptVal = ($fcPrompt.value || '').trim();
+  $finderSave.addEventListener('click', async () => {
+    const tokens = parseInt($finderTokens.value, 10);
+    const promptVal = ($finderPrompt.value || '').trim();
     if (!promptVal){
-      fcStatus('Prompt template cannot be empty.', 'err');
+      finderStatus('Prompt template cannot be empty.', 'err');
       return;
     }
-    if (!Number.isFinite(credits) || credits < 1){
-      fcStatus('Max output tokens must be a positive integer.', 'err');
+    if (!Number.isFinite(tokens) || tokens < 1){
+      finderStatus('Max output tokens must be a positive integer.', 'err');
       return;
     }
-    $fcSave.disabled = true;
-    fcStatus('Saving…', '');
+    $finderSave.disabled = true;
+    finderStatus('Saving…', '');
     try {
       const r = await fetch('{% url "admin_scraper_accela_search_save_settings" %}', {
         method:  'POST',
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
         body:    JSON.stringify({
           prompt_template: promptVal,
-          model:           $fcModel.value,
-          max_credits:     credits,
+          model:           $finderModel.value,
+          max_tokens:      tokens,
         }),
       });
       let body = {};
       try { body = await r.json(); } catch (e) { /* ignore */ }
       if (!r.ok || !body.ok){
-        fcStatus(body.error || `Save failed (HTTP ${r.status}).`, 'err');
+        finderStatus(body.error || `Save failed (HTTP ${r.status}).`, 'err');
       } else {
-        fcStatus(`Saved ${body.saved_at}.`, 'ok');
+        finderStatus(`Saved ${body.saved_at}.`, 'ok');
       }
     } catch (e) {
-      fcStatus(`Save failed: ${e.message || e}`, 'err');
+      finderStatus(`Save failed: ${e.message || e}`, 'err');
     } finally {
-      $fcSave.disabled = false;
+      $finderSave.disabled = false;
     }
   });
 
-  $fcReset.addEventListener('click', () => {
-    $fcPrompt.value = FC_INITIAL.prompt;
-    $fcModel.value  = FC_INITIAL.model;
-    $fcCred.value   = FC_INITIAL.credits;
-    fcStatus('Reverted to last saved values. Click Save settings to persist.', '');
+  $finderReset.addEventListener('click', () => {
+    $finderPrompt.value = FINDER_INITIAL.prompt;
+    $finderModel.value  = FINDER_INITIAL.model;
+    $finderTokens.value = FINDER_INITIAL.tokens;
+    finderStatus('Reverted to last saved values. Click Save settings to persist.', '');
   });
 
   // ── Request log ───────────────────────────────────────────────

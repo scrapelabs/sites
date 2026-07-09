@@ -946,7 +946,7 @@ def extract_grid_rows(results_html: str, *,
     return rows
 
 
-# ── Full pure-HTTP + DO Inference run (drop-in for old Firecrawl path) ─
+# ── Full pure-HTTP + DO Inference run ────────────────────────────────
 
 ACCELA_MAX_PAGES_DEFAULT   = 50    # Default page-cap for any caller that
                                    # does not pass `max_pages` explicitly.
@@ -1020,8 +1020,8 @@ def oss_agent_scrape_permits(
     #     bug that motivated junk_permits in the first place.
     on_permit_junk=None,
 ) -> dict:
-    """Pure-HTTP + DigitalOcean Serverless Inference replacement for
-    the legacy Firecrawl-Agent run. Same envelope contract::
+    """Pure-HTTP + DigitalOcean Serverless Inference scraper. Same
+    envelope contract::
 
         {
           'ok':      bool,

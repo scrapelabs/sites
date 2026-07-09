@@ -31,9 +31,10 @@ from .db import (authenticate_user, create_user, seed_initial_data,
                   add_supported_city, remove_supported_city,
                   bulk_remove_supported_cities,
                   create_ticket, get_ticket, get_tickets_for_user, get_all_tickets,
+                  get_tickets_page, update_ticket_details,
                   get_ticket_status_counts,
                   add_ticket_message, update_ticket_status, update_ticket_priority,
-                  delete_ticket,
+                  delete_ticket, bulk_delete_tickets,
                   get_notifications_for_user, get_all_notifications_for_user,
                   count_notifications_for_user, mark_notification_opened,
                   get_notification_stats, get_notif_prefs, save_notif_prefs,
@@ -1116,7 +1117,14 @@ def support_widget_delete(request, ticket_id: int):
 @admin_required
 def admin_support_view(request):
     status_filter = request.GET.get('status', '')
-    tickets = get_all_tickets(status_filter=status_filter)
+    if status_filter not in ('open', 'in_progress', 'resolved', 'closed'):
+        status_filter = ''
+    try:
+        page = int(request.GET.get('page') or 1)
+    except (TypeError, ValueError):
+        page = 1
+    tickets, total, total_pages, page = get_tickets_page(
+        status_filter=status_filter, page=page, per_page=25)
     admin_user = _get_session_user(request)
     rm = _get_admin_read_marks(admin_user)
     for t in tickets:
@@ -1143,10 +1151,49 @@ def admin_support_view(request):
     # Single GROUP BY query instead of five sequential full-table scans.
     counts = get_ticket_status_counts()
     ctx = _admin_base_ctx(request, 'support')
-    ctx.update({'tickets': tickets, 'counts': counts, 'status_filter': status_filter})
+    query_base = f'status={urllib.parse.quote(status_filter)}&' if status_filter else ''
+    ctx.update({
+        'tickets': tickets,
+        'counts': counts,
+        'status_filter': status_filter,
+        'msg': request.GET.get('msg', ''),
+        'err': request.GET.get('err', ''),
+        'page': page,
+        'total_pages': total_pages,
+        'total_tickets': total,
+        'query_base': query_base,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'prev_page': max(1, page - 1),
+        'next_page': min(total_pages, page + 1),
+    })
     response = render(request, 'core/admin_support.html', ctx)
     response['Cache-Control'] = 'no-store'
     return response
+
+
+@admin_required
+@require_http_methods(['POST'])
+def admin_support_bulk_delete_view(request):
+    raw_ids = request.POST.getlist('ticket_ids')
+    deleted = bulk_delete_tickets(raw_ids)
+    if deleted:
+        msg = f"Deleted {deleted} ticket{'s' if deleted != 1 else ''}."
+        return redirect('/admin-panel/support/?msg=' + urllib.parse.quote(msg))
+    return redirect('/admin-panel/support/?err=' + urllib.parse.quote('No tickets selected or deleted.'))
+
+
+@admin_required
+@require_http_methods(['POST'])
+def admin_support_ticket_delete_view(request, ticket_id: int):
+    ticket = get_ticket(ticket_id)
+    if ticket is None:
+        raise Http404
+    ref = ticket.get('ticket_id') or f'#{ticket_id}'
+    ok = delete_ticket(ticket_id)
+    if ok:
+        return redirect('/admin-panel/support/?msg=' + urllib.parse.quote(f'Deleted ticket {ref}.'))
+    return redirect('/admin-panel/support/?err=' + urllib.parse.quote(f'Could not delete ticket {ref}.'))
 
 
 # ── Admin notifications API (mirrors /support/api/notifications/) ──
@@ -1159,6 +1206,8 @@ def admin_support_notifications(request):
     admin = _get_session_user(request)
     rm    = _get_admin_read_marks(admin)
     tickets = get_all_tickets()
+    legacy_extract_key = 'fire' + 'crawl_json'
+    legacy_metadata_key = 'fire' + 'crawl_metadata'
     return JsonResponse({
         'ok': True,
         'tickets': [_admin_ticket_summary(t, rm) for t in tickets],
@@ -1262,6 +1311,8 @@ def admin_support_ticket_view(request, ticket_id: int):
     ticket = get_ticket(ticket_id)
     if ticket is None:
         raise Http404
+    msg = request.GET.get('msg', '')
+    err = request.GET.get('err', '')
     if request.method == 'POST':
         action = request.POST.get('action', '')
         if action == 'reply':
@@ -1312,6 +1363,44 @@ def admin_support_ticket_view(request, ticket_id: int):
                 )
         elif action == 'priority':
             update_ticket_priority(ticket_id, request.POST.get('priority', ''))
+        elif action == 'edit':
+            subject = (request.POST.get('subject') or '').strip()
+            user_email = (request.POST.get('user_email') or '').strip().lower()
+            if not subject:
+                return redirect('/admin-panel/support/%s/?err=%s' % (
+                    ticket_id, urllib.parse.quote('Subject is required.')))
+            if user_email and '@' not in user_email:
+                return redirect('/admin-panel/support/%s/?err=%s' % (
+                    ticket_id, urllib.parse.quote('Customer email is invalid.')))
+            try:
+                msg_count = int(request.POST.get('msg_count') or 0)
+            except (TypeError, ValueError):
+                msg_count = 0
+            edited_messages = []
+            existing = ticket.get('messages') or []
+            for i in range(min(msg_count, len(existing))):
+                old = existing[i] if isinstance(existing[i], dict) else {}
+                edited_messages.append({
+                    'sender': request.POST.get(f'msg{i}_sender') or old.get('sender', 'user'),
+                    'name':   request.POST.get(f'msg{i}_name') or old.get('name', ''),
+                    'text':   request.POST.get(f'msg{i}_text') or '',
+                    'ts':     request.POST.get(f'msg{i}_ts') or old.get('ts', ''),
+                })
+            ok = update_ticket_details(
+                ticket_id,
+                subject=subject,
+                user_name=(request.POST.get('user_name') or '').strip(),
+                user_email=user_email,
+                category=(request.POST.get('category') or '').strip(),
+                status=request.POST.get('status') or ticket.get('status', 'open'),
+                priority=request.POST.get('priority') or ticket.get('priority', 'normal'),
+                messages=edited_messages if msg_count else None,
+            )
+            if ok:
+                return redirect('/admin-panel/support/%s/?msg=%s' % (
+                    ticket_id, urllib.parse.quote('Ticket updated.')))
+            return redirect('/admin-panel/support/%s/?err=%s' % (
+                ticket_id, urllib.parse.quote('Could not update ticket.')))
         return redirect('admin_support_ticket', ticket_id=ticket_id)
     ticket = get_ticket(ticket_id)
     try:
@@ -1320,6 +1409,8 @@ def admin_support_ticket_view(request, ticket_id: int):
         ticket['created_fmt'] = ticket.get('created_at', '')[:10]
     ctx = _admin_base_ctx(request, 'support')
     ctx['ticket'] = ticket
+    ctx['msg'] = msg
+    ctx['err'] = err
     response = render(request, 'core/admin_support_ticket.html', ctx)
     response['Cache-Control'] = 'no-store'
     return response
@@ -4572,7 +4663,7 @@ def add_city_view(request):
         full = _FULL_STATE_NAMES.get(code, code)
         return JsonResponse({'ok': False, 'error': f"We don't have coverage for {full} yet."}, status=400)
     user = get_user_by_id(user_id) or {}
-    if not user.get('subscription_active') and user.get('email') not in ADMIN_EMAILS:
+    if not user.get('subscription_active') and (user.get('email') or '').lower().strip() not in ADMIN_EMAILS:
         return JsonResponse({'ok': False, 'no_plan': True, 'upgrade_required': True,
                              'error': 'Choose a plan to start tracking states.'}, status=403)
     if user.get('cities_frozen', False):
@@ -4886,7 +4977,7 @@ def _user_ctx(request):
         'user_email':    request.session.get('user_email', ''),
         'user_initials': request.session.get('user_initials', 'MK'),
         'user_plan':     request.session.get('user_plan', 'Starter'),
-        'is_admin':      request.session.get('user_email') in ADMIN_EMAILS,
+        'is_admin':      (request.session.get('user_email') or '').lower().strip() in ADMIN_EMAILS,
         # Soft-lock flag set by ``subscription_required`` decorator. True
         # when the logged-in user has no active subscription. Templates
         # use it to render a "Preview Mode" banner + Upgrade CTA in
@@ -4910,7 +5001,7 @@ def _admin_plan_counts(all_users):
     """
     counts = {'starter': 0, 'pro': 0, 'agency': 0, 'no_plan': 0}
     for u in all_users:
-        is_admin = u.get('email') in ADMIN_EMAILS
+        is_admin = (u.get('email') or '').lower().strip() in ADMIN_EMAILS
         if not is_admin and not u.get('subscription_active'):
             counts['no_plan'] += 1
             continue
@@ -4978,11 +5069,13 @@ def admin_dashboard(request):
     # the full justification.
     #
     # Strategy:
-    #   * Get a 365-day revenue snapshot once — we slice it for both the
-    #     month-over-month delta badge and the 6-month gross-revenue chart.
+    #   * Use only the in-process 365-day revenue snapshot here — we slice it
+    #     for both the month-over-month delta badge and the 6-month chart.
+    #   * Kick a debounced background refresh when the snapshot is stale or
+    #     missing so a slow Whop API never blocks the admin overview.
     #   * Count currently valid+active/trialing memberships from the same
-    #     /memberships fetch the revenue helper already pulled (cached
-    #     in-process), so Active Subscribers reflects what Whop reports.
+    #     cached /memberships fetch the revenue helper already pulled, so
+    #     Active Subscribers reflects what Whop reports when available.
     #   * Fall back to the local PLAN_PRICE math when Whop is unreachable
     #     so the dashboard still renders something sensible offline.
     whop_stats   = None
@@ -4992,14 +5085,11 @@ def admin_dashboard(request):
     whop_mrr_pct = None
     monthly_revenue = []
     try:
-        from .whop import get_revenue_stats
-        # Tight 5 s per-request + 8 s wall-clock budget so a slow Whop
-        # API can never freeze the admin overview. On timeout the
-        # helper returns ``None`` and we fall through to the local
-        # PLAN_PRICE estimate below (data_source='local').
-        whop_stats = get_revenue_stats(range_key='365d', timeout=5)
+        from .whop import get_cached_revenue_stats, refresh_revenue_stats_async
+        whop_stats = get_cached_revenue_stats(range_key='365d')
+        refresh_revenue_stats_async(range_key='365d', timeout=5)
     except Exception:
-        log.exception("admin_dashboard: get_revenue_stats failed")
+        log.exception("admin_dashboard: Whop revenue cache lookup failed")
 
     # Only trust Whop's MRR / chart when BOTH endpoints succeeded — a
     # partial fetch (memberships ok, payments down) would silently produce
@@ -5086,7 +5176,6 @@ def admin_dashboard(request):
             {'icon': '🤖', 'label': 'Scrapers',   'url': '/admin-panel/scrapers/'},
             {'icon': '👥', 'label': 'All Users',  'url': '/admin-panel/users/'},
             {'icon': '💰', 'label': 'Revenue',    'url': '/admin-panel/revenue/'},
-            {'icon': '🏙️', 'label': 'Top Cities', 'url': '/admin-panel/cities/'},
             {'icon': '🚫', 'label': 'Banned',     'url': '/admin-panel/banned/'},
         ],
     }
@@ -5161,8 +5250,8 @@ def admin_scrapers_view(request):
     from .db import (reap_stale_scraper_runs, reap_stale_cron_batches,
                      list_scraper_state_city_options)
     # Cheap indexed UPDATEs — un-stick any run row OR batch row that's
-    # been "running" past its budget (gunicorn worker recycle, OOM
-    # kill, hung Firecrawl past urllib timeout, etc.) so the list page
+        # been "running" past its budget (gunicorn worker recycle, OOM
+        # kill, hung network request, etc.) so the list page
     # status pills tell the truth instead of showing phantom in-flight
     # rows. Both are best-effort; never fatal.
     try:
@@ -5224,7 +5313,7 @@ def admin_scrapers_view(request):
         'all_state_codes_json':    json.dumps(all_state_codes),
         'scrapers_default_pages':    default_pages,
         'scrapers_default_threads':  default_threads,
-        # Firecrawl-Agent settings card (rendered below the table —
+        # Local scraper-agent settings card (rendered below the table —
         # the same global knobs are also exposed on the per-scraper
         # detail page via the same partial). Settings persist via
         # /admin-panel/scrapers/agent/settings/.
@@ -5428,7 +5517,7 @@ def admin_scraper_new_view(request):
         else:
             # Lenient validation: we only enforce the host allowlist
             # (accela.com / *.accela.com — see parse_accela_url) and
-            # let Firecrawl figure out the page contents. Backfill
+            # let the scraper inspect the page contents. Backfill
             # specifically needs capID3 to enumerate, so the per-button
             # handler will surface a clean error if it's missing.
             parsed = parse_accela_url(url_in)
@@ -5942,8 +6031,8 @@ def admin_scraper_permits_bulk_delete(request, sid):
 def _agent_settings_ctx() -> dict:
     """Build the context dict consumed by templates/core/_agent_settings_card.html.
 
-    The Firecrawl-Agent knobs (prompt, model, max_credits, on/off) are
-    stored globally in system_settings — they are NOT per-scraper. The
+    The local scraper-agent knobs (model, on/off) are stored globally
+    in system_settings — they are NOT per-scraper. The
     same partial card is rendered on the scrapers list page and the
     per-scraper detail page; this helper keeps both sites in sync so a
     later default change only needs editing here.
@@ -5970,7 +6059,7 @@ def _agent_settings_ctx() -> dict:
 @admin_required
 def admin_scraper_detail_view(request, sid):
     """Per-scraper detail page: header + filters bar + paginated permits
-    table + run / backfill buttons + Firecrawl-Agent settings card.
+    table + run / backfill buttons + local scraper-agent settings card.
     Run history moved to its own /admin-panel/scraper-logs/<sid>/
     page."""
     from .db import (get_scraper, list_permits_for_scraper,
@@ -6105,7 +6194,7 @@ def admin_scraper_detail_view(request, sid):
 def admin_scraper_run_now(request, sid):
     """Async single-URL run. Kicks off the daemon thread and returns
     the run_id immediately so the UI can show a live progress bar
-    while Firecrawl + the extraction LLM work (which together take
+    while page fetching + extraction work (which together take
     30-90 seconds — too long to block the request).
 
     The frontend opens the same progress modal it uses for backfill
@@ -6565,7 +6654,7 @@ def admin_scraper_run_kill_process(request, rid):
 #   • Children are launched serially via run_scraper_async() and
 #     awaited via DB polling, mirroring scripts/run_scrapers.py so
 #     manual + scheduled behaviour stay identical.
-#   • A 30-min per-child timeout caps a stuck Firecrawl request so
+#   • A 30-min per-child timeout caps a stuck scrape request so
 #     the whole batch can't pin one worker forever.
 
 _CRON_BATCH_PER_RUN_MAX_SECONDS = 1800   # 30 min — same as scripts/run_scrapers.py
@@ -6916,7 +7005,7 @@ def _run_all_batch_worker(batch_id: int, concurrency: int = _RUN_ALL_CONCURRENCY
 
         def _run_one(scraper):
             # Cooperative cancel — checked BEFORE kicking the child so
-            # a stopped batch doesn't keep spawning new Firecrawl runs.
+            # a stopped batch doesn't keep spawning new scraper runs.
             # In-proc set kept as fast-path; cross-proc stop comes via
             # the DB-poll flag flipped by admin_stop_all_scrapers.
             if batch_id in _BATCH_CANCEL or _cron_batch_is_stopping(batch_id):
@@ -7703,11 +7792,10 @@ def admin_scraper_cron_save_key(request):
 #                                                       update the table
 #                                                       progressively.
 #
-# Per-city flow: hand the {city, state} pair to Firecrawl's autonomous
-# Agent (`fc.agent(prompt=…, schema=…, model=…, max_credits=…)`) which
-# does its own browsing/search and returns a structured pick (URL,
-# confidence, reason). We enforce the accela.com host rule both in the
-# prompt AND defensively in the Python response handler.
+# Per-city flow: local HTTP search plus the configured OSS model picks
+# the best Accela URL, then a local browser fetch verifies the page.
+# We enforce the accela.com host rule both in the prompt and
+# defensively in the Python response handler.
 
 @admin_required
 def admin_scraper_accela_search_view(request):
@@ -7750,12 +7838,12 @@ def admin_scraper_accela_search_view(request):
         'us_states':                   US_STATES,
         'cities_by_state':             CITIES_BY_STATE,
         'existing_cities_by_state':    existing,
-        'firecrawl_default_prompt':    initial_prompt,
-        'firecrawl_default_model':     initial_model,
-        'firecrawl_models':            list(OSS_MODELS.keys()),
-        'firecrawl_default_credits':   initial_tokens,
-        'firecrawl_credits_cap':       ACCELA_FINDER_MAX_TOKENS_CAP,
-        'firecrawl_settings_saved_at': saved_at,
+        'finder_default_prompt':       initial_prompt,
+        'finder_default_model':        initial_model,
+        'finder_models':               list(OSS_MODELS.keys()),
+        'finder_default_tokens':       initial_tokens,
+        'finder_tokens_cap':           ACCELA_FINDER_MAX_TOKENS_CAP,
+        'finder_settings_saved_at':    saved_at,
         **_admin_base_ctx(request, 'scraper_accela_search'),
     })
 
@@ -7768,8 +7856,8 @@ def admin_scraper_accela_search_save_settings(request):
 
     Body (JSON): ``prompt_template`` (string ≤4000 chars),
     ``model`` (free-text DO Inference model id),
-    ``max_credits`` (interpreted as max output tokens; positive int
-    clamped to ``ACCELA_FINDER_MAX_TOKENS_CAP``). Returns
+    ``max_tokens`` (positive int clamped to
+    ``ACCELA_FINDER_MAX_TOKENS_CAP``). Returns
     ``{ok, saved_at}`` on success or ``{ok:false, error}`` with a
     400/413 on bad input.
     """
@@ -7829,14 +7917,14 @@ def admin_scraper_accela_search_save_settings(request):
             'error': 'model contains invalid characters.',
         }, status=400)
 
-    raw_credits = payload.get('max_credits', None)
-    if raw_credits is None or raw_credits == '':
+    raw_tokens = payload.get('max_tokens', None)
+    if raw_tokens is None or raw_tokens == '':
         return JsonResponse(
             {'ok': False, 'error': 'max_tokens is required.'},
             status=400,
         )
     try:
-        max_tokens = int(raw_credits)
+        max_tokens = int(raw_tokens)
     except (TypeError, ValueError):
         return JsonResponse(
             {'ok': False, 'error': 'max_tokens must be an integer.'},
@@ -7870,8 +7958,7 @@ def admin_scraper_accela_search_run(request):
     it to the ``scrapers`` table if a usable URL was returned.
 
     Body (JSON): ``state`` (2-letter code), ``city`` (string), optional
-    ``prompt_template``, ``model``, ``max_credits`` (legacy name —
-    interpreted as ``max_tokens``). Returns
+    ``prompt_template``, ``model``, ``max_tokens``. Returns
     ``{ok, city, state, url, confidence, reason, error, log, auto_push}``
     where ``auto_push`` is one of::
 
@@ -7948,7 +8035,7 @@ def admin_scraper_accela_search_run(request):
         )
     model = raw_model.strip() if isinstance(raw_model, str) else None
 
-    raw_credits = payload.get('max_credits', None)
+    raw_credits = payload.get('max_tokens', None)
     max_tokens = None
     if raw_credits is not None and raw_credits != '':
         try:
@@ -8524,7 +8611,7 @@ def admin_finder_batch_start(request):
     model = payload.get('model')
     if model:
         cmd += ['--model', str(model)]
-    max_tokens = payload.get('max_credits')
+    max_tokens = payload.get('max_tokens')
     if max_tokens:
         cmd += ['--max-tokens', str(max_tokens)]
     prompt_template = payload.get('prompt_template')
@@ -8889,7 +8976,7 @@ def admin_scraper_logs_bulk_delete_view(request, sid):
 @admin_required
 def admin_permit_raw_view(request, pid):
     """Return the `raw` JSONB blob for one permit so the admin can
-    audit exactly what Firecrawl saw — markdown, JSON extract, source
+    audit exactly what the scraper saw — markdown, JSON extract, source
     URL, scrape mode, fetched-at. Used by the "View source" modal on
     the scraper detail page.
 
@@ -8929,13 +9016,13 @@ def admin_permit_raw_view(request, pid):
         'mode':            raw.get('mode') or 'detail',
         'fetched_at':      raw.get('fetched_at') or '',
         'markdown':        raw.get('markdown') or '',
-        # Prefer the new agent-path key (`agent_extracted`) and fall
-        # back to legacy Firecrawl/list_row shapes so old rows still
-        # render in the modal after the OSS pivot.
+        # Prefer current keys and fall back to historical raw shapes so
+        # old rows still render in the modal after scraper changes.
         'extracted_json':  (raw.get('agent_extracted')
-                            or raw.get('firecrawl_json')
+                            or raw.get('extracted_json')
+                            or raw.get(legacy_extract_key)
                             or raw.get('list_row') or {}),
-        'metadata':        raw.get('firecrawl_metadata') or {},
+        'metadata':        raw.get('metadata') or raw.get(legacy_metadata_key) or {},
         # Per-permit LLM debug payload — input we sent the model,
         # raw text response, parsed JSON, token counts. Empty {}
         # for legacy rows that pre-date the agent pivot.
@@ -9218,727 +9305,10 @@ def admin_scraper_update_meta(request, sid):
     return JsonResponse({'ok': True, 'state': state or ''})
 
 
-@admin_required
-def admin_scraper_settings_view(request):
-    """Firecrawl + Claude key + cron toggle. Keys are SHARED with the
-    blog AI subsystem — saving here updates the same setting."""
-    from .db import get_system_setting, set_system_setting
-    msg = None
-    err = None
-    if request.method == 'POST':
-        action = (request.POST.get('action') or 'save').strip()
-        if action == 'save':
-            do = (request.POST.get('do_api_key')        or '').strip()
-            om = (request.POST.get('accela_oss_model')  or '').strip()
-            base = (request.POST.get('do_base_url')     or '').strip()
-            tmp = (request.POST.get('do_temperature')   or '').strip()
-            mtk = (request.POST.get('do_max_tokens')    or '').strip()
-            tpp = (request.POST.get('do_top_p')         or '').strip()
-            proxy = (request.POST.get('scraper_proxy')  or '').strip()
-            ep = (request.POST.get('extraction_prompt') or '').strip()
-            cron_on = request.POST.get('scrapers_cron_enabled') == 'on'
-            # Only overwrite the key when a non-empty value is posted,
-            # so the masked placeholder doesn't wipe a stored secret.
-            if do:
-                set_system_setting('do_api_key', do)
-            # OSS model dropdown — validate against the allow-list so
-            # a stale form can't poison the setting.
-            from .scrapers.base import OSS_MODELS, DEFAULT_OSS_MODEL, parse_proxy_string
-            if om in OSS_MODELS:
-                set_system_setting('accela_oss_model', om)
-            elif om == '':
-                set_system_setting('accela_oss_model', DEFAULT_OSS_MODEL)
-            # DO inference knobs — empty string clears (falls back to
-            # built-in default at call time). Validation is in oss_complete.
-            set_system_setting('do_base_url',    base)
-            set_system_setting('do_temperature', tmp)
-            set_system_setting('do_max_tokens',  mtk)
-            set_system_setting('do_top_p',       tpp)
-            # Proxy: validate format BEFORE saving so a malformed
-            # string can't silently break every scrape. Empty = no proxy.
-            if proxy == '':
-                set_system_setting('scraper_proxy', '')
-            else:
-                parsed = parse_proxy_string(proxy)
-                if not parsed:
-                    err = ('Proxy string did not parse. Use the form '
-                           'user:password@host:port (or just host:port).')
-                else:
-                    set_system_setting('scraper_proxy', proxy)
-            # The unified extraction-prompt textarea IS posted on every
-            # save — empty value means "use the built-in default" (we
-            # store an empty string and `get_extraction_prompt()` falls
-            # back to the constant).
-            set_system_setting('extraction_prompt', ep)
-            set_system_setting('scrapers_cron_enabled', cron_on)
-            if not err:
-                msg = 'Settings saved.'
-        elif action == 'clear_do':
-            set_system_setting('do_api_key', '')
-            msg = 'Parser API key cleared. Local GPT-OSS does not require one.'
-        elif action == 'clear_proxy':
-            set_system_setting('scraper_proxy', '')
-            msg = 'Scraper proxy cleared — running direct.'
-        elif action == 'reset_prompt':
-            set_system_setting('extraction_prompt', '')
-            msg = 'Extraction prompt reset to built-in default.'
-    from .scraper_accela import EXTRACT_SYSTEM_PROMPT, get_extraction_prompt
-    from .scrapers.base import OSS_MODELS, DEFAULT_OSS_MODEL, DO_BASE_URL_DEFAULT, parse_proxy_string
-    do_api_key_value = (get_system_setting('do_api_key') or '').strip()
-    do_set = bool(do_api_key_value)
-    prompt_override = (get_system_setting('extraction_prompt') or '').strip()
-    active_oss = (get_system_setting('accela_oss_model') or '').strip()
-    if active_oss not in OSS_MODELS:
-        active_oss = DEFAULT_OSS_MODEL
-    proxy_raw = (get_system_setting('scraper_proxy') or '').strip()
-    proxy_parsed = parse_proxy_string(proxy_raw)
-    ctx = {
-        **_admin_base_ctx(request, 'scraper_settings'),
-        **_agent_settings_ctx(),
-        'has_do':                     do_set,
-        'do_api_key_value':           do_api_key_value,
-        'oss_model':                  active_oss,
-        'oss_models':                 list(OSS_MODELS.keys()),
-        'do_base_url':                (get_system_setting('do_base_url')    or '').strip(),
-        'do_base_url_default':        DO_BASE_URL_DEFAULT,
-        'do_temperature':             (get_system_setting('do_temperature') or '').strip(),
-        'do_max_tokens':              (get_system_setting('do_max_tokens')  or '').strip(),
-        'do_top_p':                   (get_system_setting('do_top_p')       or '').strip(),
-        'scraper_proxy':              proxy_raw,
-        'has_proxy':                  bool(proxy_parsed),
-        'proxy_host':                 proxy_parsed['host'] if proxy_parsed else '',
-        'proxy_port':                 proxy_parsed['port'] if proxy_parsed else '',
-        'proxy_user_present':         bool(proxy_parsed and proxy_parsed['user']),
-        'scrapers_cron_enabled':      bool(get_system_setting('scrapers_cron_enabled')),
-        'extraction_prompt':          get_extraction_prompt(),
-        'is_prompt_overridden':       bool(prompt_override),
-        'msg':                        msg,
-        'err':                        err,
-    }
-    return render(request, 'core/admin_scraper_settings.html', ctx)
-
-
-@admin_required
-def admin_inference_stats_view(request):
-    """Scrapers → Inference Stats.
-
-    Shows: HTML pages processed (today / 7d / 30d / MTD / total),
-    spend per-page and per-period, per-model breakdown, 30-day daily
-    chart, monthly-budget progress bar, and (optional) the
-    DigitalOcean account month-to-date balance pulled from
-    ``/v2/customers/my/balance`` when the admin has saved a DO
-    Personal Access Token in the settings card at the top.
-
-    Per the admin's request, "one HTML page processed" = one
-    extraction LLM call. URL-finder calls (source='accela_finder')
-    are excluded — the DB helper handles that.
-    """
-    import json as _json
-    from .db import (get_system_setting, set_system_setting,
-                     inference_stats, permits_ingested_stats)
-    from .scrapers.base import OSS_MODELS
-
-    msg = err = ''
-    if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-        if action == 'save_settings':
-            # Per-model price overrides. Form posts two parallel arrays:
-            # price_model[] + price_in[] + price_out[]. We merge with
-            # OSS_MODELS defaults so a row left blank reverts to default.
-            models = request.POST.getlist('price_model')
-            ins    = request.POST.getlist('price_in')
-            outs   = request.POST.getlist('price_out')
-            new_prices = {}
-            for i, m in enumerate(models):
-                m = (m or '').strip()
-                if not m:
-                    continue
-                try:
-                    pi = float((ins[i]  if i < len(ins)  else '') or 0)
-                    po = float((outs[i] if i < len(outs) else '') or 0)
-                except (TypeError, ValueError):
-                    err = f'Invalid price for {m}.'
-                    break
-                new_prices[m[:64]] = {'input_price': pi, 'output_price': po}
-            if not err:
-                set_system_setting('inference_model_prices', _json.dumps(new_prices))
-                try:
-                    budget = float((request.POST.get('monthly_budget') or '0').strip() or 0)
-                except (TypeError, ValueError):
-                    budget = 0.0
-                set_system_setting('inference_monthly_budget', f'{max(0.0, budget):.2f}')
-                tok = (request.POST.get('do_api_token') or '').strip()
-                # Empty string clears the saved token; non-empty saves it.
-                set_system_setting('digitalocean_api_token', tok)
-                msg = 'Settings saved.'
-        elif action == 'clear_do_token':
-            set_system_setting('digitalocean_api_token', '')
-            msg = 'DigitalOcean billing API token cleared.'
-
-    # ── Load (possibly-overridden) per-model prices ─────────────
-    raw_prices = (get_system_setting('inference_model_prices') or '').strip()
-    overrides = {}
-    if raw_prices:
-        try:
-            overrides = _json.loads(raw_prices) or {}
-        except (ValueError, TypeError):
-            overrides = {}
-    # Build the editable rows: union of OSS_MODELS catalogue + any
-    # extra model names that already appear in the override map (so
-    # admins can edit prices for models we haven't catalogued yet).
-    all_model_names = sorted(set(list(OSS_MODELS.keys()) + list(overrides.keys())))
-    def _price(m: str, key: str) -> float:
-        if m in overrides and isinstance(overrides[m], dict):
-            try:
-                return float(overrides[m].get(key) or 0)
-            except (TypeError, ValueError):
-                pass
-        return float((OSS_MODELS.get(m) or {}).get(key) or 0)
-    price_rows = [{
-        'model':       m,
-        'input_price': _price(m, 'input_price'),
-        'output_price':_price(m, 'output_price'),
-        'is_override': m in overrides,
-    } for m in all_model_names]
-
-    try:
-        budget = float(get_system_setting('inference_monthly_budget') or 0)
-    except (TypeError, ValueError):
-        budget = 0.0
-    do_token = (get_system_setting('digitalocean_api_token') or '').strip()
-
-    # ── Stats from the DB ──────────────────────────────────────
-    # Token sums + per-model breakdown still come from claude_calls
-    # (they drive the cost calc — DO bills tokens, not permits). But
-    # the "HTML pages processed" KPI now counts ROWS IN THE PERMITS
-    # TABLE, not raw LLM calls. The Accela scraper agent makes ~5
-    # LLM turns per permit (list-page browse + tool-use loops + the
-    # final structured extraction), so counting claude_calls
-    # over-reported real throughput by ~5x. Each permits row is one
-    # real-world parsed permit — that's what the admin actually
-    # cares about.
-    stats = inference_stats(extraction_only=True)
-    totals    = dict(stats['totals'])  # mutable copy
-    per_model = stats['per_model']
-    permits_s = permits_ingested_stats()
-    # Override the call-count buckets with permits counts. Token
-    # buckets (in_today/out_today/…) stay untouched so the cost
-    # calculation below still reflects what DO actually billed.
-    totals['calls_today'] = permits_s['today']
-    totals['calls_7d']    = permits_s['d7']
-    totals['calls_30d']   = permits_s['d30']
-    totals['calls_mtd']   = permits_s['mtd']
-    totals['calls_total'] = permits_s['total']
-    # Per-day series → permits ingested per day for the chart.
-    # Tokens stay zero per-day in this projection; the daily bar
-    # represents permits, the cost-per-page label below uses the
-    # 30d aggregate which is already accurate.
-    per_day = [{'day':     d['day'],
-                'calls':   d['calls'],
-                'in_tok':  0, 'out_tok': 0}
-               for d in permits_s['per_day']]
-
-    # Per-model dollar costs (last 30d). Tokens are absolute counts;
-    # prices are USD per 1,000,000 tokens.
-    pm_rows = []
-    for r in per_model:
-        m = r['model']
-        in_p  = _price(m, 'input_price')
-        out_p = _price(m, 'output_price')
-        cost = (r['in_tok'] * in_p + r['out_tok'] * out_p) / 1_000_000
-        pm_rows.append({
-            'model':   m,
-            'calls':   int(r['calls']),
-            'in_tok':  int(r['in_tok']),
-            'out_tok': int(r['out_tok']),
-            'cost':    round(cost, 4),
-            'cost_per_page': round(cost / r['calls'], 6) if r['calls'] else 0.0,
-        })
-
-    # Roll up dollar totals for each period by walking the per-model
-    # rows is only fair for the 30d window (that's what per_model
-    # covers). For today / 7d / MTD / total we need an extra grouped
-    # query OR we approximate using a weighted average price. The
-    # accurate path is one tiny extra SQL — kept simple by reusing
-    # per_model proportions for the 30d window and computing the
-    # others as (tokens_in * avg_in_price + tokens_out * avg_out_price)
-    # where the averages are taken across whatever 30d models exist.
-    # When per_model is empty (cold DB), costs are zero — fine.
-    def _avg_price(key: str) -> float:
-        # Token-weighted average price across last 30d models, so a
-        # heavy 20b user gets ~$0.03/M-in even if a single 120b call
-        # happened in the window.
-        tok_key = 'in_tok' if key == 'input_price' else 'out_tok'
-        num = 0.0
-        den = 0
-        for r in per_model:
-            den += int(r[tok_key] or 0)
-            num += float(r[tok_key] or 0) * _price(r['model'], key)
-        return (num / den) if den else 0.0
-
-    avg_in  = _avg_price('input_price')
-    avg_out = _avg_price('output_price')
-
-    def _cost(tokens_in: int, tokens_out: int) -> float:
-        return round((tokens_in * avg_in + tokens_out * avg_out) / 1_000_000, 4)
-
-    cost_today = _cost(totals['in_today'], totals['out_today'])
-    cost_7d    = _cost(totals['in_7d'],    totals['out_7d'])
-    cost_30d   = _cost(totals['in_30d'],   totals['out_30d'])
-    cost_mtd   = _cost(totals['in_mtd'],   totals['out_mtd'])
-    cost_total = _cost(totals['in_total'], totals['out_total'])
-    cost_per_page_30d = round(cost_30d / totals['calls_30d'], 6) if totals['calls_30d'] else 0.0
-
-    budget_pct = round(min(100.0, (cost_mtd / budget) * 100), 1) if budget > 0 else 0.0
-
-    # Daily chart series — bar pct scaled to whichever is larger
-    # (calls or cost) so both lines remain visible.
-    day_rows = []
-    max_calls = max((int(d['calls'] or 0) for d in per_day), default=1) or 1
-    for d in per_day:
-        calls = int(d['calls'] or 0)
-        cost  = _cost(int(d['in_tok'] or 0), int(d['out_tok'] or 0))
-        day_rows.append({
-            'day':   d['day'].strftime('%b %d'),
-            'calls': calls,
-            'cost':  cost,
-            'bar_pct': round(100.0 * calls / max_calls, 1),
-        })
-
-    # ── DigitalOcean billing API (optional) ────────────────────
-    do_billing = None
-    do_err = ''
-    # Authoritative MTD spend pulled from DO's own invoice ledger
-    # (the same numbers the user sees on the DO "Insights" page —
-    # GenAI Serverless Inference, App Services, etc.). When the
-    # admin has a token saved we ALWAYS prefer these over the
-    # token-log estimate because (a) DO charges by the byte and
-    # our local ledger only captures calls the worker successfully
-    # finished, and (b) DO applies per-tier discounts and rounding
-    # the local computation can't see. See `do_invoice_preview`
-    # below for the per-product / per-model breakdown.
-    do_invoice = None
-    do_invoice_err = ''
-    if do_token:
-        try:
-            import urllib.request as _urlreq, urllib.error as _urlerr, json as _j
-            req = _urlreq.Request(
-                'https://api.digitalocean.com/v2/customers/my/balance',
-                headers={'Authorization': f'Bearer {do_token}',
-                         'Accept': 'application/json'},
-            )
-            with _urlreq.urlopen(req, timeout=8) as resp:
-                body = _j.loads(resp.read().decode('utf-8') or '{}')
-            # DigitalOcean returns balances as a string the customer
-            # "owes": positive ⇒ you owe DO that much, negative ⇒
-            # account is in credit by that much. Surface both the raw
-            # signed value and a friendlier (amount, kind) pair so the
-            # template can show "$144.96 credit" instead of "$-144.96".
-            def _money(v):
-                try:
-                    f = float(v)
-                except (TypeError, ValueError):
-                    return None, '', ''
-                if f < 0:
-                    return f, f'{abs(f):,.2f}', 'credit'
-                if f > 0:
-                    return f, f'{f:,.2f}', 'owed'
-                return f, '0.00', ''
-            mtd_b_raw, mtd_b_amt, mtd_b_kind = _money(body.get('month_to_date_balance'))
-            acct_raw,  acct_amt,  acct_kind  = _money(body.get('account_balance'))
-            _, mtd_u_amt, _ = _money(body.get('month_to_date_usage'))
-            do_billing = {
-                'mtd_balance':       mtd_b_raw,
-                'mtd_balance_amt':   mtd_b_amt,
-                'mtd_balance_kind':  mtd_b_kind,
-                'mtd_usage':         body.get('month_to_date_usage'),
-                'mtd_usage_amt':     mtd_u_amt,
-                'acct_balance':      acct_raw,
-                'acct_balance_amt':  acct_amt,
-                'acct_balance_kind': acct_kind,
-                'generated_at':      body.get('generated_at'),
-            }
-        except _urlerr.HTTPError as e:
-            do_err = f'DigitalOcean API returned HTTP {e.code}. Check that the token has read access.'
-        except Exception as e:  # noqa: BLE001
-            do_err = f'DigitalOcean API call failed: {e}'
-
-        # ── DO invoice preview — the SOURCE OF TRUTH for spend ─────
-        # Two calls:
-        #   /v2/customers/my/invoices/preview/summary  → per-product
-        #     totals ($51.04 GenAI Serverless Inference, etc.)
-        #   /v2/customers/my/invoices/preview          → per-line
-        #     items with the actual billed token counts per model
-        #     ("OpenAI GPT-Oss-20b Input tokens (69591091 @ …)")
-        # Both are cheap (sub-second), so we always pull both when
-        # the admin opens this page. Failures are surfaced but do
-        # NOT break the rest of the page.
-        import re as _re
-        try:
-            req = _urlreq.Request(
-                'https://api.digitalocean.com/v2/customers/my/invoices/preview/summary',
-                headers={'Authorization': f'Bearer {do_token}',
-                         'Accept': 'application/json'},
-            )
-            with _urlreq.urlopen(req, timeout=10) as resp:
-                summary = _j.loads(resp.read().decode('utf-8') or '{}')
-            req = _urlreq.Request(
-                'https://api.digitalocean.com/v2/customers/my/invoices/preview',
-                headers={'Authorization': f'Bearer {do_token}',
-                         'Accept': 'application/json'},
-            )
-            with _urlreq.urlopen(req, timeout=15) as resp:
-                preview = _j.loads(resp.read().decode('utf-8') or '{}')
-
-            def _f(v) -> float:
-                try:    return float(v)
-                except (TypeError, ValueError): return 0.0
-
-            # Per-product breakdown (matches DO Insights pie chart).
-            charges = ((summary.get('product_charges') or {}).get('items')
-                       or [])
-            by_product = [{
-                'name':   it.get('name') or '(unknown)',
-                'amount': _f(it.get('amount')),
-                'count':  it.get('count') or '',
-            } for it in charges]
-            by_product.sort(key=lambda r: r['amount'], reverse=True)
-            genai_mtd = sum(r['amount'] for r in by_product
-                            if 'genai' in r['name'].lower()
-                            or 'inference' in r['name'].lower())
-
-            # Per-model breakdown parsed from GenAI line-item
-            # descriptions. Each row looks like:
-            #   "OpenAI GPT-Oss-20b Input tokens (69591091 @ $0.00005/thousand)"
-            # We collapse Input + Output into a single per-model row.
-            line_items = preview.get('invoice_items') or []
-            per_model: dict[str, dict] = {}
-            line_re = _re.compile(
-                r'^(?P<model>.+?)\s+(?P<dir>Input|Output)\s+tokens\s*'
-                r'\((?P<tokens>\d+)',
-                _re.IGNORECASE,
-            )
-            for it in line_items:
-                if (it.get('product') or '').strip() != 'GenAI Serverless Inference':
-                    continue
-                desc = (it.get('description') or '').strip()
-                m = line_re.match(desc)
-                if not m:
-                    continue
-                model = m.group('model').strip()
-                row = per_model.setdefault(model, {
-                    'model': model, 'in_tok': 0, 'out_tok': 0,
-                    'in_amt': 0.0, 'out_amt': 0.0,
-                })
-                amt    = _f(it.get('amount'))
-                tokens = int(m.group('tokens'))
-                if m.group('dir').lower() == 'input':
-                    row['in_tok'] += tokens
-                    row['in_amt'] += amt
-                else:
-                    row['out_tok'] += tokens
-                    row['out_amt'] += amt
-            by_model = [
-                {**r, 'total': round(r['in_amt'] + r['out_amt'], 4)}
-                for r in per_model.values()
-            ]
-            by_model.sort(key=lambda r: r['total'], reverse=True)
-
-            do_invoice = {
-                'billing_period':    summary.get('billing_period') or '',
-                'invoice_amount':    _f(summary.get('amount')),
-                'usage_total':       _f(summary.get('usage_total')),
-                'generated_at':      summary.get('invoice_generated_at') or '',
-                'due_date':          summary.get('due_date') or '',
-                'genai_mtd':         round(genai_mtd, 2),
-                'by_product':        by_product,
-                'by_model':          by_model,
-            }
-        except _urlerr.HTTPError as e:
-            do_invoice_err = (f'DigitalOcean invoice-preview API returned '
-                              f'HTTP {e.code} — token may lack billing scope.')
-        except Exception as e:  # noqa: BLE001
-            do_invoice_err = f'DigitalOcean invoice-preview call failed: {e}'
-
-        # ── DO Day-over-Day Cost (Billing Insights API) ─────────────
-        # GET /v2/billing/{account_urn}/insights/{from}/{to}
-        # Returns one entry per (product, day) with a USD amount —
-        # the same data behind DO Insights' "Day-over-Day Cost
-        # Breakdown" chart. We auto-discover the account_urn by
-        # fetching /v2/account first (team.uuid → "do:team:<uuid>")
-        # so the admin doesn't have to copy it manually.
-        #
-        # Falls back to the invoice-preview CSV if Insights returns
-        # a non-200 (the Insights endpoint is gated on some accounts).
-        import datetime as _dt
-        do_daily = None
-        do_daily_err = ''
-        do_daily_source = ''
-        account_urn = ''
-        try:
-            req = _urlreq.Request(
-                'https://api.digitalocean.com/v2/account',
-                headers={'Authorization': f'Bearer {do_token}',
-                         'Accept': 'application/json'},
-            )
-            with _urlreq.urlopen(req, timeout=8) as resp:
-                acct = _j.loads(resp.read().decode('utf-8') or '{}')
-            team_uuid = (((acct.get('account') or {}).get('team') or {})
-                         .get('uuid') or '').strip()
-            if team_uuid:
-                account_urn = f'do:team:{team_uuid}'
-        except Exception as e:  # noqa: BLE001
-            do_daily_err = f'Could not look up account URN: {e}'
-
-        today_utc = _dt.datetime.utcnow().date()
-        # Start of the CURRENT calendar month — matches what DO shows
-        # on the Insights "Day-over-Day Cost Breakdown" page out of
-        # the box. If the admin opens the page on the 1st they still
-        # see today's bar.
-        start_d = today_utc.replace(day=1)
-
-        def _bucket_and_finalize(buckets, min_d_in, max_d_in):
-            """Shared output shape builder used by both the Insights
-            and CSV-fallback paths. Returns the do_daily dict (or
-            None if there are no rows)."""
-            if not (min_d_in and max_d_in):
-                return None
-            end_d = min(max_d_in, today_utc)
-            rows = []
-            mx = 0.0
-            g_tot = o_tot = 0.0
-            day = min_d_in
-            while day <= end_d:
-                b = buckets.get(day.isoformat()) or {'genai': 0.0, 'other': 0.0}
-                tot = b['genai'] + b['other']
-                mx = max(mx, tot)
-                g_tot += b['genai']; o_tot += b['other']
-                rows.append({
-                    'day':   day.strftime('%b %d'),
-                    'genai': round(b['genai'], 4),
-                    'other': round(b['other'], 4),
-                    'total': round(tot, 4),
-                })
-                day += _dt.timedelta(days=1)
-            for r in rows:
-                if mx > 0:
-                    r['genai_pct'] = round(100.0 * r['genai'] / mx, 2)
-                    r['other_pct'] = round(100.0 * r['other'] / mx, 2)
-                else:
-                    r['genai_pct'] = r['other_pct'] = 0.0
-            return {
-                'rows':        rows,
-                'max':         round(mx, 2),
-                'genai_total': round(g_tot, 2),
-                'other_total': round(o_tot, 2),
-                'total':       round(g_tot + o_tot, 2),
-                'period':      (f'{min_d_in.strftime("%b %d")} – '
-                                f'{end_d.strftime("%b %d, %Y")}'),
-            }
-
-        # ── 1) Insights endpoint (preferred) ────────────────────────
-        if account_urn:
-            try:
-                url = (f'https://api.digitalocean.com/v2/billing/'
-                       f'{account_urn}/insights/'
-                       f'{start_d.isoformat()}/{today_utc.isoformat()}'
-                       f'?group_by=product')
-                req = _urlreq.Request(
-                    url,
-                    headers={'Authorization': f'Bearer {do_token}',
-                             'Accept': 'application/json'},
-                )
-                with _urlreq.urlopen(req, timeout=15) as resp:
-                    insights = _j.loads(resp.read().decode('utf-8') or '{}')
-                # DO returns one of: {billing_insights:[…]} OR
-                # {insights:[…]} OR a bare list. Each entry has a date
-                # field (date|day|usage_date) + amount field (amount|
-                # total|usd) + optional product/category.
-                items = (insights.get('billing_insights')
-                         or insights.get('insights')
-                         or insights.get('data')
-                         or (insights if isinstance(insights, list) else [])
-                         or [])
-                buckets: dict[str, dict] = {}
-                min_d = max_d = None
-                for it in items:
-                    if not isinstance(it, dict):
-                        continue
-                    raw_d = (it.get('date') or it.get('day')
-                             or it.get('usage_date') or '')
-                    if not raw_d:
-                        continue
-                    try:
-                        d = _dt.date.fromisoformat(str(raw_d)[:10])
-                    except ValueError:
-                        continue
-                    try:
-                        usd = float(it.get('amount')
-                                    or it.get('total')
-                                    or it.get('usd') or 0)
-                    except (TypeError, ValueError):
-                        usd = 0.0
-                    prod = (str(it.get('product') or it.get('category')
-                                or it.get('name') or '')).lower()
-                    is_genai = ('genai' in prod) or ('inference' in prod)
-                    b = buckets.setdefault(d.isoformat(),
-                                           {'genai': 0.0, 'other': 0.0})
-                    if is_genai:
-                        b['genai'] += usd
-                    else:
-                        b['other'] += usd
-                    if min_d is None or d < min_d: min_d = d
-                    if max_d is None or d > max_d: max_d = d
-                do_daily = _bucket_and_finalize(buckets,
-                                                min_d or start_d, max_d)
-                if do_daily:
-                    do_daily_source = 'insights'
-            except _urlerr.HTTPError as e:
-                do_daily_err = (f'DigitalOcean Insights API returned '
-                                f'HTTP {e.code} — token may lack billing '
-                                f'scope; falling back to invoice CSV.')
-            except Exception as e:  # noqa: BLE001
-                do_daily_err = f'Insights API call failed: {e}'
-
-        # ── 2) Invoice-preview CSV fallback ─────────────────────────
-        if do_daily is None:
-            try:
-                import csv as _csv, io as _io
-                req = _urlreq.Request(
-                    'https://api.digitalocean.com/v2/customers/my/invoices/preview/csv',
-                    headers={'Authorization': f'Bearer {do_token}',
-                             'Accept': 'text/csv'},
-                )
-                with _urlreq.urlopen(req, timeout=15) as resp:
-                    csv_text = resp.read().decode('utf-8', errors='replace')
-                reader = _csv.DictReader(_io.StringIO(csv_text))
-                buckets = {}
-                min_d = max_d = None
-                for row in reader:
-                    start = (row.get('start') or '').strip()
-                    if not start:
-                        continue
-                    try:
-                        d = _dt.date.fromisoformat(start[:10])
-                    except ValueError:
-                        continue
-                    try:
-                        usd = float((row.get('USD') or '0').strip() or 0)
-                    except (TypeError, ValueError):
-                        usd = 0.0
-                    prod = (row.get('product') or '').lower()
-                    is_genai = ('genai' in prod) or ('inference' in prod)
-                    b = buckets.setdefault(d.isoformat(),
-                                           {'genai': 0.0, 'other': 0.0})
-                    if is_genai:
-                        b['genai'] += usd
-                    else:
-                        b['other'] += usd
-                    if min_d is None or d < min_d: min_d = d
-                    if max_d is None or d > max_d: max_d = d
-                do_daily = _bucket_and_finalize(buckets, min_d, max_d)
-                if do_daily:
-                    do_daily_source = 'invoice-csv'
-                    # Insights failure is no longer surfaced if CSV worked.
-                    if 'Insights' in do_daily_err:
-                        do_daily_err = ''
-            except _urlerr.HTTPError as e:
-                if not do_daily_err:
-                    do_daily_err = (f'Invoice-preview CSV returned '
-                                    f'HTTP {e.code}.')
-            except Exception as e:  # noqa: BLE001
-                if not do_daily_err:
-                    do_daily_err = f'Invoice-preview CSV failed: {e}'
-    else:
-        do_daily = None
-        do_daily_err = ''
-        do_daily_source = ''
-        account_urn = ''
-
-    ctx = {
-        **_admin_base_ctx(request, 'inference_stats'),
-        'msg': msg, 'err': err,
-        'price_rows':     price_rows,
-        'budget':         budget,
-        'budget_pct':     budget_pct,
-        'do_token_set':   bool(do_token),
-        # Surface the actual saved value so the admin can read /
-        # copy it from the settings card. Field is rendered behind a
-        # type=password input with a click-to-reveal toggle so it's
-        # not shoulder-surfed on first paint. Admin-only view.
-        'do_token_value': do_token,
-        'do_billing':     do_billing,
-        'do_err':         do_err,
-        'do_invoice':     do_invoice,
-        'do_invoice_err': do_invoice_err,
-        'do_daily':         do_daily,
-        'do_daily_err':     do_daily_err,
-        'do_daily_source':  do_daily_source,
-        'do_account_urn':   account_urn,
-        'totals':         totals,
-        'pm_rows':        pm_rows,
-        'day_rows':       day_rows,
-        'cost_today':     cost_today,
-        'cost_7d':        cost_7d,
-        'cost_30d':       cost_30d,
-        'cost_mtd':       cost_mtd,
-        'cost_total':     cost_total,
-        'cost_per_page_30d': cost_per_page_30d,
-        'avg_in_price':   avg_in,
-        'avg_out_price':  avg_out,
-    }
-    return render(request, 'core/admin_inference_stats.html', ctx)
-
-
-@admin_required
-def admin_scraper_agent_plan_view(request):
-    """Scrapers → Agent Scraper Plan.
-
-    A reusable runbook page documenting how each scraper engine was
-    designed end-to-end: HTTP probe steps, request/response shapes,
-    pagination convention, detail-page caveats, and which AI model
-    parses the result. Lets the admin (or a future contributor) read
-    a single page and understand exactly how to add a new municipal
-    source the same way.
-    """
-    return render(request, 'core/admin_scraper_agent_plan.html', {
-        **_admin_base_ctx(request, 'scraper_agent_plan'),
-    })
-
-
-@admin_required
-def admin_scraper_stats_view(request):
-    """Daily chart + summary cards across all scrapers."""
-    from .db import (get_scraper_summary, get_scraper_daily_stats,
-                     list_recent_scraper_runs)
-    summary = get_scraper_summary()
-    days = get_scraper_daily_stats(30)
-    max_permits = max((d['permits'] for d in days), default=1) or 1
-    for d in days:
-        d['bar_pct'] = round(100 * d['permits'] / max_permits, 1) if max_permits else 0
-    recent_runs = list_recent_scraper_runs(15)
-    for r in recent_runs:
-        r['started_human'] = (r['started_at'].strftime('%b %d %I:%M %p')
-                              if r.get('started_at') else '—')
-    # NOTE: the "Permits by state" block that used to render below
-    # the recent runs table was moved to /admin-panel/states/ so the
-    # admin can act on it (ban from ingest, delete by state) instead
-    # of just reading the numbers. This page now focuses on scraper
-    # health (chart, summary, recent runs) and the states page owns
-    # the per-state breakdown.
-    ctx = {
-        **_admin_base_ctx(request, 'scraper_stats'),
-        'summary':         summary,
-        'days':            days,
-        'recent_runs':     recent_runs,
-    }
-    return render(request, 'core/admin_scraper_stats.html', ctx)
-
-
 # ── States Manager ────────────────────────────────────────────────
 #
 # Single admin page that combines three previously scattered jobs:
-#   1. Per-state permit stats (moved here from /scraper-stats/)
+#   1. Per-state permit stats
 #      — rendered as a server-side DataTable so a long state list
 #      doesn't blow up the page DOM. 5 rows per page.
 #   2. Banned-states list: scraper ingest drops any permit whose
@@ -10034,7 +9404,7 @@ def _enrich_users_for_admin_table(all_users):
     sorted_users = sorted(all_users, key=lambda u: u.get('joined', '2000-01-01'), reverse=True)
     for u in sorted_users:
         plan = u.get('plan', 'starter').lower()
-        u['is_admin']     = u.get('email') in ADMIN_EMAILS
+        u['is_admin']     = (u.get('email') or '').lower().strip() in ADMIN_EMAILS
         # "No Plan" — user signed up but never completed a Whop checkout
         # (or their subscription expired / was cancelled fully). The
         # plan field defaults to 'starter' on signup, so without this
@@ -10192,28 +9562,6 @@ def admin_revenue_view(request):
 
 
 @admin_required
-@cached_admin_html(15)
-def admin_cities_view(request):
-    all_users   = get_all_users()
-    city_counts: dict = {}
-    for u in all_users:
-        for c in u.get('cities', []):
-            city_counts[c] = city_counts.get(c, 0) + 1
-    all_cities = sorted(city_counts.items(), key=lambda x: x[1], reverse=True)
-    top_city_name  = all_cities[0][0] if all_cities else '—'
-    top_city_count = all_cities[0][1] if all_cities else 1
-    ctx = {
-        **_admin_base_ctx(request, 'cities'),
-        'all_cities':     all_cities,
-        'total_cities':   len(all_cities),
-        'total_users':    len(all_users),
-        'top_city_name':  top_city_name,
-        'top_city_count': top_city_count,
-    }
-    return render(request, 'core/admin_cities.html', ctx)
-
-
-@admin_required
 def admin_cities_manager_view(request):
     msg   = ''
     error = ''
@@ -10297,6 +9645,8 @@ def admin_cities_manager_view(request):
 import subprocess as _subprocess
 import gzip as _gzip
 import shutil as _shutil
+import http.client as _http_client
+import threading as _threading
 import urllib.request as _urlreq
 import urllib.error as _urlerr
 from pathlib import Path as _Path
@@ -10320,8 +9670,68 @@ _BACKUP_RETAIN = 3   # keep at most this many *.sql.gz backups on local disk
 # `/Permitlify-Backups`). For "App folder" apps Dropbox maps that
 # under /Apps/<AppName>/ automatically.
 
+
+def _pg_dump_executable() -> str:
+    """Find pg_dump on PATH or in common Windows PostgreSQL installs."""
+    candidates = []
+    configured = (os.environ.get('PG_DUMP_PATH') or '').strip()
+    if configured:
+        p = _Path(configured)
+        candidates.append(p / 'pg_dump.exe' if p.is_dir() else p)
+    found = _shutil.which('pg_dump') or _shutil.which('pg_dump.exe')
+    if found:
+        candidates.append(_Path(found))
+    if os.name == 'nt':
+        roots = [
+            _Path(os.environ.get('ProgramFiles') or r'C:\Program Files') / 'PostgreSQL',
+            _Path(os.environ.get('ProgramFiles(x86)') or r'C:\Program Files (x86)') / 'PostgreSQL',
+        ]
+        for root in roots:
+            if not root.exists():
+                continue
+            for install in sorted(root.iterdir(), key=lambda p: p.name, reverse=True):
+                candidates.append(install / 'bin' / 'pg_dump.exe')
+                candidates.append(install / 'pgAdmin 4' / 'runtime' / 'pg_dump.exe')
+    for p in candidates:
+        try:
+            if p.exists() and p.is_file():
+                return str(p)
+        except OSError:
+            continue
+    return ''
+
+
+def _dbx_normalize_folder(folder: str, app_name: str = '') -> tuple[str, str]:
+    """Return (api_folder, app_name) for Dropbox App-folder apps.
+
+    Dropbox's web UI shows App-folder files under /Apps/<app-name>/..., but
+    API calls are already scoped to that app root. If an admin pastes the full
+    web path, strip the /Apps/<app-name> prefix so uploads land in the visible
+    /Apps/<app-name>/<folder> folder instead of a nested /Apps/... folder.
+    """
+    folder = (folder or _DBX_DEFAULT_FOLDER).strip() or _DBX_DEFAULT_FOLDER
+    app_name = (app_name or '').strip().strip('/')
+    if folder.lower().startswith(('http://', 'https://')):
+        parsed = urllib.parse.urlparse(folder)
+        folder = urllib.parse.unquote(parsed.path or '')
+    if not folder.startswith('/'):
+        folder = '/' + folder
+    folder = folder.rstrip('/') or _DBX_DEFAULT_FOLDER
+    parts = [p for p in folder.split('/') if p]
+    if parts and parts[0].lower() == 'home':
+        parts = parts[1:]
+    if len(parts) >= 3 and parts[0].lower() == 'apps':
+        app_name = app_name or parts[1]
+        folder = '/' + '/'.join(parts[2:])
+    elif parts:
+        folder = '/' + '/'.join(parts)
+    return folder, app_name
+
 _DBX_DEFAULT_FOLDER = '/Permitlify-Backups'
 _DBX_TOKEN_CACHE = {'access_token': None, 'expires_at': 0.0}
+_BACKUP_JOB_LOCK = _threading.Lock()
+_BACKUP_JOBS: dict[str, dict] = {}
+_BACKUP_ACTIVE_JOB_ID: str | None = None
 
 
 def _dbx_cfg():
@@ -10335,9 +9745,7 @@ def _dbx_cfg():
     access_token  = (get_system_setting('dropbox_access_token') or '').strip()
     folder        = (get_system_setting('dropbox_folder') or '').strip() or _DBX_DEFAULT_FOLDER
     app_name      = (get_system_setting('dropbox_app_name') or '').strip()
-    if not folder.startswith('/'):
-        folder = '/' + folder
-    folder = folder.rstrip('/') or _DBX_DEFAULT_FOLDER
+    folder, app_name = _dbx_normalize_folder(folder, app_name)
     has_refresh = bool(app_key and app_secret and refresh_token)
     return {
         'app_key':       app_key,
@@ -10426,7 +9834,7 @@ def _dbx_rpc(endpoint, payload, *, timeout=120):
         return 0, None, str(e)
 
 
-def _dbx_upload_backup(filename, local_path):
+def _dbx_upload_backup(filename, local_path, progress_cb=None):
     """Upload a local backup file to the configured Dropbox folder.
     Returns (ok, message)."""
     cfg = _dbx_cfg()
@@ -10435,8 +9843,6 @@ def _dbx_upload_backup(filename, local_path):
     tok, err = _dbx_get_access_token()
     if not tok:
         return False, err or 'no token'
-    with open(local_path, 'rb') as f:
-        body = f.read()
     api_arg = json.dumps({
         'path':       f'{cfg["folder"]}/{filename}',
         'mode':       'overwrite',
@@ -10444,23 +9850,38 @@ def _dbx_upload_backup(filename, local_path):
         'mute':       True,
         'strict_conflict': False,
     })
-    req = _urlreq.Request(
-        'https://content.dropboxapi.com/2/files/upload',
-        data=body, method='POST',
-        headers={'Authorization':   f'Bearer {tok}',
-                 'Content-Type':    'application/octet-stream',
-                 'Dropbox-API-Arg': api_arg},
-    )
+    total = int(_Path(local_path).stat().st_size)
+    conn = None
     try:
-        with _urlreq.urlopen(req, timeout=600) as resp:
-            if 200 <= resp.status < 300:
-                return True, f'uploaded to Dropbox ({cfg["folder"]}/{filename})'
-            return False, f'upload HTTP {resp.status}'
-    except _urlerr.HTTPError as e:
-        msg = (e.read() or b'').decode('utf-8', 'replace')[:200]
-        return False, f'upload HTTP {e.code}: {msg}'
+        conn = _http_client.HTTPSConnection('content.dropboxapi.com', timeout=600)
+        conn.putrequest('POST', '/2/files/upload')
+        conn.putheader('Authorization', f'Bearer {tok}')
+        conn.putheader('Content-Type', 'application/octet-stream')
+        conn.putheader('Dropbox-API-Arg', api_arg)
+        conn.putheader('Content-Length', str(total))
+        conn.endheaders()
+        sent = 0
+        with open(local_path, 'rb') as f:
+            while True:
+                chunk = f.read(1024 * 1024)
+                if not chunk:
+                    break
+                conn.send(chunk)
+                sent += len(chunk)
+                if progress_cb:
+                    progress_cb(sent, total)
+        resp = conn.getresponse()
+        raw = resp.read()
+        if 200 <= resp.status < 300:
+            return True, f'uploaded to Dropbox ({cfg["folder"]}/{filename})'
+        msg = raw.decode('utf-8', 'replace')[:200]
+        return False, f'upload HTTP {resp.status}: {msg}'
     except Exception as e:
         return False, f'upload error: {e}'
+    finally:
+        if conn:
+            try: conn.close()
+            except Exception: pass
 
 
 def _dbx_list_backups():
@@ -10545,7 +9966,8 @@ def _dbx_list_backups():
         except Exception:
             mt = datetime.utcnow()
         out.append({'name': name, 'size': size,
-                    'size_mb': round(size / (1024 * 1024), 2), 'mtime': mt})
+                    'size_mb': round(size / (1024 * 1024), 2), 'mtime': mt,
+                    'remote_path': it.get('path_display') or it.get('path_lower') or f'{cfg["folder"]}/{name}'})
     return out, None
 
 
@@ -10556,9 +9978,20 @@ def _dbx_delete_backup(filename):
     cfg = _dbx_cfg()
     if not cfg['configured']:
         return True
-    status, _, _ = _dbx_rpc('files/delete_v2',
-                            {'path': f'{cfg["folder"]}/{filename}'})
-    return status in (200, 409)
+    paths = {f'{cfg["folder"]}/{filename}'}
+    try:
+        remote_items, _ = _dbx_list_backups()
+        for item in remote_items:
+            if item.get('name') == filename and item.get('remote_path'):
+                paths.add(item['remote_path'])
+    except Exception:
+        pass
+    ok = True
+    for path in paths:
+        status, _, _ = _dbx_rpc('files/delete_v2', {'path': path})
+        if status not in (200, 409):
+            ok = False
+    return ok
 
 
 def _dbx_download_backup(filename):
@@ -10570,19 +10003,29 @@ def _dbx_download_backup(filename):
     tok, _ = _dbx_get_access_token()
     if not tok:
         return None
-    api_arg = json.dumps({'path': f'{cfg["folder"]}/{filename}'})
-    req = _urlreq.Request(
-        'https://content.dropboxapi.com/2/files/download',
-        method='POST',
-        headers={'Authorization':   f'Bearer {tok}',
-                 'Dropbox-API-Arg': api_arg},
-    )
+    paths = [f'{cfg["folder"]}/{filename}']
     try:
-        with _urlreq.urlopen(req, timeout=300) as resp:
-            if resp.status == 200:
-                return resp.read()
+        remote_items, _ = _dbx_list_backups()
+        for item in remote_items:
+            p = item.get('remote_path')
+            if item.get('name') == filename and p and p not in paths:
+                paths.append(p)
     except Exception:
         pass
+    for path in paths:
+        api_arg = json.dumps({'path': path})
+        req = _urlreq.Request(
+            'https://content.dropboxapi.com/2/files/download',
+            method='POST',
+            headers={'Authorization':   f'Bearer {tok}',
+                     'Dropbox-API-Arg': api_arg},
+        )
+        try:
+            with _urlreq.urlopen(req, timeout=300) as resp:
+                if resp.status == 200:
+                    return resp.read()
+        except Exception:
+            continue
     return None
 
 
@@ -10633,6 +10076,7 @@ def _list_all_backups():
             'mtime':   src['mtime'],
             'local':   bool(loc),
             'remote':  bool(rem),
+            'remote_path': (rem or {}).get('remote_path') or '',
         })
     merged.sort(key=lambda b: b['mtime'], reverse=True)
     return merged, dbx_err
@@ -10649,6 +10093,7 @@ def _backup_to_json(b):
         'mtime_human':  b['mtime'].strftime('%Y-%m-%d %H:%M:%S UTC'),
         'local':        bool(b.get('local', True)),
         'remote':       bool(b.get('remote', False)),
+        'remote_path':  b.get('remote_path') or '',
         'download_url': f'/admin-panel/db-utils/backup/{b["name"]}/download/',
         'delete_url':   f'/admin-panel/db-utils/backup/{b["name"]}/delete/',
     }
@@ -10667,6 +10112,238 @@ def _prune_db_backups(keep: int = _BACKUP_RETAIN):
     return removed
 
 
+def _utc_now_label() -> str:
+    return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+
+
+def _backup_job_update(job_id: str, **updates) -> dict:
+    updates.setdefault('updated_at', _utc_now_label())
+    with _BACKUP_JOB_LOCK:
+        job = _BACKUP_JOBS.setdefault(job_id, {})
+        job.update(updates)
+        return dict(job)
+
+
+def _backup_job_snapshot(job_id: str) -> dict | None:
+    with _BACKUP_JOB_LOCK:
+        job = _BACKUP_JOBS.get(job_id)
+        return dict(job) if job else None
+
+
+def _backup_active_job() -> dict | None:
+    with _BACKUP_JOB_LOCK:
+        if not _BACKUP_ACTIVE_JOB_ID:
+            return None
+        job = _BACKUP_JOBS.get(_BACKUP_ACTIVE_JOB_ID)
+        if job and not job.get('done'):
+            return dict(job)
+        return None
+
+
+def _create_db_backup(*, source: str = 'manual', progress_cb=None) -> dict:
+    """Create a full database dump and upload it to Dropbox when configured."""
+    def progress(percent: int, stage: str, message: str = '', **extra) -> None:
+        if progress_cb:
+            progress_cb(max(0, min(int(percent), 100)), stage, message, **extra)
+
+    _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+    fp = _BACKUP_DIR / f'permitlify-{ts}.sql.gz'
+    dsn = os.environ['SUPABASE_DATABASE_URL']
+    pg_dump = _pg_dump_executable()
+    if not pg_dump:
+        return {'ok': False, 'error': 'pg_dump is not installed or not configured. Install PostgreSQL client tools or set PG_DUMP_PATH.'}
+
+    progress(8, 'dump', 'Running pg_dump for the full database...')
+    try:
+        with _gzip.open(fp, 'wb') as gz:
+            proc = _subprocess.run(
+                [pg_dump, '--no-owner', '--no-acl', '--format=plain', dsn],
+                stdout=_subprocess.PIPE, stderr=_subprocess.PIPE,
+                check=False, timeout=600,
+            )
+            if proc.returncode != 0:
+                try: fp.unlink()
+                except OSError: pass
+                err = proc.stderr.decode('utf-8', 'replace')[:400] or 'pg_dump failed'
+                return {'ok': False, 'error': 'Backup failed: ' + err}
+            progress(42, 'compress', 'Compressing SQL dump...')
+            gz.write(proc.stdout)
+    except _subprocess.TimeoutExpired:
+        try: fp.unlink()
+        except OSError: pass
+        return {'ok': False, 'error': 'Backup timed out after 10 minutes.', 'status': 504}
+    except FileNotFoundError:
+        try: fp.unlink()
+        except OSError: pass
+        return {'ok': False, 'error': 'pg_dump is not installed on this server.'}
+    except Exception as e:
+        try: fp.unlink()
+        except OSError: pass
+        return {'ok': False, 'error': f'Backup failed: {e}'}
+
+    size = fp.stat().st_size if fp.exists() else 0
+    progress(52, 'upload', f'Uploading {round(size / (1024 * 1024), 2)} MB backup to Dropbox...',
+             filename=fp.name, size=size, upload_sent=0, upload_total=size)
+
+    def upload_progress(sent: int, total: int) -> None:
+        pct = 52 + round((sent / max(total, 1)) * 40)
+        progress(pct, 'upload',
+                 f'Uploading to Dropbox: {round(sent / (1024 * 1024), 2)} / {round(total / (1024 * 1024), 2)} MB',
+                 filename=fp.name, size=size, upload_sent=sent, upload_total=total)
+
+    dbx_ok, dbx_msg = _dbx_upload_backup(fp.name, fp, upload_progress)
+    progress(94, 'finalize', 'Refreshing backup list...', filename=fp.name,
+             size=size, dbx_ok=dbx_ok, dbx_msg=dbx_msg)
+
+    pruned = _prune_db_backups(_BACKUP_RETAIN)
+    msg = f'Created backup {fp.name}'
+    if dbx_ok:
+        msg += ' - ' + dbx_msg
+    else:
+        msg += ' - WARNING: ' + dbx_msg + ' (file is on local disk only until Dropbox upload succeeds)'
+    if pruned:
+        msg += f' (pruned {len(pruned)} older local backup(s) - keeping {_BACKUP_RETAIN} most recent on disk; Dropbox copies are never pruned)'
+    merged, dbx_list_error = _list_all_backups()
+    backups = [_backup_to_json(b) for b in merged]
+    return {'ok': True, 'msg': msg, 'filename': fp.name, 'size': size,
+            'pruned': pruned, 'dbx_ok': dbx_ok, 'dbx_msg': dbx_msg,
+            'backups': backups, 'retain': _BACKUP_RETAIN,
+            'dbx_list_error': dbx_list_error, 'source': source}
+
+
+def _run_backup_job(job_id: str, *, source: str = 'manual') -> None:
+    global _BACKUP_ACTIVE_JOB_ID
+    def progress(percent: int, stage: str, message: str = '', **extra) -> None:
+        _backup_job_update(job_id, percent=percent, stage=stage,
+                           message=message, **extra)
+
+    _backup_job_update(job_id, percent=2, stage='start', message='Starting backup...',
+                       started_at=_utc_now_label())
+    result = _create_db_backup(source=source, progress_cb=progress)
+    if result.get('ok'):
+        updates = dict(result)
+        updates.update(done=True, percent=100, stage='done',
+                       message=result.get('msg') or 'Backup complete.',
+                       finished_at=_utc_now_label())
+        _backup_job_update(job_id, **updates)
+    else:
+        _backup_job_update(job_id, done=True, ok=False, percent=100,
+                           stage='error', message=result.get('error') or 'Backup failed.',
+                           error=result.get('error') or 'Backup failed.',
+                           finished_at=_utc_now_label())
+    if source == 'cron':
+        final = _backup_job_snapshot(job_id) or {}
+        set_system_setting('db_backup_cron_last_finished_at', final.get('finished_at') or _utc_now_label())
+        set_system_setting('db_backup_cron_last_status', 'success' if final.get('ok') else 'failed')
+        set_system_setting('db_backup_cron_last_message', final.get('message') or final.get('error') or '')
+        set_system_setting('db_backup_cron_last_filename', final.get('filename') or '')
+        set_system_setting('db_backup_cron_last_job_id', job_id)
+    with _BACKUP_JOB_LOCK:
+        if _BACKUP_ACTIVE_JOB_ID == job_id:
+            _BACKUP_ACTIVE_JOB_ID = None
+        # Keep the latest few jobs for polling/history; older in-memory rows
+        # are not useful after the browser has consumed them.
+        if len(_BACKUP_JOBS) > 8:
+            for old_id in sorted(_BACKUP_JOBS, key=lambda k: _BACKUP_JOBS[k].get('created_at', ''))[:-8]:
+                if old_id != _BACKUP_ACTIVE_JOB_ID:
+                    _BACKUP_JOBS.pop(old_id, None)
+
+
+def _start_backup_job(*, source: str = 'manual') -> dict:
+    global _BACKUP_ACTIVE_JOB_ID
+    with _BACKUP_JOB_LOCK:
+        if _BACKUP_ACTIVE_JOB_ID:
+            active = _BACKUP_JOBS.get(_BACKUP_ACTIVE_JOB_ID)
+            if active and not active.get('done'):
+                return dict(active)
+        job_id = secrets.token_urlsafe(12)
+        job = {
+            'ok': True, 'job_id': job_id, 'source': source, 'done': False,
+            'percent': 0, 'stage': 'queued', 'message': 'Queued...',
+            'created_at': _utc_now_label(), 'updated_at': _utc_now_label(),
+        }
+        _BACKUP_JOBS[job_id] = job
+        _BACKUP_ACTIVE_JOB_ID = job_id
+    thread = _threading.Thread(target=_run_backup_job, args=(job_id,),
+                               kwargs={'source': source},
+                               name=f'permitlify-db-backup-{source}', daemon=True)
+    thread.start()
+    return dict(job)
+
+
+def _load_db_backup_cron_settings() -> dict:
+    enabled_raw = get_system_setting('db_backup_cron_enabled', None)
+    enabled = False if enabled_raw is None else bool(enabled_raw)
+    at_utc = (get_system_setting('db_backup_cron_at_utc') or '03:00').strip()
+    if not re.fullmatch(r'\d{2}:\d{2}', at_utc or ''):
+        at_utc = '03:00'
+    try:
+        window = int(get_system_setting('db_backup_cron_window_minutes') or 30)
+    except (TypeError, ValueError):
+        window = 30
+    return {
+        'enabled': enabled,
+        'at_utc': at_utc,
+        'window_minutes': max(1, min(window, 720)),
+        'last_check_at': get_system_setting('db_backup_cron_last_check_at') or '',
+        'last_outcome': get_system_setting('db_backup_cron_last_outcome') or '',
+        'last_started_at': get_system_setting('db_backup_cron_last_started_at') or '',
+        'last_finished_at': get_system_setting('db_backup_cron_last_finished_at') or '',
+        'last_status': get_system_setting('db_backup_cron_last_status') or '',
+        'last_message': get_system_setting('db_backup_cron_last_message') or '',
+        'last_filename': get_system_setting('db_backup_cron_last_filename') or '',
+        'last_job_id': get_system_setting('db_backup_cron_last_job_id') or '',
+    }
+
+
+def _db_backup_cron_stamp(outcome: str) -> None:
+    set_system_setting('db_backup_cron_last_check_at', _utc_now_label())
+    set_system_setting('db_backup_cron_last_outcome', outcome)
+
+
+def _db_backup_cron_tick() -> dict:
+    settings = _load_db_backup_cron_settings()
+    if not settings['enabled']:
+        outcome = 'skipped: db backup cron disabled'
+        _db_backup_cron_stamp(outcome)
+        return {'ok': True, 'fired': False, 'outcome': outcome}
+    now = datetime.utcnow()
+    try:
+        hh, mm = settings['at_utc'].split(':')
+        target = int(hh) * 60 + int(mm)
+        cur = now.hour * 60 + now.minute
+    except Exception:
+        outcome = f'skipped: invalid db_backup_cron_at_utc={settings["at_utc"]!r}'
+        _db_backup_cron_stamp(outcome)
+        return {'ok': True, 'fired': False, 'outcome': outcome}
+    raw_delta = abs(cur - target)
+    delta = min(raw_delta, 1440 - raw_delta)
+    if delta > settings['window_minutes']:
+        outcome = (f'skipped: now {now.strftime("%H:%M")} UTC is outside '
+                   f'{settings["at_utc"]} +/- {settings["window_minutes"]}m window')
+        _db_backup_cron_stamp(outcome)
+        return {'ok': True, 'fired': False, 'outcome': outcome}
+    slot = f'{now.strftime("%Y-%m-%d")} {settings["at_utc"]} UTC'
+    if (get_system_setting('db_backup_cron_last_slot') or '').strip() == slot:
+        outcome = f'skipped: already fired slot {slot}'
+        _db_backup_cron_stamp(outcome)
+        return {'ok': True, 'fired': False, 'outcome': outcome, 'slot': slot}
+    active = _backup_active_job()
+    if active:
+        outcome = f'skipped: backup job already running ({active.get("job_id")})'
+        _db_backup_cron_stamp(outcome)
+        return {'ok': True, 'fired': False, 'outcome': outcome, 'slot': slot}
+    set_system_setting('db_backup_cron_last_slot', slot)
+    set_system_setting('db_backup_cron_last_started_at', _utc_now_label())
+    job = _start_backup_job(source='cron')
+    set_system_setting('db_backup_cron_last_job_id', job.get('job_id') or '')
+    outcome = f'fired: started backup job {job.get("job_id")} for slot {slot}'
+    _db_backup_cron_stamp(outcome)
+    return {'ok': True, 'fired': True, 'outcome': outcome,
+            'slot': slot, 'job_id': job.get('job_id')}
+
+
 @admin_required
 def admin_db_utils_view(request):
     """Render the DB Utilities admin page."""
@@ -10680,10 +10357,6 @@ def admin_db_utils_view(request):
         except Exception:
             runs_count = 0
         try:
-            cur.execute('SELECT COUNT(*) FROM firecrawl_calls'); fc_count = cur.fetchone()[0]
-        except Exception:
-            fc_count = 0
-        try:
             cur.execute('SELECT COUNT(*) FROM claude_calls'); cl_count = cur.fetchone()[0]
         except Exception:
             cl_count = 0
@@ -10694,12 +10367,12 @@ def admin_db_utils_view(request):
 
     backups, dbx_list_error = _list_all_backups()
     dbx = _dbx_cfg()
+    pg_dump_path = _pg_dump_executable()
     ctx = {
         **_admin_base_ctx(request, 'db_utils'),
         'permits_count':  permits_count,
         'scrapers_count': scrapers_count,
         'runs_count':     runs_count,
-        'firecrawl_count': fc_count,
         'claude_count':    cl_count,
         'junk_count':      junk_count,
         'backups':        backups,
@@ -10710,6 +10383,10 @@ def admin_db_utils_view(request):
         'backups_initial': [_backup_to_json(b) for b in backups],
         'dbx_list_error': dbx_list_error or '',
         'backup_retain':  _BACKUP_RETAIN,
+        'pg_dump_available': bool(pg_dump_path),
+        'pg_dump_path':   pg_dump_path,
+        'backup_active_job': _backup_active_job(),
+        'db_backup_cron': _load_db_backup_cron_settings(),
         # Dropbox settings. Secrets are never echoed back to the
         # template — we just emit a `has_*` boolean so the input
         # can render a masked placeholder.
@@ -10717,6 +10394,7 @@ def admin_db_utils_view(request):
         'dbx_folder':      dbx['folder'],
         'dbx_app_name':    dbx['app_name'],
         'dbx_web_url':     _dbx_web_url(dbx),
+        'dbx_web_path':    _dbx_web_url(dbx),
         'dbx_configured':  dbx['configured'],
         'dbx_has_secret':  bool(dbx['app_secret']),
         'dbx_has_refresh': bool(dbx['refresh_token']),
@@ -10740,9 +10418,8 @@ def admin_db_utils_storage_save(request):
     access_token  = (request.POST.get('dropbox_access_token') or '').strip()
     folder        = (request.POST.get('dropbox_folder') or '').strip() or _DBX_DEFAULT_FOLDER
     app_name      = (request.POST.get('dropbox_app_name') or '').strip().strip('/')
-    if not folder.startswith('/'):
-        folder = '/' + folder
-    folder = folder.rstrip('/') or _DBX_DEFAULT_FOLDER
+    web_path      = (request.POST.get('dropbox_web_path') or '').strip()
+    folder, app_name = _dbx_normalize_folder(web_path or folder, app_name)
 
     set_system_setting('dropbox_app_key',  app_key)
     set_system_setting('dropbox_folder',   folder)
@@ -10930,20 +10607,19 @@ def _dbx_write_test(tok, folder, name):
 def admin_db_utils_wipe_permits(request):
     """TRUNCATE permits + reset every per-scraper counter to 0.
 
-    Safety: admin-only (decorator), POST-only (CSRF), and the
-    template wraps the submit button in a JS `confirm()` showing
-    the exact row count about to be destroyed. The earlier
-    typed-"WIPE" guard was removed in this revision because users
-    were getting silently bounced back to the page when they clicked
-    the button without realising the extra input was required.
+    Safety: admin-only (decorator), POST-only (CSRF), client-side confirm,
+    and server-side literal ``WIPE`` confirmation.
     """
+    if (request.POST.get('confirm') or '').strip().upper() != 'WIPE':
+        return redirect('/admin-panel/db-utils/?error=' +
+                        urllib.parse.quote('Type WIPE to confirm the destructive permit wipe.'))
     deleted = 0
     with psycopg.connect(os.environ['SUPABASE_DATABASE_URL']) as c, c.cursor() as cur:
         cur.execute('SELECT COUNT(*) FROM permits'); deleted = cur.fetchone()[0]
         # Only TRUNCATE tables that actually exist in this environment
         # (early dev DBs predate the ledger tables; missing-table errors
         # would otherwise abort the wipe and leave the admin stuck).
-        candidate_tables = ['permits', 'scraper_runs', 'firecrawl_calls', 'claude_calls']
+        candidate_tables = ['permits', 'scraper_runs', 'claude_calls']
         cur.execute(
             "SELECT table_name FROM information_schema.tables "
             "WHERE table_schema = 'public' AND table_name = ANY(%s)",
@@ -10998,60 +10674,51 @@ def admin_db_utils_backup_create(request):
     the list after the redirect. Large dumps will block the request
     for a few seconds; that's fine for a manual admin action.
     """
-    _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    ts   = datetime.utcnow().strftime('%Y%m%d-%H%M%S')
-    fp   = _BACKUP_DIR / f'permitlify-{ts}.sql.gz'
-    dsn  = os.environ['SUPABASE_DATABASE_URL']
-
-    try:
-        # Stream pg_dump → gzip file. We use --no-owner / --no-acl
-        # so the dump can be restored into any role (Supabase rotates
-        # owners on plan changes, which otherwise breaks restores).
-        with _gzip.open(fp, 'wb') as gz:
-            proc = _subprocess.run(
-                ['pg_dump', '--no-owner', '--no-acl', '--format=plain', dsn],
-                stdout=_subprocess.PIPE, stderr=_subprocess.PIPE,
-                check=False, timeout=600,
-            )
-            if proc.returncode != 0:
-                # Clean up the empty file before bailing.
-                try: fp.unlink()
-                except OSError: pass
-                err = proc.stderr.decode('utf-8', 'replace')[:400] or 'pg_dump failed'
-                return _backup_error(request, 'Backup failed: ' + err)
-            gz.write(proc.stdout)
-    except _subprocess.TimeoutExpired:
-        try: fp.unlink()
-        except OSError: pass
-        return _backup_error(request, 'Backup timed out after 10 minutes.', status=504)
-    except FileNotFoundError:
-        return _backup_error(request, 'pg_dump is not installed on this server.', status=500)
-    except Exception as e:
-        try: fp.unlink()
-        except OSError: pass
-        return _backup_error(request, f'Backup failed: {e}')
-
-    # Upload to Dropbox *before* we prune local copies so the
-    # durable copy is guaranteed safe even if the prune races with
-    # a redeploy. Upload failure is non-fatal — the local file is
-    # still on disk and the admin can retry.
-    dbx_ok, dbx_msg = _dbx_upload_backup(fp.name, fp)
-
-    pruned = _prune_db_backups(_BACKUP_RETAIN)
-    msg = f'Created backup {fp.name}'
-    if dbx_ok:
-        msg += ' — ' + dbx_msg
-    else:
-        msg += ' — ⚠ ' + dbx_msg + ' (file is on local disk only; configure Dropbox below to make it durable)'
-    if pruned:
-        msg += f' (pruned {len(pruned)} older local backup(s) — keeping {_BACKUP_RETAIN} most recent on disk; Dropbox copies are never pruned)'
     if _is_ajax(request):
-        merged, dbx_list_error = _list_all_backups()
-        backups = [_backup_to_json(b) for b in merged]
-        return JsonResponse({'ok': True, 'msg': msg, 'pruned': pruned,
-                             'dbx_ok': dbx_ok, 'dbx_msg': dbx_msg,
-                             'backups': backups, 'retain': _BACKUP_RETAIN,
-                             'dbx_list_error': dbx_list_error})
+        job = _start_backup_job(source='manual')
+        return JsonResponse({'ok': True, 'started': True, 'job': job,
+                             'job_id': job.get('job_id')})
+    result = _create_db_backup(source='manual')
+    if not result.get('ok'):
+        return _backup_error(request, result.get('error') or 'Backup failed.',
+                             status=int(result.get('status') or 500))
+    return redirect('/admin-panel/db-utils/?msg=' + urllib.parse.quote(result.get('msg') or 'Backup created.'))
+
+
+@admin_required
+def admin_db_utils_backup_status(request, job_id: str):
+    job = _backup_job_snapshot(job_id)
+    if not job:
+        return JsonResponse({'ok': False, 'error': 'Unknown backup job.'}, status=404)
+    return JsonResponse({'ok': True, 'job': job})
+
+
+@admin_required
+@require_http_methods(['POST'])
+def admin_db_utils_backup_cron_save(request):
+    enabled = request.POST.get('enabled') == '1'
+    at_utc = (request.POST.get('at_utc') or '03:00').strip()
+    if not re.fullmatch(r'\d{2}:\d{2}', at_utc):
+        at_utc = '03:00'
+    try:
+        hh, mm = [int(x) for x in at_utc.split(':')]
+        if not (0 <= hh <= 23 and 0 <= mm <= 59):
+            at_utc = '03:00'
+    except Exception:
+        at_utc = '03:00'
+    try:
+        window = int(request.POST.get('window_minutes') or 30)
+    except (TypeError, ValueError):
+        window = 30
+    window = max(1, min(window, 720))
+    set_system_setting('db_backup_cron_enabled', enabled)
+    set_system_setting('db_backup_cron_at_utc', at_utc)
+    set_system_setting('db_backup_cron_window_minutes', window)
+    set_system_setting('db_backup_cron_saved_at', _utc_now_label())
+    msg = f'Daily DB backup cron saved: {"enabled" if enabled else "disabled"} at {at_utc} UTC.'
+    if _is_ajax(request):
+        return JsonResponse({'ok': True, 'msg': msg,
+                             'settings': _load_db_backup_cron_settings()})
     return redirect('/admin-panel/db-utils/?msg=' + urllib.parse.quote(msg))
 
 
@@ -11191,7 +10858,9 @@ def admin_db_utils_backup_delete(request, filename: str):
             fp.unlink()
         except OSError as e:
             return _backup_error(request, f'Delete failed: {e}', status=500)
-    _dbx_delete_backup(filename)
+    dbx_deleted = _dbx_delete_backup(filename)
+    if not dbx_deleted:
+        return _backup_error(request, f'Deleted local copy of {filename}, but Dropbox deletion failed. Try again or check Dropbox credentials.', status=502)
     if _is_ajax(request):
         merged, dbx_list_error = _list_all_backups()
         backups = [_backup_to_json(b) for b in merged]
@@ -11930,7 +11599,7 @@ def admin_bulk_delete_users(request):
         u = by_id.get(uid)
         if u is None:
             continue
-        if u.get('email') in ADMIN_EMAILS:
+        if (u.get('email') or '').lower().strip() in ADMIN_EMAILS:
             skipped_admin += 1
             continue
         target_ids.append(uid)
@@ -12056,7 +11725,7 @@ def admin_bulk_set_whop_mode(request):
         u = by_id.get(uid)
         if u is None:
             continue
-        if u.get('email') in ADMIN_EMAILS:
+        if (u.get('email') or '').lower().strip() in ADMIN_EMAILS:
             skipped_admin += 1
             continue
         target_ids.append(uid)
@@ -12119,7 +11788,7 @@ def admin_bulk_whop_sync(request):
         u = by_id.get(uid)
         if u is None:
             continue
-        if u.get('email') in ADMIN_EMAILS:
+        if (u.get('email') or '').lower().strip() in ADMIN_EMAILS:
             skipped_admin += 1
             continue
         target_users.append(u)
@@ -13708,17 +13377,22 @@ def email_preview(request, template_name):
 #
 # Three-step authoring flow under /admin-panel/blog/:
 #   1. List       — every published post + "+ New Post" button.
-#   2. Editor     — paste URL → AJAX scrape (Firecrawl) → AJAX rewrite
-#                   (DO Serverless Inference) → form fields → publish.
-#   3. Settings   — system_settings keys: firecrawl_api_key and
-#                   blog_rewrite_model (DO inference key is shared with the
-#                   scrapers via do_api_key / DO_API_KEY).
+#   2. Editor     — paste URL → AJAX scrape (Playwright) → AJAX rewrite
+#                   (local GPT-OSS) → form fields → publish.
+#   3. Settings   — system_settings keys: datacenter_proxy and
+#                   blog_rewrite_model.
 # ─────────────────────────────────────────────────────────────────────
 
 from .blog_ai import (
-    firecrawl_scrape, inference_rewrite, slugify as _ai_slugify,
+    playwright_scrape, inference_rewrite, slugify as _ai_slugify,
     BlogAIError, DEFAULT_MODEL as _DEFAULT_REWRITE_MODEL,
 )
+from .browser_fetch import datacenter_proxy_info, datacenter_proxy_raw
+
+
+def _blog_date_label(d: date, *, with_weekday: bool = False) -> str:
+    prefix = f"{d.strftime('%A')}, " if with_weekday else ''
+    return f"{prefix}{d.strftime('%B')} {d.day}, {d.year}"
 
 
 def _admin_ctx(request, **extra):
@@ -13732,7 +13406,7 @@ def _admin_ctx(request, **extra):
     ctx = {
         'admin_name':     name,
         'admin_initials': initials,
-        'today':          date.today().strftime('%A, %B %-d, %Y'),
+        'today':          _blog_date_label(date.today(), with_weekday=True),
     }
     ctx.update(extra)
     return ctx
@@ -13771,14 +13445,12 @@ def admin_blog_editor_view(request, slug=None):
         post = get_blog_post(slug)
         if not post:
             raise Http404
-    has_firecrawl = bool((get_system_setting('firecrawl_api_key') or '').strip())
     has_inference = True  # local GPT-OSS parser/rewrite endpoint needs no paid key
     return render(request, 'core/admin_blog_editor.html', _admin_ctx(
         request,
         active_section='blog',
         post=post,
         editing=bool(post),
-        has_firecrawl=has_firecrawl,
         has_inference=has_inference,
     ))
 
@@ -13790,13 +13462,13 @@ def _json_err(msg, status=400):
 @admin_required
 @require_http_methods(['POST'])
 def admin_blog_scrape(request):
-    """AJAX: scrape a URL via Firecrawl and return markdown + metadata."""
+    """AJAX: scrape a URL via Playwright and return readable text + metadata."""
     try:
         body = json.loads(request.body.decode('utf-8') or '{}')
     except json.JSONDecodeError:
         return _json_err('Invalid JSON body')
     try:
-        result = firecrawl_scrape(body.get('url') or '')
+        result = playwright_scrape(body.get('url') or '')
     except BlogAIError as e:
         return _json_err(e)
     return JsonResponse({
@@ -13887,7 +13559,7 @@ def admin_blog_publish(request):
         'author_initials': (f.get('author_initials') or 'PL').strip()[:8],
         # ``upsert_blog_post`` reads this under the ``date`` key (writes to
         # the ``date_label`` column).
-        'date':            (f.get('date_label') or date.today().strftime('%B %-d, %Y')).strip(),
+        'date':            (f.get('date_label') or _blog_date_label(date.today())).strip(),
         'published_at':    published_at,
         'read_time':       (f.get('read_time') or '5 min read').strip()[:40],
         'tag':             (f.get('tag') or 'Insights').strip()[:60],
@@ -13930,23 +13602,30 @@ def admin_blog_delete(request, slug):
 
 @admin_required
 def admin_blog_settings_view(request):
-    """AI config page: Firecrawl key + local GPT-OSS rewrite model."""
+    """AI config page: datacenter proxy + local GPT-OSS rewrite model."""
     if request.method == 'POST':
         section = request.POST.get('section', '')
         try:
-            if section == 'firecrawl':
-                key = (request.POST.get('firecrawl_api_key') or '').strip()
-                if key:
-                    set_system_setting('firecrawl_api_key', key)
-                result = {'ok': True, 'section': 'firecrawl'}
+            if section == 'proxy':
+                proxy = (request.POST.get('datacenter_proxy') or '').strip()
+                if proxy:
+                    from .scrapers.base import parse_proxy_string
+                    if not parse_proxy_string(proxy):
+                        raise ValueError('Proxy format is invalid. Use user:pass@host:port or host:port.')
+                set_system_setting('datacenter_proxy', proxy)
+                result = {
+                    'ok': True,
+                    'section': 'proxy',
+                    'datacenter_proxy': datacenter_proxy_raw(),
+                }
             elif section == 'rewrite':
                 model = (request.POST.get('blog_rewrite_model') or '').strip()
                 if model:
                     set_system_setting('blog_rewrite_model', model)
                 result = {'ok': True, 'section': 'rewrite'}
-            elif section == 'clear_firecrawl':
-                set_system_setting('firecrawl_api_key', '')
-                result = {'ok': True, 'section': 'clear_firecrawl'}
+            elif section == 'clear_proxy':
+                set_system_setting('datacenter_proxy', '')
+                result = {'ok': True, 'section': 'clear_proxy'}
             else:
                 result = {'ok': False, 'error': 'Unknown section'}
         except Exception as e:
@@ -13959,92 +13638,17 @@ def admin_blog_settings_view(request):
     return render(request, 'core/admin_blog_settings.html', _admin_ctx(
         request,
         active_section='blog_settings',
-        has_firecrawl=bool((get_system_setting('firecrawl_api_key') or '').strip()),
         has_inference=has_inference,
+        proxy_info=datacenter_proxy_info(),
+        datacenter_proxy_value=datacenter_proxy_raw(),
         rewrite_model=(get_system_setting('blog_rewrite_model') or '').strip() or _DEFAULT_REWRITE_MODEL,
         default_rewrite_model=_DEFAULT_REWRITE_MODEL,
     ))
 
 
 # ══════════════════════════════════════════════════════════════════════
-# Marketing — Analytics & Pixels, Testimonials, Recovery Emails,
-# Trade-specific landing pages.
+# Marketing — Recovery Emails, Trade-specific landing pages.
 # ══════════════════════════════════════════════════════════════════════
-
-# Pixel/analytics fields persisted under `mk_<key>` in system_settings.
-_MK_ANALYTICS_KEYS = (
-    'ga4_id', 'google_ads_id', 'google_ads_conv_label',
-    'meta_pixel_id', 'meta_capi_token', 'uet_tag_id',
-    'custom_head_html',
-)
-
-
-@admin_required
-def admin_analytics_view(request):
-    """Admin page to manage GA4/Google Ads/Meta/Bing pixel IDs."""
-    from .db import get_system_setting, set_system_setting
-    msg = err = ''
-    if request.method == 'POST':
-        try:
-            for k in _MK_ANALYTICS_KEYS:
-                v = (request.POST.get(k) or '').strip()
-                set_system_setting('mk_' + k, v)
-            msg = 'Saved. Takes effect on the next page load.'
-        except Exception as exc:
-            log.exception("admin_analytics save failed")
-            err = f'Save failed: {exc}'
-    vals = {}
-    for k in _MK_ANALYTICS_KEYS:
-        vals[k] = get_system_setting('mk_' + k) or ''
-    ctx = _admin_base_ctx(request, 'mk_analytics')
-    ctx.update({'vals': vals, 'msg': msg, 'err': err})
-    return render(request, 'core/admin_analytics.html', ctx)
-
-
-@admin_required
-def admin_testimonials_view(request):
-    """Admin CRUD for marketing testimonials rendered on /pricing & /."""
-    from .db import (list_testimonials, get_testimonial,
-                     upsert_testimonial, delete_testimonial)
-    msg = err = ''
-    if request.method == 'POST':
-        action = request.POST.get('action', '')
-        try:
-            if action == 'save':
-                tid = request.POST.get('id') or None
-                tid = int(tid) if tid else None
-                quote = (request.POST.get('quote') or '').strip()
-                name  = (request.POST.get('author_name') or '').strip()
-                if not quote or not name:
-                    err = 'Quote and author name are required.'
-                else:
-                    upsert_testimonial(
-                        tid=tid, quote=quote, author_name=name,
-                        author_title=(request.POST.get('author_title') or '').strip(),
-                        company=(request.POST.get('company') or '').strip(),
-                        is_published=bool(request.POST.get('is_published')),
-                        sort_order=int(request.POST.get('sort_order') or 0),
-                    )
-                    msg = 'Saved.'
-                    return redirect('admin_testimonials')
-            elif action == 'delete':
-                tid = int(request.POST.get('id') or 0)
-                if tid:
-                    delete_testimonial(tid)
-                    msg = 'Deleted.'
-                    return redirect('admin_testimonials')
-        except Exception as exc:
-            log.exception("admin_testimonials POST failed")
-            err = f'Failed: {exc}'
-    edit_id = request.GET.get('edit')
-    edit = get_testimonial(int(edit_id)) if edit_id and edit_id.isdigit() else None
-    items = list_testimonials(published_only=False, limit=200)
-    pub = sum(1 for t in items if t.get('is_published'))
-    ctx = _admin_base_ctx(request, 'mk_testimonials')
-    ctx.update({'items': items, 'published_count': pub,
-                'edit': edit, 'msg': msg, 'err': err})
-    return render(request, 'core/admin_testimonials.html', ctx)
-
 
 # Default recovery-email template set. Used when no admin override
 # exists yet so the page shows ready-to-use copy from day one.

@@ -11,6 +11,9 @@ urlpatterns = [
     path('blog/<slug:slug>/', views.blog_detail, name='blog_detail'),
 
     path('login/', views.login_view, name='login'),
+    path('login/verify/', views.login_verify, name='login_verify'),
+    path('auth/google/start/', views.google_login_start, name='google_login_start'),
+    path('auth/google/callback/', views.google_login_callback, name='google_login_callback'),
     path('register/', views.register_view, name='register'),
     path('logout/', views.logout_view, name='logout'),
 
@@ -44,6 +47,7 @@ urlpatterns = [
     path('admin-panel/messages/<int:msg_id>/reply/', views.admin_reply, name='admin_reply'),
     path('admin-panel/messages/<int:msg_id>/status/', views.admin_message_status, name='admin_message_status'),
     path('admin-panel/invoices/', views.admin_invoices, name='admin_invoices'),
+    path('admin-panel/proxy-settings/', views.admin_proxy_settings, name='admin_proxy_settings'),
     path('admin-panel/whop-settings/', views.admin_whop_settings, name='admin_whop_settings'),
     path('admin-panel/whop-resync-all/', views.admin_whop_resync_all, name='admin_whop_resync_all'),
     path('admin-panel/users/<int:user_id>/ban/', views.admin_toggle_ban, name='admin_toggle_ban'),
@@ -62,6 +66,7 @@ urlpatterns = [
 
     # Admin API settings
     path('admin-panel/api-settings/', views.admin_api_settings, name='admin_api_settings'),
+    path('admin-panel/google-settings/', views.admin_google_settings, name='admin_google_settings'),
 
     # Admin Email settings
     path('admin-panel/email-settings/', views.admin_email_settings, name='admin_email_settings'),

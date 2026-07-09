@@ -1,5 +1,5 @@
 {% comment %}
-  DigitalOcean Inference settings card (shared partial).
+  Scraper agent settings card (shared partial).
   Used on both:
     /admin-panel/scrapers/             (the list page)
     /admin-panel/scrapers/<sid>/       (the per-scraper detail page)
@@ -11,14 +11,13 @@
 
   Required context vars (set by the parent view):
     agent_use_on              bool
-    agent_default_model       str   (free-text — any model id from
-                                     DigitalOcean Serverless Inference)
+    agent_default_model       str   (free-text model id)
     agent_settings_saved_at   str (may be empty)
 
   NOTE: The prompt template + max-credits inputs were removed in 2026-05.
   The reference parser prompt is used verbatim from
   ACCELA_SCRAPER_AGENT_DEFAULT_PROMPT (project policy: no prompt edits),
-  and DO Serverless Inference has no per-run credit cap, so the
+    and local GPT-OSS has no per-run credit cap, so the
   "Max credits / run" field would only mislead.
 
   NOTE: do NOT use multi-line hash-comments for blocks like this —
@@ -28,7 +27,7 @@
 <div class="dt-card" id="agentCard"
      style="margin-top:18px;padding:18px;background:var(--card);border:1px solid var(--border);border-radius:14px;">
   <div class="dt-head" style="margin-bottom:8px;padding:0;border:0;">
-    <h3 style="margin:0;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13px;color:var(--text);">DigitalOcean Inference settings</h3>
+    <h3 style="margin:0;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13px;color:var(--text);">Local GPT-OSS agent settings</h3>
   </div>
   <div style="font-size:12.5px;color:var(--muted);margin:-4px 0 14px;max-width:780px;">
     These knobs apply to every <b>Run now</b> across every scraper. The
@@ -36,10 +35,7 @@
     opening each detail page, and returning structured rows. Use
     <code>{url}</code>, <code>{city}</code>, <code>{state}</code>,
     <code>{date_from}</code>, <code>{date_to}</code> in the prompt — they
-    are substituted before the call. Inference runs on
-    <a href="https://cloud.digitalocean.com/model-studio/serverless-inference" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600;text-decoration:none;">DigitalOcean Serverless Inference</a>;
-    base URL + temperature + max tokens + top-p are configured in
-    <a href="/admin-panel/scraper-settings/" style="color:var(--blue);font-weight:600;text-decoration:none;">Scraper Settings</a>.
+    are substituted before the call. Inference runs on the local GPT-OSS service.
   </div>
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
     <label style="font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -56,16 +52,13 @@
            placeholder="openai-gpt-oss-20b"
            style="width:100%;max-width:480px;padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:12.5px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
     <div style="font-size:11.5px;color:var(--muted);margin-top:4px;">
-      Any model id from your DigitalOcean Inference catalogue.
-      Examples: <code>openai-gpt-oss-20b</code> (cheapest, ~$0.0001/page),
-      <code>openai-gpt-oss-120b</code>, <code>llama3.3-70b-instruct</code>,
-      <code>anthropic-claude-3-5-sonnet</code>.
+      Local model id. Current default: <code>gpt-oss-20b-mxfp4</code>.
     </div>
   </div>
   <div style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.5;">
     Prompt template and per-run credit budget are intentionally fixed —
     the reference parser prompt is used verbatim and DO Serverless
-    Inference has no per-run cap. Only the model + on/off toggle are
+    local GPT-OSS has no per-run cap. Only the model + on/off toggle are
     admin-configurable here.
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap;">

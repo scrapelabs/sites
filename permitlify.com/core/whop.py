@@ -536,6 +536,8 @@ def get_memberships_by_email(email: str, timeout: int = 15) -> list:
     v5 fallback so worst-case wait is ``2 * timeout``.
     """
     e_lc = (email or '').strip().lower()
+    last_error = None
+    v2_succeeded = False
 
     def _mem_email(m: dict) -> str:
         u = m.get('user') or {}
@@ -558,6 +560,7 @@ def get_memberships_by_email(email: str, timeout: int = 15) -> list:
         )
         r = urllib.request.urlopen(req, timeout=timeout)
         data = json.loads(r.read())
+        v2_succeeded = True
         items = data.get('data', [])
         if e_lc:
             # Only drop items where we have a populated email field that
@@ -569,8 +572,8 @@ def get_memberships_by_email(email: str, timeout: int = 15) -> list:
             # Sort: valid/trialing first, then newest created_at first
             items.sort(key=lambda m: (0 if m.get('valid') else 1, -int(m.get('created_at') or 0)))
             return items
-    except Exception:
-        pass
+    except Exception as e:
+        last_error = e
 
     # Fallback: list all company memberships (v5) and return all active ones.
     # Filter to the requested email so we never accidentally return another
@@ -591,8 +594,10 @@ def get_memberships_by_email(email: str, timeout: int = 15) -> list:
             items = [m for m in items if _mem_email(m) == e_lc]
         items.sort(key=lambda m: (0 if m.get('valid') else 1, -int(m.get('created_at') or 0)))
         return items
-    except Exception:
-        return []
+    except Exception as e:
+        if v2_succeeded:
+            return []
+        raise RuntimeError(f'Whop membership lookup failed for {email}: {e or last_error}')
 
 
 def cancel_membership(membership_id: str, immediate: bool = False) -> bool:
@@ -961,16 +966,83 @@ def format_membership_for_ui(membership: dict) -> dict:
 # admin page loads don't burn through the rate limit.
 
 _REV_CACHE_TTL  = 300.0          # seconds (5 min)
+_REV_NEG_CACHE_TTL = 60.0        # seconds (short-cache Whop failures)
 _REV_MAX_PAGES  = 50             # safety cap → up to 5,000 rows per endpoint
 _REV_PER_PAGE   = 100
 _revenue_cache: dict = {}        # {'ts': float, 'data': dict}
 _revenue_lock   = _threading.Lock()
+_revenue_refreshing: set[str] = set()
 
 
 def clear_revenue_cache() -> None:
     """Drop the cached Whop revenue snapshot — used by tests / admin tools."""
     with _revenue_lock:
         _revenue_cache.clear()
+        _revenue_refreshing.clear()
+
+
+def get_cached_revenue_stats(range_key: str = '7d', stale: bool = True) -> dict | None:
+    """Return the in-process Whop revenue snapshot without touching Whop.
+
+    ``get_revenue_stats`` refreshes the cache synchronously when it expires;
+    overview pages use this helper so a cold/stale external API never blocks
+    the admin dashboard render.
+    """
+    if range_key not in _RANGE_OPTIONS:
+        range_key = '7d'
+    now = _time.time()
+    with _revenue_lock:
+        ts = _revenue_cache.get(f'ts:{range_key}', 0.0)
+        cached = _revenue_cache.get(f'data:{range_key}')
+    if not isinstance(cached, dict):
+        return None
+    if not stale and (now - ts) >= _REV_CACHE_TTL:
+        return None
+    return cached
+
+
+def refresh_revenue_stats_async(range_key: str = '7d', timeout: int = 15) -> bool:
+    """Start one background Whop revenue refresh if the cache is stale/missing.
+
+    Returns True only when a new refresh thread was started. The worker calls
+    ``get_revenue_stats`` with its normal cache rules, so recent success and
+    recent failure entries both suppress unnecessary Whop traffic.
+    """
+    if range_key not in _RANGE_OPTIONS:
+        range_key = '7d'
+    now = _time.time()
+    cache_key = f'data:{range_key}'
+    ts_key = f'ts:{range_key}'
+    with _revenue_lock:
+        ts = _revenue_cache.get(ts_key, 0.0)
+        cached = _revenue_cache.get(cache_key)
+        has_entry = cache_key in _revenue_cache
+        if range_key in _revenue_refreshing:
+            return False
+        if has_entry:
+            if cached is None and (now - ts) < _REV_NEG_CACHE_TTL:
+                return False
+            if cached is not None and (now - ts) < _REV_CACHE_TTL:
+                return False
+        _revenue_refreshing.add(range_key)
+
+    def _worker() -> None:
+        try:
+            get_revenue_stats(range_key=range_key, timeout=timeout)
+        except Exception:
+            import logging as _logging
+            _logging.getLogger(__name__).exception(
+                'Whop revenue background refresh failed for range=%s', range_key)
+        finally:
+            with _revenue_lock:
+                _revenue_refreshing.discard(range_key)
+
+    _threading.Thread(
+        target=_worker,
+        name=f'whop-revenue-refresh-{range_key}',
+        daemon=True,
+    ).start()
+    return True
 
 
 def _whop_get_paginated(url_base: str, page_param: str, per_param: str,
@@ -1306,9 +1378,8 @@ def get_revenue_stats(range_key: str = '7d',
     # Honour cached failures too (cached == None) so a Whop outage
     # doesn't make every admin-dashboard hit re-spend the full
     # wall-clock budget. Negative cache TTL is intentionally short.
-    _NEG_TTL = 60.0
     if has_entry and not force:
-        if cached is None and (now - ts) < _NEG_TTL:
+        if cached is None and (now - ts) < _REV_NEG_CACHE_TTL:
             return None
         if cached is not None and (now - ts) < _REV_CACHE_TTL:
             return cached

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Verify Login - GoldenProxies{% endblock %}
+{% block footer %}{% endblock %}
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-16 px-4">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#B8941F] flex items-center justify-center mx-auto mb-5 shadow-lg shadow-[#D4AF37]/25">
+        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      </div>
+      <h1 class="font-serif text-3xl font-bold text-gray-900">Check your email</h1>
+      <p class="text-gray-500 text-sm mt-2">Enter the 6-digit code sent to <span class="font-semibold text-gray-700">{{ email }}</span>.</p>
+    </div>
+
+    <div class="glass-card rounded-3xl p-8 shadow-2xl shadow-[#D4AF37]/10">
+      {% if messages %}
+        {% for msg in messages %}
+        <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium border
+          {% if 'error' in msg.tags %}border-red-300 bg-red-50/80 text-red-700
+          {% else %}border-green-300 bg-green-50/80 text-green-700{% endif %}">
+          {{ msg }}
+        </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="verify">
+        <div>
+          <label class="text-xs font-semibold text-gray-600 uppercase tracking-wider block mb-1.5">Verification Code</label>
+          {{ form.code }}
+          {% if form.code.errors %}
+          <p class="text-xs text-red-500 mt-1">{{ form.code.errors.0 }}</p>
+          {% endif %}
+        </div>
+        <button type="submit" class="gold-btn w-full py-3.5 rounded-xl mt-6 text-sm tracking-wide transition-all shadow-md">
+          Verify and Sign In
+        </button>
+      </form>
+
+      <form method="post" class="mt-4 text-center">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="resend">
+        <button type="submit" class="text-sm text-[#D4AF37] font-semibold hover:underline">Send a new code</button>
+      </form>
+
+      <p class="text-center text-xs text-gray-400 mt-4">Codes expire after 10 minutes.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

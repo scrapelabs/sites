@@ -10,19 +10,19 @@
     </a>
     <div>
       <h1 class="text-2xl font-serif font-bold text-gray-900">AI Blog Generator</h1>
-      <p class="text-sm text-gray-400 mt-0.5">Powered by DigitalOcean Inference ({{ do_model }})</p>
+      <p class="text-sm text-gray-400 mt-0.5">Powered by local GPT-OSS ({{ ai_model }})</p>
     </div>
   </div>
 
   <!-- Status -->
   <div class="glass-card rounded-2xl p-4 flex flex-wrap gap-3">
     <div class="flex items-center gap-2 text-sm">
-      {% if do_configured %}
+      {% if ai_configured %}
       <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
-      <span class="text-green-700 font-medium">DO Inference configured</span>
+      <span class="text-green-700 font-medium">Local GPT-OSS configured</span>
       {% else %}
       <span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span>
-      <span class="text-red-600 font-medium">DO Inference not configured</span>
+      <span class="text-red-600 font-medium">Local GPT-OSS not configured</span>
       {% endif %}
     </div>
     <div class="flex items-center gap-2 text-sm">
@@ -34,7 +34,7 @@
       <span class="text-amber-700 font-medium">Proxy not configured (URL fetches go direct)</span>
       {% endif %}
     </div>
-    {% if not do_configured or not proxy_configured %}
+    {% if not ai_configured or not proxy_configured %}
     <a href="/admin-panel/api-settings/" class="ml-auto text-xs text-[#D4AF37] hover:underline font-semibold">Configure settings →</a>
     {% endif %}
   </div>
@@ -95,9 +95,9 @@
         class="w-full px-4 py-3 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm font-mono leading-relaxed focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition"></textarea>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <button type="button" id="rescrapeBtn" class="text-xs text-gray-500 hover:text-[#D4AF37] transition-colors">↻ Re-scrape</button>
-        <button type="button" id="rewriteBtn" {% if not do_configured %}disabled{% endif %}
+        <button type="button" id="rewriteBtn" {% if not ai_configured %}disabled{% endif %}
           class="gold-btn px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2
-          {% if not do_configured %}opacity-50 cursor-not-allowed{% endif %}">
+          {% if not ai_configured %}opacity-50 cursor-not-allowed{% endif %}">
           <span class="btn-label">✦ Rewrite with AI</span>
           <span class="btn-spinner hidden">
             <svg class="w-4 h-4 animate-spin inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
@@ -203,8 +203,8 @@
             class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/15 transition">
         </div>
         <div class="flex justify-end">
-          <button type="submit" id="genBtn" {% if not do_configured %}disabled{% endif %}
-            class="gold-btn px-6 py-2.5 rounded-xl text-sm font-semibold {% if not do_configured %}opacity-50 cursor-not-allowed{% endif %}">
+          <button type="submit" id="genBtn" {% if not ai_configured %}disabled{% endif %}
+            class="gold-btn px-6 py-2.5 rounded-xl text-sm font-semibold {% if not ai_configured %}opacity-50 cursor-not-allowed{% endif %}">
             ✦ Generate Draft
           </button>
         </div>

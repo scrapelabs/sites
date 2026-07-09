@@ -56,10 +56,9 @@
 {% if err %}<div class="msg err">{{ err }}</div>{% endif %}
 
 <div style="background:#f8fbff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#334155;line-height:1.6">
-  ⏱ <b>Sending runs on a cron.</b> Once enabled, a GitHub Actions workflow (<code>.github/workflows/campaigns_cron.yml</code>) hits
-  <code>POST /api/cron/campaigns/tick/</code> every 15&nbsp;min and ships any campaign in the <code>sending</code> state,
-  bounded by each campaign's daily cap. <b>One-time setup:</b> add that workflow file to the repo + set the repo secret <code>SCRAPER_INGEST_KEY</code>.
-  Open a campaign for the full endpoint, the workflow YAML, auth, and manual-run instructions.
+  ⏱ <b>Sending runs on the server cron.</b> The <code>Permitlify</code> service calls
+  <code>POST /api/cron/campaigns/tick/</code> on schedule and ships any campaign in the <code>sending</code> state,
+  bounded by each campaign's daily cap. Open a campaign for endpoint details, auth, and manual-run instructions.
 </div>
 
 <div class="camp-grid">
@@ -101,9 +100,10 @@
       <div class="hint">Supports {% verbatim %}<code>{{name}}</code> and <code>{{email}}</code>{% endverbatim %} placeholders.</div>
 
       <label>HTML body</label>
-      {# {% verbatim %} keeps {{name}} as a literal placeholder string —
-         without it Django tries to render it as a template variable and
-         the whole page 500s with "Could not parse the remainder: '{{name'". #}
+      {% comment %}
+        verbatim keeps {{name}} as a literal placeholder string. Without it,
+        Django tries to render it as a template variable.
+      {% endcomment %}
       {% verbatim %}<textarea name="body_html" placeholder="<p>Hi {{name}},</p><p>I noticed...</p>" required></textarea>{% endverbatim %}
       <div class="hint">Wrapped in the branded shell at send time (logo, footer, unsubscribe link).</div>
 

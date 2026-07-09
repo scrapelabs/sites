@@ -1,8 +1,10 @@
 import hashlib
 import json
 import logging
-import random
-import string
+import os
+import secrets
+import time
+import urllib.parse
 from datetime import datetime, timezone as dt_timezone, timedelta
 from functools import wraps
 
@@ -15,11 +17,15 @@ from django.db import IntegrityError
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.crypto import constant_time_compare, salted_hmac
+from django.utils.html import escape
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .forms import AdminReplyForm, LoginForm, RegisterForm, SupportForm
-from .models import BlogPost, Invoice, Purchase, SupportMessage, SystemSetting, UserProfile
+from .forms import AdminReplyForm, LoginCodeForm, LoginForm, RegisterForm, SupportForm
+from .models import BlogPost, CheckoutConsent, EmailLoginCode, Invoice, ProxyCredential, Purchase, SupportMessage, UserProfile
+from . import proxy_access
 
 log = logging.getLogger(__name__)
 
@@ -36,12 +42,6 @@ PROXY_PLANS = [
     {'id': 'ipv6-starter', 'name': 'Starter',      'type': 'ipv6',        'price': 4.99,  'ips': 500,   'threads': 100},
     {'id': 'ipv6-pro',     'name': 'Professional', 'type': 'ipv6',        'price': 14.99, 'ips': 5000,  'threads': 500},
     {'id': 'ipv6-biz',     'name': 'Business',     'type': 'ipv6',        'price': 39.99, 'ips': 50000, 'threads': 2000},
-]
-
-COUNTRIES = [
-    'United States', 'United Kingdom', 'Germany', 'France', 'Canada',
-    'Australia', 'Japan', 'Brazil', 'India', 'Netherlands',
-    'Singapore', 'Sweden', 'Switzerland', 'Poland', 'Spain',
 ]
 
 WHOP_PLAN_FEATURES = {
@@ -74,33 +74,57 @@ def admin_required(view_func):
     return wrapper
 
 
-def generate_proxies(proxy_type, protocol, fmt, country, count):
-    results = []
-    for _ in range(min(count, 100)):
-        username = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-        password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-        if proxy_type == 'ipv6':
-            ip = ':'.join(''.join(random.choices('0123456789abcdef', k=4)) for _ in range(8))
-            port = random.randint(20000, 40000)
-        elif proxy_type == 'datacenter':
-            ip = f'{random.randint(1,255)}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,255)}'
-            port = random.randint(10000, 20000)
-        else:
-            ip = f'{random.randint(1,255)}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(1,255)}'
-            port = random.randint(30000, 50000)
-
-        if fmt == 'ip_port_user_pass':
-            results.append(f'{ip}:{port}:{username}:{password}')
-        elif fmt == 'user_pass_at_ip_port':
-            results.append(f'{username}:{password}@{ip}:{port}')
-        else:
-            results.append(f'{ip}:{port}')
-    return results
-
-
 def _get_or_create_profile(user):
     profile, _ = UserProfile.objects.get_or_create(user=user)
     return profile
+
+
+def _membership_has_active_access(membership: dict) -> bool:
+    status = (membership.get('status') or '').lower()
+    return bool(membership.get('valid')) or status in ('active', 'trialing', 'completed')
+
+
+def _membership_metadata(membership: dict) -> dict:
+    metadata = membership.get('metadata') or membership.get('custom_metadata') or {}
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _membership_metadata_value(membership: dict, key: str) -> str:
+    metadata = _membership_metadata(membership)
+    return str(metadata.get(key) or metadata.get(f'metadata[{key}]') or '').strip()
+
+
+def _membership_email(membership: dict) -> str:
+    user_obj = membership.get('user') or {}
+    user_email = user_obj.get('email') if isinstance(user_obj, dict) else ''
+    return (membership.get('email') or membership.get('user_email') or user_email or '').strip().lower()
+
+
+def _membership_belongs_to_user(membership: dict, user: User, consent_id: str = '') -> bool:
+    if not membership or not user:
+        return False
+    mem_id = str(membership.get('id') or '').strip()
+    try:
+        profile = _get_or_create_profile(user)
+        if mem_id and profile.whop_membership_id == mem_id:
+            return True
+    except Exception:
+        pass
+
+    metadata_user_id = _membership_metadata_value(membership, 'user_id')
+    if metadata_user_id and constant_time_compare(metadata_user_id, str(user.pk)):
+        return True
+
+    membership_consent_id = _membership_metadata_value(membership, 'consent_id')
+    if consent_id and membership_consent_id and constant_time_compare(str(consent_id), membership_consent_id):
+        try:
+            if str(consent_id).isdigit() and CheckoutConsent.objects.filter(pk=consent_id, user=user).exists():
+                return True
+        except (TypeError, ValueError):
+            pass
+
+    email = _membership_email(membership)
+    return bool(email and user.email and constant_time_compare(email, user.email.strip().lower()))
 
 
 # ── Public views ──────────────────────────────────────────────────────────
@@ -131,14 +155,330 @@ def contact(request):
     return render(request, 'contact.html')
 
 
+LOGIN_CODE_TTL_MINUTES = 10
+LOGIN_CODE_MAX_ATTEMPTS = 5
+LOGIN_CODE_RESEND_COOLDOWN_SECONDS = 60
+LOGIN_CODE_MAX_SENDS_PER_HOUR = 5
+LOGIN_CODE_MAX_IP_SENDS_PER_HOUR = 20
+GOOGLE_OAUTH_STATE_TTL_SECONDS = 10 * 60
+GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
+GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+GOOGLE_USERINFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
+
+
+def _google_oauth_config() -> dict:
+    from . import whop as wp
+    return {
+        'client_id': wp._db_setting('google_oauth_client_id', '') or os.environ.get('GOOGLE_OAUTH_CLIENT_ID', ''),
+        'client_secret': wp._db_setting('google_oauth_client_secret', '') or os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET', ''),
+        'enabled': wp._db_setting('google_oauth_enabled', '0') == '1',
+    }
+
+
+def _google_auto_origin(request) -> str:
+    return request.build_absolute_uri('/').rstrip('/')
+
+
+def _google_effective_origin(request) -> str:
+    from . import whop as wp
+    return (wp._db_setting('google_authorized_origin', '') or _google_auto_origin(request)).rstrip('/')
+
+
+def _login_code_hash(code: str) -> str:
+    return salted_hmac('goldenproxies.email_login_code', code).hexdigest()
+
+
+def _safe_next_url(request, raw_next: str = '') -> str:
+    if raw_next and url_has_allowed_host_and_scheme(
+        raw_next,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return raw_next
+    return 'dashboard'
+
+
+def _google_redirect_uri(request) -> str:
+    from . import whop as wp
+    return wp._db_setting('google_redirect_uri', '') or request.build_absolute_uri('/auth/google/callback/')
+
+
+def _google_oauth_available() -> bool:
+    cfg = _google_oauth_config()
+    return bool(cfg['enabled'] and cfg['client_id'] and cfg['client_secret'])
+
+
+def _login_email_codes_configured() -> bool:
+    from . import whop as wp
+    return bool(wp._db_setting('resend_api_key', ''))
+
+
+def _pending_login_key(user_id: int, code_id: int) -> str:
+    return salted_hmac('goldenproxies.pending_login', f'{user_id}:{code_id}').hexdigest()
+
+
+def _set_pending_login_session(request, user: User, code: EmailLoginCode, next_url: str = '') -> None:
+    request.session['pending_login_user_id'] = user.pk
+    request.session['pending_login_code_id'] = code.pk
+    request.session['pending_login_next'] = next_url or 'dashboard'
+    request.session['pending_login_key'] = _pending_login_key(user.pk, code.pk)
+    request.session.set_expiry(LOGIN_CODE_TTL_MINUTES * 60)
+
+
+def _clear_pending_login_session(request) -> None:
+    for key in ('pending_login_user_id', 'pending_login_code_id', 'pending_login_next', 'pending_login_key'):
+        request.session.pop(key, None)
+    request.session.set_expiry(None)
+
+
+def _pending_login(request):
+    user_id = request.session.get('pending_login_user_id')
+    code_id = request.session.get('pending_login_code_id')
+    pending_key = request.session.get('pending_login_key', '')
+    if not user_id or not code_id or not pending_key:
+        return None, None
+    if not constant_time_compare(pending_key, _pending_login_key(user_id, code_id)):
+        _clear_pending_login_session(request)
+        return None, None
+    user = User.objects.filter(pk=user_id, is_active=True).first()
+    code = EmailLoginCode.objects.filter(pk=code_id, user_id=user_id).first()
+    if not user or not code:
+        _clear_pending_login_session(request)
+        return None, None
+    return user, code
+
+
+def _send_login_code(request, user: User, next_url: str = '') -> tuple[bool, str]:
+    email = (user.email or '').strip()
+    if not email:
+        return False, 'This account does not have an email address.'
+
+    now = timezone.now()
+    since_hour = now - timedelta(hours=1)
+    latest = EmailLoginCode.objects.filter(user=user).order_by('-created_at').first()
+    if latest and (now - latest.created_at).total_seconds() < LOGIN_CODE_RESEND_COOLDOWN_SECONDS:
+        return False, 'Please wait a minute before requesting another login code.'
+    if EmailLoginCode.objects.filter(user=user, created_at__gte=since_hour).count() >= LOGIN_CODE_MAX_SENDS_PER_HOUR:
+        return False, 'Too many login codes were requested. Please try again later.'
+    ip_addr = proxy_access.client_ip(request)
+    if ip_addr and EmailLoginCode.objects.filter(ip_address=ip_addr, created_at__gte=since_hour).count() >= LOGIN_CODE_MAX_IP_SENDS_PER_HOUR:
+        return False, 'Too many login codes were requested from this network. Please try again later.'
+
+    EmailLoginCode.objects.filter(user=user, used_at__isnull=True).update(used_at=timezone.now())
+    raw_code = f'{secrets.randbelow(1000000):06d}'
+    code = EmailLoginCode.objects.create(
+        user=user,
+        code_hash=_login_code_hash(raw_code),
+        expires_at=timezone.now() + timedelta(minutes=LOGIN_CODE_TTL_MINUTES),
+        sent_to=email,
+        ip_address=ip_addr,
+        user_agent=request.META.get('HTTP_USER_AGENT', '')[:2000],
+    )
+    subject = 'Your GoldenProxies login code'
+    body = (
+        f'Your GoldenProxies login code is {raw_code}.\n\n'
+        f'This code expires in {LOGIN_CODE_TTL_MINUTES} minutes. If you did not try to sign in, ignore this email.'
+    )
+    html = (
+        '<p>Your GoldenProxies login code is:</p>'
+        f'<p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:16px 0;">{raw_code}</p>'
+        f'<p>This code expires in {LOGIN_CODE_TTL_MINUTES} minutes. If you did not try to sign in, ignore this email.</p>'
+    )
+    ok, info = _send_resend_email(email, subject, body, html_body=html, service='system')
+    if not ok:
+        code.used_at = timezone.now()
+        code.save(update_fields=['used_at'])
+        return False, info
+    _set_pending_login_session(request, user, code, next_url)
+    return True, email
+
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     form = LoginForm(request, data=request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        login(request, form.get_user())
-        return redirect(request.GET.get('next', 'dashboard'))
-    return render(request, 'auth/login.html', {'form': form})
+        next_url = _safe_next_url(request, request.GET.get('next', 'dashboard'))
+        if not _login_email_codes_configured():
+            login(request, form.get_user())
+            messages.warning(request, 'Email login codes are disabled until Resend is configured.')
+            return redirect(next_url)
+        ok, info = _send_login_code(request, form.get_user(), next_url)
+        if ok:
+            messages.success(request, f'We sent a verification code to {info}.')
+            return redirect('login_verify')
+        form.add_error(None, f'Could not send verification email: {info}')
+    return render(request, 'auth/login.html', {
+        'form': form,
+        'google_oauth_available': _google_oauth_available(),
+    })
+
+
+def login_verify(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    user, code = _pending_login(request)
+    if not user or not code:
+        messages.error(request, 'Your login verification expired. Please sign in again.')
+        return redirect('login')
+
+    form = LoginCodeForm(request.POST or None)
+    if request.method == 'POST':
+        action = request.POST.get('action', 'verify')
+        if action == 'resend':
+            ok, info = _send_login_code(request, user, _safe_next_url(request, request.session.get('pending_login_next', 'dashboard')))
+            if ok:
+                messages.success(request, f'A new verification code was sent to {info}.')
+            else:
+                messages.error(request, f'Could not resend verification email: {info}')
+            return redirect('login_verify')
+
+        if form.is_valid():
+            code.refresh_from_db()
+            if code.used_at or code.expires_at <= timezone.now():
+                _clear_pending_login_session(request)
+                messages.error(request, 'Your login verification expired. Please sign in again.')
+                return redirect('login')
+            if code.attempts >= LOGIN_CODE_MAX_ATTEMPTS:
+                _clear_pending_login_session(request)
+                messages.error(request, 'Too many incorrect codes. Please sign in again.')
+                return redirect('login')
+
+            submitted = form.cleaned_data['code']
+            if constant_time_compare(code.code_hash, _login_code_hash(submitted)):
+                code.used_at = timezone.now()
+                code.save(update_fields=['used_at'])
+                next_url = _safe_next_url(request, request.session.get('pending_login_next') or 'dashboard')
+                _clear_pending_login_session(request)
+                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                return redirect(next_url)
+
+            code.attempts += 1
+            code.save(update_fields=['attempts'])
+            form.add_error('code', 'Incorrect code. Check your email and try again.')
+
+    return render(request, 'auth/login_verify.html', {
+        'form': form,
+        'email': user.email,
+        'expires_at': code.expires_at,
+    })
+
+
+def google_login_start(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    cfg = _google_oauth_config()
+    if not cfg['enabled']:
+        messages.error(request, 'Google sign-in is currently disabled.')
+        return redirect('login')
+    if not cfg['client_id'] or not cfg['client_secret']:
+        messages.error(request, 'Google sign-in is not configured yet.')
+        return redirect('login')
+
+    state = secrets.token_urlsafe(32)
+    request.session['google_oauth_state'] = state
+    request.session['google_oauth_started_at'] = int(time.time())
+    request.session['google_oauth_next'] = _safe_next_url(request, request.GET.get('next', 'dashboard'))
+    params = urllib.parse.urlencode({
+        'client_id': cfg['client_id'],
+        'redirect_uri': _google_redirect_uri(request),
+        'response_type': 'code',
+        'scope': 'openid email profile',
+        'state': state,
+        'prompt': 'select_account',
+    })
+    return redirect(f'{GOOGLE_AUTH_URL}?{params}')
+
+
+def google_login_callback(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    expected_state = request.session.get('google_oauth_state', '')
+    received_state = request.GET.get('state', '')
+    started_at = int(request.session.get('google_oauth_started_at') or 0)
+    if (
+        not expected_state
+        or not received_state
+        or not constant_time_compare(expected_state, received_state)
+        or not started_at
+        or int(time.time()) - started_at > GOOGLE_OAUTH_STATE_TTL_SECONDS
+    ):
+        messages.error(request, 'Google sign-in expired. Please try again.')
+        return redirect('login')
+
+    code = request.GET.get('code', '')
+    if not code:
+        messages.error(request, 'Google sign-in was cancelled or failed.')
+        return redirect('login')
+
+    cfg = _google_oauth_config()
+    try:
+        import requests as _req
+        token_resp = _req.post(
+            GOOGLE_TOKEN_URL,
+            data={
+                'code': code,
+                'client_id': cfg['client_id'],
+                'client_secret': cfg['client_secret'],
+                'redirect_uri': _google_redirect_uri(request),
+                'grant_type': 'authorization_code',
+            },
+            timeout=20,
+        )
+        token_resp.raise_for_status()
+        access_token = token_resp.json().get('access_token', '')
+        if not access_token:
+            raise RuntimeError('Google did not return an access token')
+
+        userinfo_resp = _req.get(
+            GOOGLE_USERINFO_URL,
+            headers={'Authorization': f'Bearer {access_token}'},
+            timeout=20,
+        )
+        userinfo_resp.raise_for_status()
+        info = userinfo_resp.json()
+    except Exception:
+        log.exception('Google sign-in failed')
+        messages.error(request, 'Google sign-in failed. Please try again.')
+        return redirect('login')
+
+    email = (info.get('email') or '').strip().lower()
+    if not email or not info.get('email_verified'):
+        messages.error(request, 'Google did not confirm a verified Gmail address.')
+        return redirect('login')
+
+    user = User.objects.filter(email__iexact=email).first() or User.objects.filter(username__iexact=email).first()
+    if user and not user.is_active:
+        messages.error(request, 'This account is suspended. Contact support.')
+        return redirect('login')
+    if not user:
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            first_name=(info.get('given_name') or '')[:150],
+            last_name=(info.get('family_name') or '')[:150],
+        )
+    else:
+        changed = []
+        if not user.email:
+            user.email = email
+            changed.append('email')
+        if info.get('given_name') and not user.first_name:
+            user.first_name = info.get('given_name', '')[:150]
+            changed.append('first_name')
+        if info.get('family_name') and not user.last_name:
+            user.last_name = info.get('family_name', '')[:150]
+            changed.append('last_name')
+        if changed:
+            user.save(update_fields=changed)
+
+    next_url = _safe_next_url(request, request.session.get('google_oauth_next', 'dashboard'))
+    for key in ('google_oauth_state', 'google_oauth_started_at', 'google_oauth_next'):
+        request.session.pop(key, None)
+    _get_or_create_profile(user)
+    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+    return redirect(next_url)
 
 
 def register_view(request):
@@ -151,9 +491,20 @@ def register_view(request):
         except IntegrityError:
             form.add_error('email', 'An account with this email already exists. Please sign in instead.')
         else:
-            login(request, user)
-            return redirect('dashboard')
-    return render(request, 'auth/register.html', {'form': form})
+            if not _login_email_codes_configured():
+                login(request, user)
+                messages.warning(request, 'Email login codes are disabled until Resend is configured.')
+                return redirect('dashboard')
+            ok, info = _send_login_code(request, user, 'dashboard')
+            if ok:
+                messages.success(request, f'Account created. We sent a verification code to {info}.')
+                return redirect('login_verify')
+            user.delete()
+            form.add_error(None, f'Could not send verification email: {info}')
+    return render(request, 'auth/register.html', {
+        'form': form,
+        'google_oauth_available': _google_oauth_available(),
+    })
 
 
 def logout_view(request):
@@ -180,28 +531,34 @@ def dashboard_overview(request):
 
 @login_required
 def dashboard_generator(request):
-    profile    = _get_or_create_profile(request.user)
-    proxies    = []
-    proxy_type = 'residential'
-    protocol   = 'http'
-    fmt        = 'ip_port_user_pass'
-    country    = 'United States'
-    count      = 10
+    profile = _get_or_create_profile(request.user)
+    protocol = request.POST.get('protocol', 'http') if request.method == 'POST' else 'http'
+    fmt = request.POST.get('format', 'ip_port_user_pass') if request.method == 'POST' else 'ip_port_user_pass'
+    if protocol not in ('http', 'socks5'):
+        protocol = 'http'
+    if fmt not in ('ip_port_user_pass', 'user_pass_at_ip_port', 'url', 'ip_port'):
+        fmt = 'ip_port_user_pass'
 
-    if request.method == 'POST':
-        proxy_type = request.POST.get('proxy_type', 'residential')
-        protocol   = request.POST.get('protocol', 'http')
-        fmt        = request.POST.get('format', 'ip_port_user_pass')
-        country    = request.POST.get('country', 'United States')
-        count      = int(request.POST.get('count', 10))
-        proxies    = generate_proxies(proxy_type, protocol, fmt, country, count)
+    credential = None
+    connection_line = ''
+    if profile.has_active_subscription:
+        credential = proxy_access.ensure_proxy_credential(profile)
+        connection_line = proxy_access.connection_line(credential, protocol, fmt)
+    elif request.method == 'POST':
+        messages.error(request, 'An active paid subscription is required before proxy credentials are issued.')
 
     is_admin = request.user.email == SUPER_ADMIN_EMAIL
-    return render(request, 'dashboard/generator.html', {
-        'proxies': proxies, 'proxy_type': proxy_type, 'protocol': protocol,
-        'fmt': fmt, 'country': country, 'count': count,
-        'countries': COUNTRIES, 'is_admin': is_admin, 'profile': profile,
+    resp = render(request, 'dashboard/generator.html', {
+        'credential': credential,
+        'connection_line': connection_line,
+        'proxy_gateway': proxy_access.gateway_config(),
+        'protocol': protocol,
+        'fmt': fmt,
+        'is_admin': is_admin,
+        'profile': profile,
     })
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 @login_required
@@ -318,6 +675,49 @@ def generate_api_key(request):
     return redirect('dashboard_settings')
 
 
+def _email_proxy_credentials_if_needed(user: User, credential: ProxyCredential | None) -> None:
+    if not credential or credential.credentials_emailed_at or not credential.is_active:
+        return
+    if not user.email:
+        log.warning('proxy credential email skipped for user %s: no email', user.pk)
+        return
+
+    gateway = proxy_access.gateway_config()
+    http_line = proxy_access.connection_line(credential, 'http', 'ip_port_user_pass')
+    socks_line = proxy_access.connection_line(credential, 'socks5', 'url')
+    subject = 'Your GoldenProxies proxy login is ready'
+    body = (
+        'Your GoldenProxies proxy login is ready.\n\n'
+        f'Host: {gateway["host"]}\n'
+        f'HTTP port: {gateway["http_port"]}\n'
+        f'SOCKS5 port: {gateway["socks5_port"]}\n'
+        f'Username: {credential.username}\n'
+        f'Password: {credential.password}\n\n'
+        f'HTTP format: {http_line}\n'
+        f'SOCKS5 URL: {socks_line}\n\n'
+        'You can also view these credentials in your GoldenProxies dashboard under Proxy Access.'
+    )
+    html = (
+        '<p>Your GoldenProxies proxy login is ready.</p>'
+        '<table cellpadding="6" cellspacing="0" style="border-collapse:collapse;">'
+        f'<tr><td><strong>Host</strong></td><td><code>{escape(gateway["host"])}</code></td></tr>'
+        f'<tr><td><strong>HTTP port</strong></td><td><code>{escape(gateway["http_port"])}</code></td></tr>'
+        f'<tr><td><strong>SOCKS5 port</strong></td><td><code>{escape(gateway["socks5_port"])}</code></td></tr>'
+        f'<tr><td><strong>Username</strong></td><td><code>{escape(credential.username)}</code></td></tr>'
+        f'<tr><td><strong>Password</strong></td><td><code>{escape(credential.password)}</code></td></tr>'
+        '</table>'
+        f'<p><strong>HTTP format:</strong><br><code>{escape(http_line)}</code></p>'
+        f'<p><strong>SOCKS5 URL:</strong><br><code>{escape(socks_line)}</code></p>'
+        '<p>You can also view these credentials in your GoldenProxies dashboard under Proxy Access.</p>'
+    )
+    ok, info = _send_resend_email(user.email, subject, body, html_body=html, service='billing')
+    if ok:
+        credential.credentials_emailed_at = timezone.now()
+        credential.save(update_fields=['credentials_emailed_at'])
+        return
+    log.warning('proxy credential email failed for user %s: %s', user.pk, info)
+
+
 @login_required
 def close_account(request):
     if request.method != 'POST':
@@ -364,6 +764,8 @@ def billing_dashboard(request):
         'features':  features,
         'is_admin':  is_admin,
         'plans':     WHOP_PLAN_FEATURES,
+        'checkout_terms_text': proxy_access.CHECKOUT_TERMS_TEXT,
+        'checkout_terms_version': proxy_access.CHECKOUT_TERMS_VERSION,
     })
     resp['Cache-Control'] = 'no-store'
     return resp
@@ -376,11 +778,18 @@ def billing_checkout(request, plan, period='monthly'):
     if plan not in VALID_PLANS or period not in VALID_PERIODS:
         messages.error(request, 'Invalid plan or billing period.')
         return redirect('billing_dashboard')
+    if request.method != 'POST':
+        messages.error(request, 'Please review and accept the digital service terms before checkout.')
+        return redirect('billing_dashboard')
+    if request.POST.get('accept_terms') != '1':
+        messages.error(request, 'You must accept the digital service terms before checkout.')
+        return redirect('billing_dashboard')
 
     from . import whop as wp
-    profile      = _get_or_create_profile(request.user)
-    user_mode    = profile.whop_mode or 'prod'
-    success_url  = request.build_absolute_uri(f'/billing/success/?plan={plan}')
+    consent = proxy_access.create_checkout_consent(request, plan, period)
+    success_url = request.build_absolute_uri(
+        f'/billing/success/?plan={plan}&period={period}&consent_id={consent.pk}'
+    )
 
     try:
         checkout_url = wp.create_checkout_url(
@@ -389,7 +798,14 @@ def billing_checkout(request, plan, period='monthly'):
             user_id=request.user.pk,
             success_url=success_url,
             period=period,
+            metadata={
+                'consent_id': consent.pk,
+                'terms_version': consent.terms_version,
+                'period': period,
+            },
         )
+        consent.checkout_url = checkout_url
+        consent.save(update_fields=['checkout_url'])
         return redirect(checkout_url)
     except ValueError as e:
         messages.error(request, f'Checkout not configured yet: {e}')
@@ -404,7 +820,9 @@ def billing_checkout(request, plan, period='monthly'):
 def billing_success(request):
     membership_id = request.GET.get('membership_id', '').strip()
     plan_hint     = request.GET.get('plan', '').strip().lower()
+    consent_id    = request.GET.get('consent_id', '').strip()
     profile       = _get_or_create_profile(request.user)
+    credential    = None
 
     if not membership_id:
         messages.warning(request, 'Payment received! Your subscription will be activated shortly.')
@@ -416,7 +834,7 @@ def billing_success(request):
     except Exception:
         membership = None
 
-    if membership:
+    if membership and _membership_has_active_access(membership) and _membership_belongs_to_user(membership, request.user, consent_id):
         detected_plan = wp.plan_from_membership(membership, default=plan_hint or 'starter')
         final_plan    = detected_plan or plan_hint or 'starter'
         ui            = wp.format_membership_for_ui(membership)
@@ -435,22 +853,25 @@ def billing_success(request):
         profile.save()
 
         _upsert_invoice_from_membership(request.user, final_plan, membership)
+        proxy_access.attach_consent_to_membership(request.user, membership_id, consent_id)
+        credential = proxy_access.sync_proxy_access(profile, reason='billing success')
+        _email_proxy_credentials_if_needed(request.user, credential)
 
-        messages.success(request, f'🎉 Welcome to GoldenProxies {profile.plan_display}! Your subscription is now active.')
+        messages.success(request, f'Welcome to GoldenProxies {profile.plan_display}! Your subscription is now active.')
     else:
-        if plan_hint in ('starter', 'pro', 'agency'):
-            profile.plan               = plan_hint
-            profile.whop_membership_id = membership_id
-            profile.whop_cancelled     = False
-            profile.last_whop_sync_at  = timezone.now()
-            profile.save()
-        messages.success(request, 'Payment successful! Your account will be updated shortly.')
+        if membership and _membership_has_active_access(membership):
+            log.warning('billing_success ownership check failed user=%s membership=%s', request.user.pk, membership_id)
+        messages.success(request, 'Payment successful! Your proxy access will be activated after Whop verifies the membership.')
 
-    return render(request, 'billing/success.html', {
+    resp = render(request, 'billing/success.html', {
         'profile':       profile,
         'membership_id': membership_id,
+        'credential':    credential,
+        'proxy_gateway': proxy_access.gateway_config(),
         'is_admin':      request.user.email == SUPER_ADMIN_EMAIL,
     })
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 @login_required
@@ -473,6 +894,7 @@ def billing_cancel(request):
             profile.whop_cancelled = True
             profile.whop_status    = 'cancelled'
             profile.save()
+            proxy_access.sync_proxy_access(profile, reason='billing cancelled')
             messages.success(request, 'Your subscription has been cancelled. You retain access until the end of the billing period.')
         else:
             messages.warning(request, 'Cancellation request sent. Your account will be updated shortly.')
@@ -511,7 +933,7 @@ def billing_webhook(request):
 
     log.info('Whop webhook: action=%s membership=%s', action, mem_id)
 
-    if action in ('membership.went_valid', 'membership.was_created'):
+    if action == 'membership.went_valid' or (action == 'membership.was_created' and _membership_has_active_access(mem)):
         _webhook_activate(mem, wp)
     elif action in ('membership.was_revoked', 'membership.expired',
                     'membership.was_cancelled', 'membership.was_paused'):
@@ -529,6 +951,12 @@ def _webhook_activate(mem: dict, wp) -> None:
         return
     try:
         profile = UserProfile.objects.filter(whop_membership_id=mem_id).first()
+        if not profile:
+            metadata_user_id = _membership_metadata_value(mem, 'user_id')
+            if metadata_user_id:
+                user = User.objects.filter(pk=metadata_user_id).first()
+                if user:
+                    profile = _get_or_create_profile(user)
         if not profile:
             u_email = (mem.get('user') or {}).get('email') or mem.get('email', '')
             if u_email:
@@ -550,6 +978,13 @@ def _webhook_activate(mem: dict, wp) -> None:
         profile.last_whop_sync_at    = timezone.now()
         profile.save()
         _upsert_invoice_from_membership(profile.user, plan, mem)
+        proxy_access.attach_consent_to_membership(
+            profile.user,
+            mem_id,
+            _membership_metadata_value(mem, 'consent_id'),
+        )
+        credential = proxy_access.sync_proxy_access(profile, reason='webhook activation')
+        _email_proxy_credentials_if_needed(profile.user, credential)
     except Exception:
         log.exception('webhook_activate failed for membership %s', mem_id)
 
@@ -564,13 +999,15 @@ def _webhook_deactivate(mem: dict, action: str, wp) -> None:
             return
         is_paused    = 'paused' in action
         is_cancelled = 'cancel' in action
+        is_terminal  = 'revoked' in action or 'expired' in action
         profile.whop_status    = 'paused' if is_paused else 'cancelled'
-        profile.whop_cancelled = is_cancelled or 'revoked' in action or 'expired' in action
+        profile.whop_cancelled = is_cancelled or is_terminal
         profile.whop_paused    = is_paused
-        if profile.whop_cancelled and 'expired' in action:
+        if is_terminal:
             profile.plan = 'free'
         profile.last_whop_sync_at = timezone.now()
         profile.save()
+        proxy_access.sync_proxy_access(profile, reason=action or 'webhook deactivation')
     except Exception:
         log.exception('webhook_deactivate failed for membership %s', mem_id)
 
@@ -586,14 +1023,16 @@ def _webhook_update(mem: dict, wp) -> None:
         ui    = wp.format_membership_for_ui(mem)
         dates = wp.get_billing_dates(mem)
         plan  = wp.plan_from_membership(mem, default=profile.plan)
-        profile.plan                 = plan
+        active_access = _membership_has_active_access(mem)
+        profile.plan                 = plan if active_access else 'free'
         profile.whop_status          = ui.get('status', profile.whop_status)
-        profile.whop_cancelled       = ui.get('cancelled', profile.whop_cancelled)
+        profile.whop_cancelled       = ui.get('cancelled', profile.whop_cancelled) or not active_access
         profile.whop_paused          = ui.get('paused', profile.whop_paused)
         profile.whop_renews_at       = ui.get('renews_at', profile.whop_renews_at)
         profile.billing_period_end   = dates.get('period_end', profile.billing_period_end)
         profile.last_whop_sync_at    = timezone.now()
         profile.save()
+        proxy_access.sync_proxy_access(profile, reason='webhook update')
     except Exception:
         log.exception('webhook_update failed for membership %s', mem_id)
 
@@ -776,7 +1215,11 @@ def admin_user_detail(request, user_id):
                 profile.plan = new_plan
                 if new_plan == 'free':
                     profile.whop_cancelled = True
+                else:
+                    profile.whop_cancelled = False
+                    profile.whop_paused = False
                 profile.save()
+                proxy_access.sync_proxy_access(profile, reason='admin plan update')
                 messages.success(request, f'Plan updated to {new_plan}.')
         elif action == 'set_mode':
             new_mode = request.POST.get('mode', 'prod')
@@ -787,16 +1230,27 @@ def admin_user_detail(request, user_id):
         elif action == 'whop_resync':
             _admin_resync_user(profile)
             messages.success(request, 'Whop membership resynced.')
+        elif action == 'proxy_sync':
+            proxy_access.sync_proxy_access(profile, reason='admin user proxy sync')
+            messages.success(request, 'Proxy credentials synced for this user.')
         return redirect('admin_user_detail', user_id=user_id)
 
-    return render(request, 'admin/user_detail.html', {
+    credential = _user_proxy_credential(target_user)
+
+    resp = render(request, 'admin/user_detail.html', {
         'target_user': target_user,
         'profile':     profile,
+        'credential':  credential,
+        'proxy_gateway': proxy_access.gateway_config(),
+        'http_proxy_line': proxy_access.connection_line(credential, 'http', 'ip_port_user_pass') if credential else '',
+        'socks_proxy_line': proxy_access.connection_line(credential, 'socks5', 'url') if credential else '',
         'invoices':    invoices,
         'purchases':   purchases,
         'tickets':     tickets,
         'is_admin':    True,
     })
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 def _admin_resync_user(profile: UserProfile) -> bool:
@@ -810,9 +1264,10 @@ def _admin_resync_user(profile: UserProfile) -> bool:
         ui    = wp.format_membership_for_ui(mem)
         dates = wp.get_billing_dates(mem)
         plan  = wp.plan_from_membership(mem, default=profile.plan)
-        profile.plan                 = plan
+        active_access = _membership_has_active_access(mem)
+        profile.plan                 = plan if active_access else 'free'
         profile.whop_status          = ui.get('status', 'active')
-        profile.whop_cancelled       = ui.get('cancelled', False)
+        profile.whop_cancelled       = ui.get('cancelled', False) or not active_access
         profile.whop_paused          = ui.get('paused', False)
         profile.whop_renews_at       = ui.get('renews_at', '')
         profile.billing_period_start = dates.get('period_start', '')
@@ -820,10 +1275,89 @@ def _admin_resync_user(profile: UserProfile) -> bool:
         profile.last_whop_sync_at    = timezone.now()
         profile.save()
         _upsert_invoice_from_membership(profile.user, plan, mem)
+        proxy_access.sync_proxy_access(profile, reason='admin whop resync')
         return True
     except Exception:
         log.exception('admin_resync_user failed for profile %s', profile.pk)
         return False
+
+
+def _user_proxy_credential(user):
+    try:
+        return user.proxy_credential
+    except ProxyCredential.DoesNotExist:
+        return None
+
+
+def _admin_proxy_rows(users):
+    rows = []
+    for user in users:
+        profile = _get_or_create_profile(user)
+        credential = _user_proxy_credential(user)
+        rows.append({
+            'user': user,
+            'profile': profile,
+            'credential': credential,
+            'http_line': proxy_access.connection_line(credential, 'http', 'ip_port_user_pass') if credential else '',
+            'socks_line': proxy_access.connection_line(credential, 'socks5', 'url') if credential else '',
+        })
+    return rows
+
+
+@admin_required
+def admin_proxy_settings(request):
+    from . import whop as wp
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+        if action == 'save_gateway':
+            host = request.POST.get('proxy_gateway_host', '').strip() or 'proxy.goldenproxies.com'
+            http_port = request.POST.get('proxy_gateway_http_port', '').strip() or '8001'
+            socks5_port = request.POST.get('proxy_gateway_socks5_port', '').strip() or '8002'
+            wp.set_db_setting('proxy_gateway_host', host)
+            wp.set_db_setting('proxy_gateway_http_port', http_port)
+            wp.set_db_setting('proxy_gateway_socks5_port', socks5_port)
+            messages.success(request, 'Global proxy gateway settings saved.')
+        elif action == 'sync_active':
+            issued = 0
+            disabled = 0
+            failed = 0
+            for user in User.objects.all().order_by('pk'):
+                profile = _get_or_create_profile(user)
+                before = _user_proxy_credential(user)
+                was_active = bool(before and before.is_active)
+                try:
+                    credential = proxy_access.sync_proxy_access(profile, reason='admin proxy sync')
+                    if credential and not was_active:
+                        issued += 1
+                    if not credential and was_active:
+                        disabled += 1
+                except Exception:
+                    failed += 1
+                    log.exception('admin_proxy_settings sync failed for user %s', user.pk)
+            msg = f'Proxy credentials synced. Issued/enabled: {issued}. Disabled: {disabled}.'
+            if failed:
+                msg += f' Failed: {failed}.'
+            messages.success(request, msg)
+        return redirect('admin_proxy_settings')
+
+    users = User.objects.select_related('profile').order_by('-date_joined')
+    rows = _admin_proxy_rows(users)
+    active_credentials = sum(1 for row in rows if row['credential'] and row['credential'].is_active)
+    issued_credentials = sum(1 for row in rows if row['credential'])
+    active_subscriptions = sum(1 for row in rows if row['profile'].has_active_subscription and row['user'].is_active)
+
+    resp = render(request, 'admin/proxy_settings.html', {
+        'is_admin': True,
+        'proxy_gateway': proxy_access.gateway_config(),
+        'rows': rows,
+        'total_users': len(rows),
+        'issued_credentials': issued_credentials,
+        'active_credentials': active_credentials,
+        'active_subscriptions': active_subscriptions,
+    })
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 @admin_required
@@ -987,8 +1521,8 @@ def _proxy_scrape(url, proxy_url=''):
         return ''
 
 
-DO_INFERENCE_BASE_URL = 'https://inference.do-ai.run/v1'
-DO_DEFAULT_MODEL = 'openai-gpt-oss-20b'
+LOCAL_GPT_DEFAULT_BASE_URL = 'http://127.0.0.1:8010/v1'
+LOCAL_GPT_DEFAULT_MODEL = 'gpt-oss-20b-mxfp4'
 
 # Strict allow-list for blog post HTML — matches the JSON_SCHEMA_HINT structure.
 # Anything outside these tags/attrs is stripped, preventing stored XSS from
@@ -1012,7 +1546,7 @@ def _sanitize_blog_html(html):
     try:
         import bleach
     except ImportError:
-        return html or ''
+        return escape(html or '')
     return bleach.clean(
         html or '',
         tags=_BLOG_ALLOWED_TAGS,
@@ -1035,39 +1569,55 @@ def _sanitize_text(value, maxlen=None):
     return cleaned
 
 
-def _call_do_inference(api_key, model, prompt, system=None, json_mode=True):
-    """Call DigitalOcean Inference (OpenAI-compatible) chat/completions endpoint."""
+def _local_gpt_settings() -> dict:
+    from . import whop as wp
+    base_url = (
+        wp._db_setting('local_gpt_base_url', '')
+        or os.environ.get('LOCAL_GPT_BASE_URL')
+        or os.environ.get('GPT_OSS_BASE_URL')
+        or LOCAL_GPT_DEFAULT_BASE_URL
+    ).rstrip('/')
+    model = (
+        wp._db_setting('local_gpt_model', '')
+        or os.environ.get('LOCAL_GPT_MODEL')
+        or os.environ.get('GPT_OSS_MODEL')
+        or LOCAL_GPT_DEFAULT_MODEL
+    )
+    return {'base_url': base_url, 'model': model}
+
+
+def _call_local_gpt(base_url, model, prompt, system=None, json_mode=True):
+    """Call the local OpenAI-compatible GPT-OSS chat/completions endpoint."""
     import requests as _req
     messages = []
     if system:
         messages.append({'role': 'system', 'content': system})
     messages.append({'role': 'user', 'content': prompt})
     payload = {
-        'model': model or DO_DEFAULT_MODEL,
+        'model': model or LOCAL_GPT_DEFAULT_MODEL,
         'messages': messages,
         'max_tokens': 4000,
         'temperature': 0.7,
     }
     if json_mode:
         payload['response_format'] = {'type': 'json_object'}
+    base_url = (base_url or LOCAL_GPT_DEFAULT_BASE_URL).rstrip('/')
+    headers = {'Content-Type': 'application/json'}
     resp = _req.post(
-        f'{DO_INFERENCE_BASE_URL}/chat/completions',
-        headers={
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json',
-        },
+        f'{base_url}/chat/completions',
+        headers=headers,
         json=payload,
-        timeout=180,
+        timeout=240,
     )
     if not resp.ok:
         # If JSON mode isn't supported by the model, retry without it
         if json_mode and resp.status_code in (400, 422):
             payload.pop('response_format', None)
             resp = _req.post(
-                f'{DO_INFERENCE_BASE_URL}/chat/completions',
-                headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+                f'{base_url}/chat/completions',
+                headers=headers,
                 json=payload,
-                timeout=180,
+                timeout=240,
             )
     resp.raise_for_status()
     data = resp.json()
@@ -1093,22 +1643,23 @@ def _extract_json(raw):
 def _save_generated_post(data, source_url, author):
     """Persist a model-generated JSON blob as a draft BlogPost. Returns the post."""
     from django.utils.text import slugify
-    slug = slugify(data.get('slug') or data.get('title') or 'post')[:180] or 'post'
+    title = _sanitize_text(data.get('title', 'Untitled'), maxlen=200) or 'Untitled'
+    slug = slugify(_sanitize_text(data.get('slug') or title or 'post', maxlen=200))[:180] or 'post'
     base_slug = slug
     n = 1
     while BlogPost.objects.filter(slug=slug).exists():
         slug = f'{base_slug}-{n}'
         n += 1
     return BlogPost.objects.create(
-        title=data.get('title', 'Untitled'),
+        title=title,
         slug=slug,
-        excerpt=data.get('excerpt', ''),
-        content=data.get('content', ''),
-        meta_description=data.get('meta_description', ''),
-        tags=data.get('tags', ''),
+        excerpt=_sanitize_text(data.get('excerpt', ''), maxlen=500),
+        content=_sanitize_blog_html(data.get('content', '')),
+        meta_description=_sanitize_text(data.get('meta_description', ''), maxlen=200),
+        tags=_sanitize_text(data.get('tags', ''), maxlen=200),
         status='draft',
         ai_generated=True,
-        source_url=source_url,
+        source_url=_sanitize_text(source_url, maxlen=500),
         author=author,
     )
 
@@ -1141,8 +1692,10 @@ def admin_blog_list(request):
 @admin_required
 def admin_blog_generate(request):
     from . import whop as wp
-    do_key       = wp._db_setting('do_api_key', '')
-    do_model     = wp._db_setting('do_model', '') or DO_DEFAULT_MODEL
+    ai_settings  = _local_gpt_settings()
+    ai_base_url  = ai_settings['base_url']
+    ai_model     = ai_settings['model']
+    ai_configured = bool(ai_base_url and ai_model)
     proxy_url    = wp._db_setting('proxy_url', '')
     proxy_configured = bool(proxy_url)
     error = None
@@ -1170,8 +1723,8 @@ def admin_blog_generate(request):
         keywords   = request.POST.get('keywords', '').strip()
         source_url = request.POST.get('source_url', '').strip()
 
-        if not do_key:
-            error = 'DO Inference API key is not configured. Go to API Settings first.'
+        if not ai_configured:
+            error = 'Local GPT-OSS endpoint is not configured. Go to API Settings first.'
         elif mode == 'rewrite':
             if not source_url:
                 error = 'A source URL is required to scrape & rewrite.'
@@ -1189,7 +1742,7 @@ def admin_blog_generate(request):
                             f'Respond ONLY with a single JSON object matching this shape:\n{JSON_SCHEMA_HINT}\n\n'
                             f'Source article:\n---\n{scraped[:14000]}\n---'
                         )
-                        raw = _call_do_inference(do_key, do_model, prompt, system=SYSTEM_PROMPT)
+                        raw = _call_local_gpt(ai_base_url, ai_model, prompt, system=SYSTEM_PROMPT)
                         data = _extract_json(raw)
                         post = _save_generated_post(data, source_url, request.user)
                         messages.success(request, f'Rewrote source URL into draft "{post.title}".')
@@ -1217,7 +1770,7 @@ def admin_blog_generate(request):
                             f'{topic}{kw_line}{research_block}\n\n'
                             f'Respond ONLY with a single JSON object matching this shape:\n{JSON_SCHEMA_HINT}'
                         )
-                        raw = _call_do_inference(do_key, do_model, prompt, system=SYSTEM_PROMPT)
+                        raw = _call_local_gpt(ai_base_url, ai_model, prompt, system=SYSTEM_PROMPT)
                         data = _extract_json(raw)
                         post = _save_generated_post(data, source_url, request.user)
                         messages.success(request, f'Blog post "{post.title}" generated and saved as draft.')
@@ -1227,8 +1780,9 @@ def admin_blog_generate(request):
 
     return render(request, 'admin/blog_generate.html', {
         'is_admin': True,
-        'do_configured': bool(do_key),
-        'do_model': do_model,
+        'ai_configured': ai_configured,
+        'ai_model': ai_model,
+        'ai_base_url': ai_base_url,
         'proxy_configured': proxy_configured,
         'error': error,
     })
@@ -1256,18 +1810,18 @@ def admin_blog_scrape(request):
 @admin_required
 @require_http_methods(['POST'])
 def admin_blog_rewrite(request):
-    """AJAX: rewrite the supplied text into a structured blog post via DO Inference."""
-    from . import whop as wp
+    """AJAX: rewrite the supplied text into a structured blog post via local GPT-OSS."""
     text = (request.POST.get('text') or '').strip()
     source_url = (request.POST.get('source_url') or '').strip()
     if not text:
         return JsonResponse({'ok': False, 'error': 'Source text is required.'}, status=400)
-    do_key = wp._db_setting('do_api_key', '')
-    do_model = wp._db_setting('do_model', '') or DO_DEFAULT_MODEL
-    if not do_key:
+    ai_settings = _local_gpt_settings()
+    ai_base_url = ai_settings['base_url']
+    ai_model = ai_settings['model']
+    if not ai_base_url or not ai_model:
         return JsonResponse({
             'ok': False,
-            'error': 'DO Inference API key is not configured. Go to API Settings.',
+            'error': 'Local GPT-OSS endpoint is not configured. Go to API Settings.',
         }, status=400)
     SYSTEM_PROMPT = (
         'You are a senior content writer for GoldenProxies, a premium residential and '
@@ -1296,7 +1850,7 @@ def admin_blog_rewrite(request):
             f'Respond ONLY with a single JSON object matching this shape:\n{JSON_SCHEMA_HINT}\n\n'
             f'Source article:\n---\n{text[:14000]}\n---'
         )
-        raw = _call_do_inference(do_key, do_model, prompt, system=SYSTEM_PROMPT)
+        raw = _call_local_gpt(ai_base_url, ai_model, prompt, system=SYSTEM_PROMPT)
         data = _extract_json(raw)
         # Sanitize the LLM output before sending it back to the browser:
         # text fields stripped of all HTML, content stripped to allow-list.
@@ -1371,13 +1925,13 @@ def admin_blog_edit(request, post_id=None):
 
     if request.method == 'POST':
         from django.utils.text import slugify
-        title            = request.POST.get('title', '').strip()
-        slug             = request.POST.get('slug', '').strip() or slugify(title)
-        excerpt          = request.POST.get('excerpt', '')
-        content          = request.POST.get('content', '')
-        meta_description = request.POST.get('meta_description', '')
-        tags             = request.POST.get('tags', '')
-        cover_image_url  = request.POST.get('cover_image_url', '')
+        title            = _sanitize_text(request.POST.get('title', ''), maxlen=200)
+        slug             = slugify(_sanitize_text(request.POST.get('slug', '') or title, maxlen=200)) or 'post'
+        excerpt          = _sanitize_text(request.POST.get('excerpt', ''), maxlen=500)
+        content          = _sanitize_blog_html(request.POST.get('content', ''))
+        meta_description = _sanitize_text(request.POST.get('meta_description', ''), maxlen=200)
+        tags             = _sanitize_text(request.POST.get('tags', ''), maxlen=200)
+        cover_image_url  = _sanitize_text(request.POST.get('cover_image_url', ''), maxlen=500)
         status           = request.POST.get('status', 'draft')
 
         if not title:
@@ -1420,6 +1974,12 @@ def admin_blog_toggle_status(request, post_id):
     if post.status == 'published':
         post.status = 'draft'
     else:
+        post.title = _sanitize_text(post.title, maxlen=200)
+        post.slug = slugify(_sanitize_text(post.slug or post.title, maxlen=200)) or post.slug
+        post.excerpt = _sanitize_text(post.excerpt, maxlen=500)
+        post.content = _sanitize_blog_html(post.content)
+        post.meta_description = _sanitize_text(post.meta_description, maxlen=200)
+        post.tags = _sanitize_text(post.tags, maxlen=200)
         post.status = 'published'
         if not post.published_at:
             post.published_at = timezone.now()
@@ -1444,21 +2004,138 @@ def admin_blog_delete(request, post_id):
 def admin_api_settings(request):
     from . import whop as wp
     if request.method == 'POST':
-        for key in ('do_api_key', 'do_model', 'proxy_url'):
-            val = request.POST.get(key, '').strip()
-            if val:
-                wp.set_db_setting(key, val)
+        base_url = request.POST.get('local_gpt_base_url', '').strip() or LOCAL_GPT_DEFAULT_BASE_URL
+        model = request.POST.get('local_gpt_model', '').strip() or LOCAL_GPT_DEFAULT_MODEL
+        wp.set_db_setting('local_gpt_base_url', base_url.rstrip('/'))
+        wp.set_db_setting('local_gpt_model', model)
+        wp.set_db_setting('proxy_url', request.POST.get('proxy_url', '').strip())
         messages.success(request, 'API settings saved.')
         return redirect('admin_api_settings')
 
+    ai_settings = _local_gpt_settings()
+
     return render(request, 'admin/api_settings.html', {
         'is_admin': True,
-        'do_set': bool(wp._db_setting('do_api_key', '')),
-        'do_model': wp._db_setting('do_model', '') or DO_DEFAULT_MODEL,
-        'do_default_model': DO_DEFAULT_MODEL,
+        'ai_base_url': ai_settings['base_url'],
+        'ai_model': ai_settings['model'],
+        'ai_configured': bool(ai_settings['base_url'] and ai_settings['model']),
+        'ai_default_base_url': LOCAL_GPT_DEFAULT_BASE_URL,
+        'ai_default_model': LOCAL_GPT_DEFAULT_MODEL,
         'proxy_url': wp._db_setting('proxy_url', ''),
         'proxy_set': bool(wp._db_setting('proxy_url', '')),
     })
+
+
+def _google_settings_response(request, payload: dict, status: int = 200):
+    if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
+        return JsonResponse(payload, status=status)
+    if payload.get('ok'):
+        messages.success(request, payload.get('message', 'Google Sign-In settings saved.'))
+    else:
+        messages.error(request, payload.get('error', 'Could not save Google Sign-In settings.'))
+    return redirect('admin_google_settings')
+
+
+def _truncate_middle(value: str, left: int = 12, right: int = 16) -> str:
+    value = value or ''
+    if len(value) <= left + right + 1:
+        return value
+    return f'{value[:left]}...{value[-right:]}'
+
+
+def _validate_google_origin(value: str) -> str:
+    value = (value or '').strip().rstrip('/')
+    if not value:
+        return ''
+    parsed = urllib.parse.urlparse(value)
+    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+        raise ValueError('Authorized origin must start with http:// or https://.')
+    if parsed.path not in ('', '/') or parsed.query or parsed.fragment:
+        raise ValueError('Authorized origin must be only the scheme and domain, for example https://goldenproxies.com.')
+    return f'{parsed.scheme}://{parsed.netloc}'
+
+
+def _validate_google_redirect(value: str) -> str:
+    value = (value or '').strip()
+    if not value:
+        return ''
+    parsed = urllib.parse.urlparse(value)
+    if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+        raise ValueError('Redirect URI must start with http:// or https://.')
+    if not parsed.path.endswith('/auth/google/callback/'):
+        raise ValueError('Redirect URI must end with /auth/google/callback/.')
+    return value
+
+
+@admin_required
+def admin_google_settings(request):
+    from . import whop as wp
+
+    if request.method == 'POST':
+        section = request.POST.get('section', '')
+        try:
+            if section == 'credentials':
+                client_id = request.POST.get('google_client_id', '').strip()
+                client_secret = request.POST.get('google_client_secret', '').strip()
+                wp.set_db_setting('google_oauth_client_id', client_id)
+                if client_secret:
+                    wp.set_db_setting('google_oauth_client_secret', client_secret)
+                return _google_settings_response(request, {'ok': True, 'message': 'Google OAuth credentials saved.'})
+
+            if section == 'urls':
+                origin = _validate_google_origin(request.POST.get('google_authorized_origin', ''))
+                redirect_uri = _validate_google_redirect(request.POST.get('google_redirect_uri', ''))
+                wp.set_db_setting('google_authorized_origin', origin)
+                wp.set_db_setting('google_redirect_uri', redirect_uri)
+                return _google_settings_response(request, {'ok': True, 'message': 'Google OAuth URLs saved.'})
+
+            if section == 'enabled':
+                enabled = request.POST.get('google_oauth_enabled') == '1'
+                cfg = _google_oauth_config()
+                if enabled and not (cfg['client_id'] and cfg['client_secret']):
+                    return _google_settings_response(request, {'ok': False, 'error': 'Save a Google Client ID and Secret before enabling Google sign-in.'}, status=400)
+                wp.set_db_setting('google_oauth_enabled', '1' if enabled else '0')
+                return _google_settings_response(request, {'ok': True, 'enabled': enabled, 'message': f'Google sign-in {"enabled" if enabled else "disabled"}.'})
+
+            if section == 'clear_secret':
+                wp.set_db_setting('google_oauth_client_secret', '')
+                wp.set_db_setting('google_oauth_enabled', '0')
+                return _google_settings_response(request, {'ok': True, 'message': 'Google OAuth secret cleared and sign-in disabled.'})
+
+            if section == 'reset_urls':
+                wp.set_db_setting('google_authorized_origin', '')
+                wp.set_db_setting('google_redirect_uri', '')
+                return _google_settings_response(request, {'ok': True, 'message': 'Google OAuth URLs reset to auto-detect.'})
+        except ValueError as e:
+            return _google_settings_response(request, {'ok': False, 'error': str(e)}, status=400)
+
+        return _google_settings_response(request, {'ok': False, 'error': 'Unknown settings section.'}, status=400)
+
+    cfg = _google_oauth_config()
+    configured = bool(cfg['client_id'] and cfg['client_secret'])
+    auto_origin = _google_auto_origin(request)
+    auto_redirect = request.build_absolute_uri('/auth/google/callback/')
+    origin_override = wp._db_setting('google_authorized_origin', '')
+    redirect_override = wp._db_setting('google_redirect_uri', '')
+
+    resp = render(request, 'admin/google_settings.html', {
+        'is_admin': True,
+        'client_id': cfg['client_id'],
+        'client_id_short': _truncate_middle(cfg['client_id']),
+        'secret_set': bool(cfg['client_secret']),
+        'secret_short': 'GOCSPX...' if cfg['client_secret'] else '',
+        'enabled': cfg['enabled'],
+        'configured': configured,
+        'ready': configured and cfg['enabled'],
+        'auto_origin': auto_origin,
+        'auto_redirect_uri': auto_redirect,
+        'origin_override': origin_override,
+        'redirect_override': redirect_override,
+        'effective_origin': origin_override or auto_origin,
+        'effective_redirect_uri': redirect_override or auto_redirect,
+    })
+    resp['Cache-Control'] = 'no-store'
+    return resp
 
 
 # ── Email settings ──────────────────────────────────────────────────────────
@@ -1477,7 +2154,13 @@ def _email_service_config(service: str) -> dict:
     Falls back to the global SMTP defaults when a service field is empty."""
     from . import whop as wp
     return {
-        'from_email': wp._db_setting(f'email_{service}_from', '') or wp._db_setting('smtp_from_email', '') or wp._db_setting('smtp_username', ''),
+        'from_email': (
+            wp._db_setting(f'email_{service}_from', '')
+            or wp._db_setting('resend_from_email', '')
+            or wp._db_setting('smtp_from_email', '')
+            or wp._db_setting('smtp_username', '')
+            or RESEND_DEFAULT_FROM
+        ),
         'from_name':  wp._db_setting(f'email_{service}_name', '') or wp._db_setting('smtp_from_name', 'GoldenProxies'),
         'reply_to':   wp._db_setting(f'email_{service}_replyto', ''),
     }

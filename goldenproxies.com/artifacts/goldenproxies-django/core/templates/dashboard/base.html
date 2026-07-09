@@ -39,7 +39,7 @@
       <a href="/dashboard/generator/" onclick="closeSidebar()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
         {% if current == 'dashboard_generator' %}bg-[#D4AF37]/12 text-[#D4AF37] font-semibold{% else %}text-gray-600 hover:text-gray-900 hover:bg-[#D4AF37]/6{% endif %}">
         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        Proxy Generator
+        Proxy Access
       </a>
 
       <a href="/dashboard/stats/" onclick="closeSidebar()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
@@ -108,6 +108,11 @@
         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
         Whop Settings
       </a>
+      <a href="/admin-panel/proxy-settings/" onclick="closeSidebar()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
+        {% if current == 'admin_proxy_settings' %}bg-[#D4AF37]/12 text-[#D4AF37] font-semibold{% else %}text-[#D4AF37]/70 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37]{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        Proxy Settings
+      </a>
       <a href="/admin-panel/blog/" onclick="closeSidebar()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
         {% if current == 'admin_blog_list' or current == 'admin_blog_edit' or current == 'admin_blog_new' %}bg-[#D4AF37]/12 text-[#D4AF37] font-semibold{% else %}text-[#D4AF37]/70 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37]{% endif %}">
         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -122,6 +127,11 @@
         {% if current == 'admin_api_settings' %}bg-[#D4AF37]/12 text-[#D4AF37] font-semibold{% else %}text-[#D4AF37]/70 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37]{% endif %}">
         <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
         API Settings
+      </a>
+      <a href="/admin-panel/google-settings/" onclick="closeSidebar()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
+        {% if current == 'admin_google_settings' %}bg-[#D4AF37]/12 text-[#D4AF37] font-semibold{% else %}text-[#D4AF37]/70 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37]{% endif %}">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21v-2a4 4 0 00-4-4H9a4 4 0 00-4 4v2"/></svg>
+        Google Sign-In
       </a>
       <a href="/admin-panel/email-settings/" onclick="closeSidebar()" class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all
         {% if current == 'admin_email_settings' %}bg-[#D4AF37]/12 text-[#D4AF37] font-semibold{% else %}text-[#D4AF37]/70 hover:bg-[#D4AF37]/8 hover:text-[#D4AF37]{% endif %}">

@@ -1,26 +1,36 @@
 {% extends "dashboard/base.html" %}
-{% block title %}Proxy Generator — GoldenProxies{% endblock %}
+{% block title %}Proxy Access — GoldenProxies{% endblock %}
 {% block dashboard_content %}
-<div class="max-w-4xl mx-auto space-y-6">
-  <div>
-    <h1 class="text-2xl font-serif font-bold text-gray-900">Proxy Generator</h1>
-    <p class="text-gray-500 text-sm mt-1">Configure and generate your custom proxy list.</p>
+<div class="max-w-5xl mx-auto space-y-6">
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-serif font-bold text-gray-900">Proxy Access</h1>
+      <p class="text-gray-500 text-sm mt-1">Use your GoldenProxies gateway credentials for HTTP or SOCKS5 connections.</p>
+    </div>
+    <a href="/billing/" class="glass-btn px-4 py-2 rounded-xl text-sm font-semibold">Manage Billing</a>
   </div>
 
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="glass-card px-4 py-3 rounded-xl text-sm font-medium
+      {% if msg.tags == 'success' %}border-green-400/40 text-green-700 bg-green-50/60
+      {% elif msg.tags == 'error' %}border-red-400/40 text-red-700 bg-red-50/60
+      {% else %}border-[#D4AF37]/40 text-[#8A6800]{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if credential and credential.is_active %}
   <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
     <div class="lg:col-span-2">
-      <div class="glass-card rounded-2xl p-6 shadow-md">
-        <h2 class="font-semibold text-gray-900 mb-5 text-sm uppercase tracking-wider">Configuration</h2>
+      <div class="glass-card rounded-2xl p-6 shadow-md space-y-5">
+        <div>
+          <h2 class="font-semibold text-gray-900 text-sm uppercase tracking-wider">Connection Format</h2>
+          <p class="text-xs text-gray-500 mt-1">Changing this only changes the copied output format.</p>
+        </div>
         <form method="post" class="space-y-4">
           {% csrf_token %}
-          <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Proxy Type</label>
-            <select name="proxy_type" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition">
-              <option value="residential" {% if proxy_type == 'residential' %}selected{% endif %}>Residential</option>
-              <option value="datacenter" {% if proxy_type == 'datacenter' %}selected{% endif %}>Datacenter</option>
-              <option value="ipv6" {% if proxy_type == 'ipv6' %}selected{% endif %}>IPv6</option>
-            </select>
-          </div>
           <div>
             <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Protocol</label>
             <select name="protocol" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition">
@@ -29,83 +39,102 @@
             </select>
           </div>
           <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Format</label>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Output Format</label>
             <select name="format" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition">
-              <option value="ip_port_user_pass" {% if fmt == 'ip_port_user_pass' %}selected{% endif %}>IP:Port:User:Pass</option>
-              <option value="user_pass_at_ip_port" {% if fmt == 'user_pass_at_ip_port' %}selected{% endif %}>User:Pass@IP:Port</option>
-              <option value="ip_port" {% if fmt == 'ip_port' %}selected{% endif %}>IP:Port</option>
+              <option value="ip_port_user_pass" {% if fmt == 'ip_port_user_pass' %}selected{% endif %}>Host:Port:User:Pass</option>
+              <option value="user_pass_at_ip_port" {% if fmt == 'user_pass_at_ip_port' %}selected{% endif %}>User:Pass@Host:Port</option>
+              <option value="url" {% if fmt == 'url' %}selected{% endif %}>Protocol URL</option>
+              <option value="ip_port" {% if fmt == 'ip_port' %}selected{% endif %}>Host:Port Only</option>
             </select>
           </div>
-          <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Country</label>
-            <select name="country" class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition">
-              {% for c in countries %}
-              <option value="{{ c }}" {% if c == country %}selected{% endif %}>{{ c }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Count (max 100)</label>
-            <input type="number" name="count" min="1" max="100" value="{{ count }}"
-              class="w-full px-4 py-2.5 rounded-xl border border-[#D4AF37]/20 bg-white/60 backdrop-blur-sm text-gray-800 text-sm focus:outline-none focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 transition">
-          </div>
-          <button type="submit" class="gold-btn w-full py-3 rounded-xl text-sm transition-all shadow-md mt-2">
-            ⚡ Generate Proxies
-          </button>
+          <button type="submit" class="gold-btn w-full py-3 rounded-xl text-sm transition-all shadow-md">Update Format</button>
         </form>
       </div>
     </div>
 
     <div class="lg:col-span-3">
-      <div class="glass-card rounded-2xl p-6 shadow-md h-full flex flex-col">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-semibold text-gray-900 text-sm uppercase tracking-wider">Generated Proxies</h2>
-          {% if proxies %}
-          <span class="text-xs font-bold text-[#D4AF37] bg-[#D4AF37]/10 px-2.5 py-1 rounded-full">{{ proxies|length }} proxies</span>
-          {% endif %}
+      <div class="glass-card rounded-2xl p-6 shadow-md space-y-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 class="font-semibold text-gray-900 text-sm uppercase tracking-wider">Active Proxy Credentials</h2>
+            <p class="text-xs text-gray-500 mt-1">These credentials are disabled automatically if your paid subscription ends.</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-300">Active</span>
         </div>
-        {% if proxies %}
-        <div class="flex-1 flex flex-col gap-3">
-          <textarea id="proxy-output" readonly rows="14"
-            class="flex-1 w-full px-4 py-3 rounded-xl border border-[#D4AF37]/15 bg-[#FAFAF8]/80 text-gray-700 text-xs font-mono resize-none focus:outline-none focus:border-[#D4AF37]">{% for p in proxies %}{{ p }}{% if not forloop.last %}
-{% endif %}{% endfor %}</textarea>
-          <div class="flex gap-3">
-            <button onclick="copyProxies()" class="flex-1 py-2.5 rounded-xl text-sm font-semibold gold-btn transition-all">
-              📋 Copy All
-            </button>
-            <button onclick="downloadProxies()" class="flex-1 py-2.5 rounded-xl text-sm font-semibold glass-card border border-[#D4AF37]/20 text-gray-700 hover:border-[#D4AF37]/50 transition-all">
-              ⬇ Download .txt
-            </button>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="rounded-xl border border-[#D4AF37]/15 bg-white/50 p-3">
+            <p class="text-xs text-gray-400 mb-1">Host</p>
+            <p class="font-mono text-sm text-gray-800 break-all">{{ proxy_gateway.host }}</p>
+          </div>
+          <div class="rounded-xl border border-[#D4AF37]/15 bg-white/50 p-3">
+            <p class="text-xs text-gray-400 mb-1">Port</p>
+            <p class="font-mono text-sm text-gray-800">{% if protocol == 'socks5' %}{{ proxy_gateway.socks5_port }}{% else %}{{ proxy_gateway.http_port }}{% endif %}</p>
+          </div>
+          <div class="rounded-xl border border-[#D4AF37]/15 bg-white/50 p-3">
+            <p class="text-xs text-gray-400 mb-1">Username</p>
+            <p class="font-mono text-sm text-gray-800 break-all">{{ credential.username }}</p>
+          </div>
+          <div class="rounded-xl border border-[#D4AF37]/15 bg-white/50 p-3">
+            <p class="text-xs text-gray-400 mb-1">Password</p>
+            <p class="font-mono text-sm text-gray-800 break-all">{{ credential.password }}</p>
           </div>
         </div>
-        {% else %}
-        <div class="flex-1 flex items-center justify-center">
-          <div class="text-center text-gray-400">
-            <div class="text-4xl mb-3 opacity-30">⚡</div>
-            <p class="text-sm">Configure options and click Generate</p>
+
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1.5">Copyable Connection String</label>
+          <textarea id="proxy-output" readonly rows="3"
+            class="w-full px-4 py-3 rounded-xl border border-[#D4AF37]/15 bg-[#FAFAF8]/80 text-gray-700 text-xs font-mono resize-none focus:outline-none focus:border-[#D4AF37]">{{ connection_line }}</textarea>
+          <div class="flex gap-3 mt-3">
+            <button type="button" onclick="copyProxy(this)" class="flex-1 py-2.5 rounded-xl text-sm font-semibold gold-btn transition-all">Copy</button>
+            <button type="button" onclick="downloadProxy()" class="flex-1 py-2.5 rounded-xl text-sm font-semibold glass-card border border-[#D4AF37]/20 text-gray-700 hover:border-[#D4AF37]/50 transition-all">Download .txt</button>
           </div>
         </div>
-        {% endif %}
+
+        <div class="rounded-xl bg-[#D4AF37]/8 border border-[#D4AF37]/20 px-4 py-3 text-xs text-gray-600 leading-relaxed">
+          Route customer traffic to this GoldenProxies gateway only. Do not share any PlainProxies upstream credentials with end users.
+        </div>
       </div>
     </div>
   </div>
+  {% else %}
+  <div class="glass-card rounded-3xl p-10 text-center shadow-md">
+    <div class="w-16 h-16 rounded-2xl bg-[#D4AF37]/10 flex items-center justify-center mx-auto mb-5">
+      <svg class="w-8 h-8 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+    </div>
+    <h2 class="text-xl font-serif font-bold text-gray-900 mb-2">Proxy access is locked</h2>
+    <p class="text-sm text-gray-500 max-w-md mx-auto mb-6">A paid Starter, Pro, or Business subscription is required before GoldenProxies issues proxy credentials.</p>
+    <a href="/billing/" class="gold-btn inline-block px-6 py-3 rounded-xl text-sm font-semibold">Choose a Plan</a>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
-function copyProxies() {
+function copyProxy(btn) {
   const ta = document.getElementById('proxy-output');
   ta.select();
-  document.execCommand('copy');
-  const btn = event.target;
-  btn.textContent = '✓ Copied!';
-  setTimeout(() => btn.textContent = '📋 Copy All', 2000);
+  ta.setSelectionRange(0, ta.value.length);
+  const done = () => {
+    const old = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = old; }, 2000);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(ta.value).then(done).catch(() => {
+      document.execCommand('copy');
+      done();
+    });
+  } else {
+    document.execCommand('copy');
+    done();
+  }
 }
-function downloadProxies() {
+function downloadProxy() {
   const text = document.getElementById('proxy-output').value;
   const a = document.createElement('a');
   a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
-  a.download = 'proxies.txt';
+  a.download = 'goldenproxies-proxy.txt';
   a.click();
 }
 </script>

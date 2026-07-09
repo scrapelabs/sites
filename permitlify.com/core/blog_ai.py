@@ -1,10 +1,10 @@
 """
 AI clients for the admin blog editor.
 
-Two thin urllib-based wrappers (no extra dependencies):
+Two thin wrappers:
 
-* ``firecrawl_scrape(url)`` — POST to firecrawl.dev/v1/scrape, returns the
-  cleaned markdown + metadata (title, description, ogImage, ...).
+* ``playwright_scrape(url)`` — renders the URL locally with Playwright and
+  returns readable text + metadata (title, description, ogImage, ...).
 * ``inference_rewrite(scraped, hint)`` — runs the scraped content through the
   local GPT-OSS endpoint (the same OpenAI-compatible endpoint the scrapers use, via
   ``core.scrapers.base.oss_complete``) and asks the model to return a single
@@ -20,18 +20,14 @@ from __future__ import annotations
 import json
 import logging
 import re
-import time
 import unicodedata
-import urllib.error
-import urllib.request
 
-from . import db
 from .db import get_system_setting
+from .browser_fetch import BrowserFetchError, fetch_rendered_text
 
 log = logging.getLogger(__name__)
 
 
-FIRECRAWL_URL = 'https://api.firecrawl.dev/v1/scrape'
 # Default local GPT-OSS model for blog rewriting. The admin can
 # override this per-install via the ``blog_rewrite_model`` system_setting.
 DEFAULT_MODEL = 'gpt-oss-20b-mxfp4'
@@ -42,90 +38,17 @@ class BlogAIError(Exception):
     safe to surface directly to the admin UI."""
 
 
-# ─────────────────────────── Firecrawl ────────────────────────────────
+# ─────────────────────────── Playwright scraping ──────────────────────
 
-def firecrawl_scrape(url: str, timeout: int = 60) -> dict:
-    """Scrape ``url`` via Firecrawl and return ``{markdown, metadata}``.
+def playwright_scrape(url: str, timeout: int = 60) -> dict:
+    """Scrape ``url`` via local Playwright and return ``{markdown, metadata}``.
 
     Raises ``BlogAIError`` with a human-readable message on any failure.
     """
-    url = (url or '').strip()
-    if not url:
-        raise BlogAIError('URL is required')
-    if not (url.startswith('http://') or url.startswith('https://')):
-        raise BlogAIError('URL must start with http:// or https://')
-
-    api_key = (get_system_setting('firecrawl_api_key') or '').strip()
-    if not api_key:
-        raise BlogAIError('Firecrawl API key is not configured. Add it in Blog AI Settings.')
-
-    body = json.dumps({
-        'url': url,
-        'formats': ['markdown'],
-        'onlyMainContent': True,
-    }).encode('utf-8')
-
-    req = urllib.request.Request(
-        FIRECRAWL_URL,
-        data=body,
-        method='POST',
-        headers={
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        },
-    )
-
-    _t0 = time.monotonic()
-    _status = None
-    _bytes = 0
-    _err = None
     try:
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                _status = resp.getcode()
-                raw_body = resp.read()
-                _bytes = len(raw_body)
-                payload = json.loads(raw_body.decode('utf-8'))
-        except urllib.error.HTTPError as e:
-            _status = e.code
-            try:
-                err_body = json.loads(e.read().decode('utf-8'))
-                err_msg = err_body.get('error') or err_body.get('message') or str(err_body)
-            except Exception:
-                err_msg = f'HTTP {e.code}'
-            _err = f'Firecrawl error: {err_msg}'
-            raise BlogAIError(_err) from e
-        except urllib.error.URLError as e:
-            _err = f'Firecrawl network error: {e.reason}'
-            raise BlogAIError(_err) from e
-        except Exception as e:
-            _err = f'Firecrawl failed: {e}'
-            raise BlogAIError(_err) from e
-
-        if not payload.get('success', True):
-            _err = f"Firecrawl reported failure: {payload.get('error', 'unknown')}"
-            raise BlogAIError(_err)
-
-        data = payload.get('data') or {}
-        markdown = (data.get('markdown') or '').strip()
-        metadata = data.get('metadata') or {}
-        if not markdown:
-            _err = 'Firecrawl returned no markdown content for that URL.'
-            raise BlogAIError(_err)
-    finally:
-        try:
-            db.record_firecrawl_call(
-                source='blog', mode='blog', url=url,
-                status_code=_status,
-                latency_ms=int((time.monotonic() - _t0) * 1000),
-                response_bytes=_bytes or None,
-                error=_err,
-            )
-        except Exception:
-            log.exception('blog firecrawl usage recording failed')
-
-    return {'markdown': markdown, 'metadata': metadata}
+        return fetch_rendered_text(url, timeout=timeout)
+    except BrowserFetchError as e:
+        raise BlogAIError(str(e)) from e
 
 
 # ──────────────────────── DO Serverless Inference ─────────────────────

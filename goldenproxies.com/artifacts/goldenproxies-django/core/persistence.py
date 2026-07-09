@@ -1,10 +1,9 @@
-"""TinyDB-backed persistence layer.
+"""TinyDB-backed persistence layer for non-secret mirrored content.
 
-Mirrors every important Django model into a TinyDB JSON file
-(`data/persistent.json`) so data survives `db.sqlite3` wipes on workflow
-restart. Mapping is 1:1 with Django table names so migrating to PostgreSQL
-later is just: point Django at Postgres, run `restore_from_tinydb.py` once,
-optionally drop this layer.
+Only models explicitly registered by ``core.signals`` are mirrored into the
+TinyDB JSON file (``data/persistent.json``). Do not register users, password
+hashes, system/API settings, proxy credentials, checkout consent rows, invoices,
+or support/customer PII here.
 
 Layout:
 - One TinyDB "table" per Django model (named after `model._meta.db_table`).

@@ -69,7 +69,7 @@ log = logging.getLogger('cron')
 def _wait_for_run(run_id: int, *, max_wait_seconds: int = 1800) -> dict | None:
     """Block until the given run row reports ``finished_at``.
 
-    Caps the wait at ``max_wait_seconds`` so a stuck Firecrawl request
+    Caps the wait at ``max_wait_seconds`` so a stuck scrape request
     cannot pin the cron job indefinitely — we let the daemon thread
     keep going and move on to the next scraper.
     """

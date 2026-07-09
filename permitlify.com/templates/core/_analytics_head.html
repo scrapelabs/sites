@@ -3,8 +3,7 @@ Marketing analytics & pixel snippets.
 
 Included near the end of the page head on BOTH public_base.html and
 the logged-in base.html so every page is tracked. Pixel IDs come from
-the `marketing` context processor (which reads them from system_settings
-— admin manages at /admin-panel/marketing/analytics/).
+the `marketing` context processor, which reads them from system_settings.
 
 Every snippet is guarded with an "if marketing.SOME_ID" check so the
 head stays empty (and Lighthouse-clean) until an admin actually pastes
