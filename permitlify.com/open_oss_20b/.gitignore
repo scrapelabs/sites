@@ -1,0 +1,6 @@
+# Downloaded runtime assets and machine-local credentials are not source code.
+llama/
+models/
+logs/
+.secrets/
+__pycache__/

@@ -1,7 +1,10 @@
 from django.urls import path
 from . import views
+from .ai_api import authorize as ai_authorize
 
 urlpatterns = [
+    # Caddy forward_auth only; the public proxy blocks direct access to this path.
+    path('_internal/ai-auth/', ai_authorize, name='ai_authorize'),
     # SEO endpoints — must be at root so crawlers find them at the conventional
     # paths (/robots.txt, /sitemap.xml). Both are cached for an hour.
     path('robots.txt', views.robots_txt, name='robots_txt'),

@@ -29,7 +29,7 @@
         "sqlite:///C:/Users/Administrator/Desktop/github/sites/goldenproxies.com/artifacts/goldenproxies-django/db.sqlite3",
         "list,read"
       ],
-      "enabled": true
+      "enabled": false
     }
   }
 }

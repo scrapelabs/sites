@@ -30,8 +30,45 @@
 #  Lists every domain that should reach this app (live domain is permitlify.com;
 #  permitdaily.com kept too in case it also points here).
 http://permitlify.com, http://www.permitlify.com, http://permitdaily.com, http://www.permitdaily.com {
-        reverse_proxy 127.0.0.1:8000 {
-                header_up X-Forwarded-Proto https
+        # This endpoint is reached only by the loopback forward_auth subrequest.
+        @ai_auth_internal path /_internal/ai-auth /_internal/ai-auth/*
+        handle @ai_auth_internal {
+                respond 404
+        }
+
+        @ai path /ai /ai/*
+        handle @ai {
+                route {
+                        header Cache-Control "no-store"
+                        forward_auth 127.0.0.1:8000 {
+                                uri /_internal/ai-auth/
+                                header_up X-Forwarded-Proto https
+                                header_up -Cookie
+                        }
+
+                        # Publish API calls only, never the model UI/admin routes.
+                        @ai_api expression `(method('GET') && path('/ai/v1/models')) || (method('POST') && path('/ai/v1/chat/completions', '/ai/v1/responses'))`
+                        handle @ai_api {
+                                request_body {
+                                        max_size 1MB
+                                }
+                                uri strip_prefix /ai
+                                reverse_proxy 127.0.0.1:8010 {
+                                        header_up -Authorization
+                                        header_up -Cookie
+                                        header_down -Access-Control-Allow-Origin
+                                        header_down -Access-Control-Allow-Credentials
+                                        flush_interval -1
+                                }
+                        }
+                        respond 404
+                }
+        }
+
+        handle {
+                reverse_proxy 127.0.0.1:8000 {
+                        header_up X-Forwarded-Proto https
+                }
         }
 }
 
